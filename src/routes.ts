@@ -4,32 +4,39 @@ import { validateAndCreateSession, verifySession, type SessionPayload } from './
 import { submitCompact, getCompactsByAddress, getCompactByHash, type CompactSubmission, type CompactRecord } from './compact';
 
 // Authentication middleware
-async function authenticateRequest(
-  request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
-  reply: FastifyReply
-): Promise<void> {
-  const sessionId = request.headers['x-session-id'];
-  if (!sessionId) {
-    reply.code(401).send({ error: 'Session ID required' });
-    return;
-  }
+function createAuthMiddleware(server: FastifyInstance) {
+  return async function authenticateRequest(
+    request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const sessionId = request.headers['x-session-id'];
+    if (!sessionId) {
+      reply.code(401).send({ error: 'Session ID required' });
+      return;
+    }
 
-  try {
-    const session = await verifySession(server, sessionId);
-    if (!session) {
+    try {
+      const session = await verifySession(server, sessionId);
+      if (!session) {
+        reply.code(401).send({ error: 'Invalid session' });
+        return;
+      }
+    } catch (err) {
+      server.log.error('Session verification failed:', err);
       reply.code(401).send({ error: 'Invalid session' });
       return;
     }
-  } catch (err) {
-    server.log.error('Session verification failed:', err);
-    reply.code(401).send({ error: 'Invalid session' });
-    return;
-  }
+  };
 }
 
 export async function setupRoutes(server: FastifyInstance): Promise<void> {
+  const authenticateRequest = createAuthMiddleware(server);
+
   // Health check endpoint
   server.get('/health', async (): Promise<{ status: string; allocatorAddress: string; signingAddress: string }> => {
+    if (!process.env.ALLOCATOR_ADDRESS || !process.env.SIGNING_ADDRESS) {
+      throw new Error('Required environment variables are not set');
+    }
     return {
       status: 'healthy',
       allocatorAddress: process.env.ALLOCATOR_ADDRESS,
@@ -67,8 +74,8 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       );
 
       return { payload };
-    } catch {
-      reply.code(400).send({ error: 'Invalid address' });
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Invalid address' };
     }
   });
 
@@ -81,16 +88,14 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
   }>('/session', async (
     request: FastifyRequest<{ Body: { signature: string; payload: SessionPayload } }>,
     reply: FastifyReply
-  ): Promise<{ session: SessionPayload } | { error: string }> => {
+  ): Promise<{ session: { id: string; address: string; expiresAt: string } } | { error: string }> => {
     try {
       const { signature, payload } = request.body;
       const session = await validateAndCreateSession(server, signature, payload);
-      reply.send({ session });
+      return { session };
     } catch (err) {
       server.log.error('Session creation failed:', err);
-      reply.status(400).send({ 
-        error: err instanceof Error ? err.message : 'Failed to create session' 
-      });
+      return { error: err instanceof Error ? err.message : 'Failed to create session' };
     }
   });
 
@@ -107,20 +112,24 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       reply: FastifyReply
     ): Promise<{ result: { hash: string; signature: string } } | { error: string }> => {
       try {
-        const session = await server.db.query(
+        const session = await server.db.query<{ address: string }>(
           'SELECT address FROM sessions WHERE id = $1',
           [request.headers['x-session-id']]
         );
+
+        if (!session.rows.length) {
+          return { error: 'Session not found' };
+        }
 
         const result = await submitCompact(
           server,
           request.body,
           session.rows[0].address
         );
-        reply.send({ result });
+        return { result };
       } catch (err) {
         server.log.error('Error submitting compact:', err);
-        reply.status(500).send({ error: 'Internal server error' });
+        return { error: 'Internal server error' };
       }
     });
 
@@ -130,16 +139,20 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       reply: FastifyReply
     ): Promise<{ compacts: CompactRecord[] } | { error: string }> => {
       try {
-        const session = await server.db.query(
+        const session = await server.db.query<{ address: string }>(
           'SELECT address FROM sessions WHERE id = $1',
           [request.headers['x-session-id']]
         );
 
+        if (!session.rows.length) {
+          return { error: 'Session not found' };
+        }
+
         const compacts = await getCompactsByAddress(server, session.rows[0].address);
-        reply.send({ compacts });
+        return { compacts };
       } catch (err) {
         server.log.error('Error retrieving compacts:', err);
-        reply.status(500).send({ error: 'Internal server error' });
+        return { error: 'Internal server error' };
       }
     });
 
@@ -158,14 +171,13 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         const compact = await getCompactByHash(server, chainId, claimHash);
         
         if (!compact) {
-          reply.status(404).send({ error: 'Compact not found' });
-          return;
+          return { error: 'Compact not found' };
         }
 
-        reply.send({ compact });
+        return { compact };
       } catch (err) {
         server.log.error('Error retrieving compact:', err);
-        reply.status(500).send({ error: 'Internal server error' });
+        return { error: 'Internal server error' };
       }
     });
   });
