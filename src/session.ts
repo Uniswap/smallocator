@@ -39,12 +39,16 @@ export async function validateAndCreateSession(
 
   // Verify the signature
   const message = formatMessage(payload);
-  const recoveredAddress = await verifyMessage({
+  if (!signature.startsWith('0x')) {
+    throw new Error('Invalid signature format: must start with 0x');
+  }
+  const isValid = await verifyMessage({
+    address: getAddress(payload.address),
     message,
-    signature,
+    signature: signature as `0x${string}`,
   });
 
-  if (getAddress(recoveredAddress) !== getAddress(payload.address)) {
+  if (!isValid) {
     throw new Error('Invalid signature');
   }
 
@@ -75,7 +79,7 @@ export async function verifySession(
   sessionId: string,
   address?: string
 ): Promise<boolean> {
-  const result = await server.db.query(
+  const result = await server.db.query<{ address: string; expires_at: string }>(
     'SELECT address, expires_at FROM sessions WHERE id = $1',
     [sessionId]
   );
@@ -126,25 +130,18 @@ async function verifyNonce(
   domain: string,
   nonce: string
 ): Promise<boolean> {
-  const result = await server.db.query(
-    'SELECT created_at FROM nonces WHERE domain = $1 AND nonce = $2',
+  const result = await server.db.query<{ count: number }>(
+    'SELECT COUNT(*) as count FROM nonces WHERE domain = $1 AND nonce = $2',
     [domain, nonce]
   );
 
-  if (result.rows.length === 0) {
-    return false;
-  }
-
-  // Check if nonce is not too old (e.g., 5 minutes)
-  const createdAt = new Date(result.rows[0].created_at);
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-  
-  return createdAt > fiveMinutesAgo;
+  // Return true if nonce doesn't exist (hasn't been used)
+  return result.rows[0].count === 0;
 }
 
 function formatMessage(payload: SessionPayload): string {
   return `${payload.domain} wants you to sign in with your Ethereum account:
-${payload.address}
+${getAddress(payload.address)}
 
 ${payload.statement}
 
