@@ -18,6 +18,9 @@
     "check-test-files": "node scripts/check-test-files.js"
   },
   "lint-staged": {
+    "**/*.{test,spec}.ts": [
+      "node scripts/check-test-files.js"
+    ],
     "src/**/!(*d).ts": [
       "prettier --write",
       "eslint --fix",
@@ -28,9 +31,6 @@
     "*.{json,md}": [
       "prettier --write",
       "prettier --check"
-    ],
-    "**/*.{test,spec}.ts": [
-      "npm run check-test-files"
     ]
   },
   "dependencies": {
