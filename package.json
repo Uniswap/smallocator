@@ -25,7 +25,7 @@
       "prettier --write",
       "eslint --fix",
       "prettier --check",
-      "eslint",
+      "eslint --max-warnings 0",
       "jest --bail --findRelatedTests"
     ],
     "*.{json,md}": [

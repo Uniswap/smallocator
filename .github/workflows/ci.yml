@@ -49,7 +49,7 @@ jobs:
       run: pnpm prettier --check "src/**/!(*d).ts"
 
     - name: Lint
-      run: pnpm lint
+      run: pnpm eslint . --max-warnings 0
 
     - name: Verify no tests were removed
       run: pnpm check-test-files
