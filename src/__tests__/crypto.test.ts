@@ -22,6 +22,10 @@ describe('crypto', () => {
 
       // Verify it's a valid hex string of correct length (32 bytes = 64 chars + '0x')
       expect(hash).toMatch(/^0x[0-9a-f]{64}$/i);
+
+      // Verify deterministic - should generate same hash for same input
+      const hash2 = await generateClaimHash(testCompact, chainId);
+      expect(hash).toBe(hash2);
     });
   });
 });
