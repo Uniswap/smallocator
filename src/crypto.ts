@@ -4,10 +4,10 @@ import {
   hashTypedData,
   createWalletClient,
   http,
-  privateKeyToAccount,
   compactSignatureToHex,
   hexToCompactSignature
 } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { type CompactMessage } from './validation';
 
 // EIP-712 domain for The Compact
@@ -65,33 +65,33 @@ export async function generateClaimHash(
   if (!compact.witnessTypeString || !compact.witnessHash) {
     // Generate hash without witness data
     return hashTypedData({
-      domain: { ...DOMAIN, chainId },
+      domain: { ...DOMAIN, chainId: Number(chainId) },
       types: COMPACT_TYPES,
       primaryType: 'Compact',
       message: {
         arbiter: normalizedArbiter,
         sponsor: normalizedSponsor,
-        nonce: compact.nonce,
-        expires: compact.expires,
-        id: compact.id,
+        nonce: BigInt(compact.nonce),
+        expires: BigInt(compact.expires),
+        id: BigInt(compact.id),
         amount: BigInt(compact.amount)
       }
     });
   } else {
     // Generate hash with witness data
     return hashTypedData({
-      domain: { ...DOMAIN, chainId },
+      domain: { ...DOMAIN, chainId: Number(chainId) },
       types: COMPACT_WITH_WITNESS_TYPES,
       primaryType: 'Compact',
       message: {
         arbiter: normalizedArbiter,
         sponsor: normalizedSponsor,
-        nonce: compact.nonce,
-        expires: compact.expires,
-        id: compact.id,
+        nonce: BigInt(compact.nonce),
+        expires: BigInt(compact.expires),
+        id: BigInt(compact.id),
         amount: BigInt(compact.amount),
         witnessTypeString: compact.witnessTypeString,
-        witnessHash: compact.witnessHash as Hex
+        witnessHash: compact.witnessHash
       }
     });
   }
@@ -108,8 +108,8 @@ export async function signCompact(
   });
 
   // Convert to compact EIP-2098 signature
-  const { r, s, yParity } = hexToCompactSignature(fullSignature);
-  return compactSignatureToHex({ r, s, yParity });
+  const sig = hexToCompactSignature(fullSignature);
+  return compactSignatureToHex(sig);
 }
 
 export function getSigningAddress(): string {
