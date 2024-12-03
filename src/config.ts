@@ -1,7 +1,7 @@
 export const config = {
   envSchema: {
     type: 'object',
-    required: ['PRIVATE_KEY'],
+    required: ['PRIVATE_KEY', 'ALLOCATOR_ADDRESS', 'SIGNING_ADDRESS'],
     properties: {
       PORT: {
         type: 'string',
@@ -20,7 +20,13 @@ export const config = {
       },
       INDEXER_URL: {
         type: 'string',
-        default: 'https://api.thegraph.com/subgraphs/name/uniswap/the-compact'
+        default: 'https://the-compact-indexer-2.ponder-dev.com/'
+      },
+      ALLOCATOR_ADDRESS: {
+        type: 'string'
+      },
+      SIGNING_ADDRESS: {
+        type: 'string'
       }
     }
   }
