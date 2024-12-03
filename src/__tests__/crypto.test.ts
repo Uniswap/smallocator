@@ -24,16 +24,4 @@ describe('crypto', () => {
       expect(hash).toMatch(/^0x[0-9a-f]{64}$/i);
     });
   });
-
-  describe('A', () => {
-    it('B', async () => {
-      expect(true).toBe(true);
-    });
-  });
-
-  describe('C', () => {
-    it('D', async () => {
-      expect(true).toBe(true);
-    });
-  });
 });
