@@ -8,7 +8,9 @@ import {
   SignTypedDataParameters,
   createWalletClient,
   http,
-  privateKeyToAccount
+  privateKeyToAccount,
+  compactSignatureToHex,
+  hexToCompactSignature
 } from 'viem';
 import { type CompactMessage } from './validation';
 
@@ -103,10 +105,15 @@ export async function signCompact(
   hash: Hex,
   chainId: bigint
 ): Promise<Hex> {
-  return walletClient.signMessage({
+  // Get full signature
+  const fullSignature = await walletClient.signMessage({
     message: { raw: hash },
     account
   });
+
+  // Convert to compact EIP-2098 signature
+  const { r, s, yParity } = hexToCompactSignature(fullSignature);
+  return compactSignatureToHex({ r, s, yParity });
 }
 
 export function getSigningAddress(): string {
