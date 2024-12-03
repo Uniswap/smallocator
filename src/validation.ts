@@ -65,11 +65,11 @@ async function validateStructure(
     getAddress(compact.sponsor);
 
     // Validate numeric fields
-    if (compact.expires <= 0n) {
+    if (compact.expires <= BigInt(0)) {
       return { isValid: false, error: 'Invalid expires timestamp' };
     }
 
-    if (compact.id <= 0n) {
+    if (compact.id <= BigInt(0)) {
       return { isValid: false, error: 'Invalid id' };
     }
 
@@ -127,7 +127,7 @@ function validateNonce(nonce: string, sponsor: string): ValidationResult {
 
 function validateExpiration(expires: bigint): ValidationResult {
   const now = BigInt(Math.floor(Date.now() / 1000));
-  const twoHours = 7200n;
+  const twoHours = BigInt(7200);
 
   if (expires <= now) {
     return { isValid: false, error: 'Compact has already expired' };
@@ -148,10 +148,20 @@ async function validateDomainAndId(
 ): Promise<ValidationResult> {
   try {
     // Extract resetPeriod and allocatorId from the compact id
-    const resetPeriodIndex = Number((id >> 252n) & 0x7n);
-    const resetPeriods = [1n, 15n, 60n, 600n, 3900n, 86400n, 612000n, 2592000n];
+    const resetPeriodIndex = Number((id >> BigInt(252)) & BigInt(0x7));
+    const resetPeriods = [
+      BigInt(1),
+      BigInt(15),
+      BigInt(60),
+      BigInt(600),
+      BigInt(3900),
+      BigInt(86400),
+      BigInt(612000),
+      BigInt(2592000),
+    ];
     const resetPeriod = resetPeriods[resetPeriodIndex];
-    const allocatorId = (id >> 160n) & ((1n << 92n) - 1n);
+    const allocatorId =
+      (id >> BigInt(160)) & ((BigInt(1) << BigInt(92)) - BigInt(1));
 
     // Verify allocatorId matches the one from GraphQL
     const response = await getCompactDetails({
@@ -215,7 +225,7 @@ async function validateAllocation(
     // Calculate pending balance
     const pendingBalance = response.accountDeltas.items.reduce(
       (sum, delta) => sum + BigInt(delta.delta),
-      0n
+      BigInt(0)
     );
 
     // Calculate allocatable balance
@@ -223,12 +233,12 @@ async function validateAllocation(
     const allocatableBalance =
       resourceLockBalance > pendingBalance
         ? resourceLockBalance - pendingBalance
-        : 0n;
+        : BigInt(0);
 
     // Calculate allocated balance from recent claims
     const allocatedBalance = response.account.claims.items.reduce(
       (sum, _claim) => sum + BigInt(compact.amount),
-      0n
+      BigInt(0)
     );
 
     // Verify sufficient balance

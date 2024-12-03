@@ -1,6 +1,7 @@
 import { generateClaimHash } from '../crypto';
 import { type CompactMessage } from '../validation';
 
+// Test suite for cryptographic functions used in the Smallocator
 describe('crypto', () => {
   describe('generateClaimHash', () => {
     it('should generate consistent hash for a compact message', async () => {

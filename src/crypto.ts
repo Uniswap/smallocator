@@ -27,7 +27,7 @@ const COMPACT_TYPES = {
     { name: 'id', type: 'uint256' },
     { name: 'amount', type: 'uint256' },
   ],
-} as const;
+};
 
 // EIP-712 domain typehash (for witness case)
 const EIP712_DOMAIN_TYPEHASH = keccak256(
@@ -76,11 +76,11 @@ export async function generateClaimHash(
     const domainSeparator = keccak256(
       encodeAbiParameters(
         [
-          { type: 'bytes32' },
-          { type: 'bytes32' },
-          { type: 'bytes32' },
-          { type: 'uint256' },
-          { type: 'address' },
+          { name: 'typeHash', type: 'bytes32' },
+          { name: 'name', type: 'bytes32' },
+          { name: 'version', type: 'bytes32' },
+          { name: 'chainId', type: 'uint256' },
+          { name: 'verifyingContract', type: 'address' },
         ],
         [
           EIP712_DOMAIN_TYPEHASH,
@@ -107,14 +107,14 @@ export async function generateClaimHash(
     const messageHash = keccak256(
       encodeAbiParameters(
         [
-          { type: 'bytes32' },
-          { type: 'address' },
-          { type: 'address' },
-          { type: 'uint256' },
-          { type: 'uint256' },
-          { type: 'uint256' },
-          { type: 'uint256' },
-          { type: 'bytes32' },
+          { name: 'typeHash', type: 'bytes32' },
+          { name: 'arbiter', type: 'address' },
+          { name: 'sponsor', type: 'address' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'expires', type: 'uint256' },
+          { name: 'id', type: 'uint256' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'witnessHash', type: 'bytes32' },
         ],
         [
           typeHash,
