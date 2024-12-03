@@ -1,11 +1,7 @@
 import {
-  encodeAbiParameters,
-  keccak256,
-  SignableMessage,
   Hex,
   getAddress,
   hashTypedData,
-  SignTypedDataParameters,
   createWalletClient,
   http,
   privateKeyToAccount,
@@ -103,7 +99,7 @@ export async function generateClaimHash(
 
 export async function signCompact(
   hash: Hex,
-  chainId: bigint
+  _chainId: bigint
 ): Promise<Hex> {
   // Get full signature
   const fullSignature = await walletClient.signMessage({

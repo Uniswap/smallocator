@@ -1,4 +1,4 @@
-import fastify from 'fastify';
+import fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import env from '@fastify/env';
 import { config } from './config';
@@ -11,7 +11,7 @@ const server = fastify({
 });
 
 // Register plugins and configure server
-async function build() {
+async function build(): Promise<FastifyInstance> {
   // Register environment variables
   await server.register(env, {
     schema: config.envSchema,
@@ -36,7 +36,7 @@ async function build() {
 }
 
 // Start the server
-async function start() {
+async function start(): Promise<void> {
   try {
     const app = await build();
     await app.listen({ 
@@ -49,4 +49,5 @@ async function start() {
   }
 }
 
-start();
+// Handle floating promise with void operator
+void start();

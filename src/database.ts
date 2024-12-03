@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { PGlite } from '@electric-sql/pglite';
 
-export async function setupDatabase(server: FastifyInstance) {
+export async function setupDatabase(server: FastifyInstance): Promise<void> {
   const db = new PGlite();
   
   // Create tables

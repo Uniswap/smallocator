@@ -80,7 +80,7 @@ export interface CompactDetailsVariables {
 }
 
 // Function to fetch compact details
-export async function getCompactDetails(variables: CompactDetailsVariables) {
+export async function getCompactDetails(variables: CompactDetailsVariables): Promise<AllocatorResponse & AccountDeltasResponse & AccountResponse> {
   try {
     const response = await graphqlClient.request<
       AllocatorResponse & AccountDeltasResponse & AccountResponse
