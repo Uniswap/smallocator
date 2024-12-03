@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 
 export async function setupDatabase(server: FastifyInstance): Promise<void> {
   const db = new PGlite();
-  
+
   // Create tables
   await db.query(`
     CREATE TABLE IF NOT EXISTS nonces (

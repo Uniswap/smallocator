@@ -51,12 +51,14 @@ export async function validateCompact(
   } catch (error) {
     return {
       isValid: false,
-      error: `Validation error: ${error instanceof Error ? error.message : String(error)}`
+      error: `Validation error: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
 
-async function validateStructure(compact: CompactMessage): Promise<ValidationResult> {
+async function validateStructure(
+  compact: CompactMessage
+): Promise<ValidationResult> {
   try {
     // Validate Ethereum addresses
     getAddress(compact.arbiter);
@@ -83,7 +85,8 @@ async function validateStructure(compact: CompactMessage): Promise<ValidationRes
     ) {
       return {
         isValid: false,
-        error: 'Witness type string and hash must both be null or both be present'
+        error:
+          'Witness type string and hash must both be null or both be present',
       };
     }
 
@@ -93,7 +96,7 @@ async function validateStructure(compact: CompactMessage): Promise<ValidationRes
       isValid: false,
       error: `Structural validation error: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     };
   }
 }
@@ -103,11 +106,11 @@ function validateNonce(nonce: string, sponsor: string): ValidationResult {
     // Check that the first 20 bytes of the nonce match the sponsor's address
     const sponsorAddress = getAddress(sponsor).toLowerCase();
     const nonceStart = nonce.slice(0, 42).toLowerCase();
-    
+
     if (nonceStart !== sponsorAddress) {
       return {
         isValid: false,
-        error: 'Nonce must start with sponsor address'
+        error: 'Nonce must start with sponsor address',
       };
     }
 
@@ -117,7 +120,7 @@ function validateNonce(nonce: string, sponsor: string): ValidationResult {
       isValid: false,
       error: `Nonce validation error: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     };
   }
 }
@@ -155,10 +158,11 @@ async function validateDomainAndId(
       allocator: allocatorAddress,
       sponsor: '', // Not needed for this check
       lockId: '0', // Not needed for this check
-      chainId
+      chainId,
     });
 
-    const graphqlAllocatorId = response.allocator.supportedChains.items[0]?.allocatorId;
+    const graphqlAllocatorId =
+      response.allocator.supportedChains.items[0]?.allocatorId;
     if (!graphqlAllocatorId || BigInt(graphqlAllocatorId) !== allocatorId) {
       return { isValid: false, error: 'Invalid allocator ID' };
     }
@@ -168,7 +172,7 @@ async function validateDomainAndId(
     if (now + resetPeriod < expires) {
       return {
         isValid: false,
-        error: 'Reset period would allow forced withdrawal before expiration'
+        error: 'Reset period would allow forced withdrawal before expiration',
       };
     }
 
@@ -178,7 +182,7 @@ async function validateDomainAndId(
       isValid: false,
       error: `Domain/ID validation error: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     };
   }
 }
@@ -192,7 +196,7 @@ async function validateAllocation(
       allocator: process.env.ALLOCATOR_ADDRESS!,
       sponsor: compact.sponsor,
       lockId: compact.id.toString(),
-      chainId
+      chainId,
     });
 
     // Check withdrawal status
@@ -204,7 +208,7 @@ async function validateAllocation(
     if (resourceLock.withdrawalStatus !== 0) {
       return {
         isValid: false,
-        error: 'Resource lock has forced withdrawals enabled'
+        error: 'Resource lock has forced withdrawals enabled',
       };
     }
 
@@ -231,7 +235,7 @@ async function validateAllocation(
     if (allocatableBalance < allocatedBalance + BigInt(compact.amount)) {
       return {
         isValid: false,
-        error: 'Insufficient allocatable balance'
+        error: 'Insufficient allocatable balance',
       };
     }
 
@@ -241,7 +245,7 @@ async function validateAllocation(
       isValid: false,
       error: `Allocation validation error: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     };
   }
 }

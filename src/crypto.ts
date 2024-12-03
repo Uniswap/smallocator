@@ -7,7 +7,7 @@ import {
   keccak256,
   encodePacked,
   concat,
-  hashTypedData
+  hashTypedData,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { type CompactMessage } from './validation';
@@ -16,7 +16,7 @@ import { type CompactMessage } from './validation';
 const DOMAIN = {
   name: 'The Compact',
   version: '0',
-  verifyingContract: '0x00000000000018DF021Ff2467dF97ff846E09f48'
+  verifyingContract: '0x00000000000018DF021Ff2467dF97ff846E09f48',
 } as const;
 
 // Type definitions for EIP-712 typed data (no witness case)
@@ -27,13 +27,18 @@ const COMPACT_TYPES = {
     { name: 'nonce', type: 'uint256' },
     { name: 'expires', type: 'uint256' },
     { name: 'id', type: 'uint256' },
-    { name: 'amount', type: 'uint256' }
-  ]
+    { name: 'amount', type: 'uint256' },
+  ],
 } as const;
 
 // EIP-712 domain typehash (for witness case)
 const EIP712_DOMAIN_TYPEHASH = keccak256(
-  encodePacked(['string'], ['EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'])
+  encodePacked(
+    ['string'],
+    [
+      'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)',
+    ]
+  )
 );
 
 const privateKey = process.env.PRIVATE_KEY as Hex;
@@ -44,7 +49,7 @@ if (!privateKey) {
 const account = privateKeyToAccount(privateKey);
 const walletClient = createWalletClient({
   account,
-  transport: http()
+  transport: http(),
 });
 
 export async function generateClaimHash(
@@ -67,8 +72,8 @@ export async function generateClaimHash(
         nonce: BigInt(compact.nonce),
         expires: BigInt(compact.expires),
         id: BigInt(compact.id),
-        amount: BigInt(compact.amount)
-      }
+        amount: BigInt(compact.amount),
+      },
     });
   } else {
     // Manual EIP-712 hashing for witness case
@@ -80,14 +85,14 @@ export async function generateClaimHash(
           { type: 'bytes32' },
           { type: 'bytes32' },
           { type: 'uint256' },
-          { type: 'address' }
+          { type: 'address' },
         ],
         [
           EIP712_DOMAIN_TYPEHASH,
           keccak256(encodePacked(['string'], [DOMAIN.name])),
           keccak256(encodePacked(['string'], [DOMAIN.version])),
           chainId,
-          DOMAIN.verifyingContract
+          DOMAIN.verifyingContract,
         ]
       )
     );
@@ -98,7 +103,7 @@ export async function generateClaimHash(
         ['string'],
         [
           'Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount,' +
-            compact.witnessTypeString
+            compact.witnessTypeString,
         ]
       )
     );
@@ -114,7 +119,7 @@ export async function generateClaimHash(
           { type: 'uint256' },
           { type: 'uint256' },
           { type: 'uint256' },
-          { type: 'bytes32' }
+          { type: 'bytes32' },
         ],
         [
           typeHash,
@@ -124,30 +129,21 @@ export async function generateClaimHash(
           BigInt(compact.expires),
           BigInt(compact.id),
           BigInt(compact.amount),
-          compact.witnessHash as Hex
+          compact.witnessHash as Hex,
         ]
       )
     );
 
     // Combine with EIP-712 prefix and domain separator
-    return keccak256(
-      concat([
-        '0x1901',
-        domainSeparator,
-        messageHash
-      ])
-    );
+    return keccak256(concat(['0x1901', domainSeparator, messageHash]));
   }
 }
 
-export async function signCompact(
-  hash: Hex,
-  _chainId: bigint
-): Promise<Hex> {
+export async function signCompact(hash: Hex, _chainId: bigint): Promise<Hex> {
   // Sign the hash directly
   return await walletClient.signMessage({
     message: { raw: hash },
-    account
+    account,
   });
 }
 

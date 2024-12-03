@@ -25,7 +25,10 @@ export async function submitCompact(
   }
 
   // Validate the compact
-  const validationResult = await validateCompact(submission.compact, submission.chainId);
+  const validationResult = await validateCompact(
+    submission.compact,
+    submission.chainId
+  );
   if (!validationResult.isValid) {
     throw new Error(validationResult.error || 'Invalid compact');
   }
@@ -97,11 +100,6 @@ async function storeCompact(
       signature,
       created_at
     ) VALUES ($1, $2, $3, $4, NOW())`,
-    [
-      submission.chainId,
-      submission.compact,
-      hash,
-      signature,
-    ]
+    [submission.chainId, submission.compact, hash, signature]
   );
 }

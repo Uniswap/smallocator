@@ -56,7 +56,7 @@ export async function validateAndCreateSession(
   const session: Session = {
     id: randomUUID(),
     address: getAddress(payload.address),
-    expiresAt: payload.expirationTime
+    expiresAt: payload.expirationTime,
   };
 
   // Store session in database
@@ -66,10 +66,10 @@ export async function validateAndCreateSession(
   );
 
   // Mark nonce as used
-  await server.db.query(
-    'DELETE FROM nonces WHERE domain = $1 AND nonce = $2',
-    [payload.domain, payload.nonce]
-  );
+  await server.db.query('DELETE FROM nonces WHERE domain = $1 AND nonce = $2', [
+    payload.domain,
+    payload.nonce,
+  ]);
 
   return session;
 }
@@ -119,7 +119,7 @@ function isValidPayload(payload: SessionPayload): boolean {
     typeof payload.issuedAt === 'string' &&
     typeof payload.expirationTime === 'string' &&
     Array.isArray(payload.resources) &&
-    payload.resources.every(r => typeof r === 'string') &&
+    payload.resources.every((r) => typeof r === 'string') &&
     new Date(payload.expirationTime) > new Date() &&
     new Date(payload.issuedAt) <= new Date()
   );
@@ -152,5 +152,5 @@ Nonce: ${payload.nonce}
 Issued At: ${payload.issuedAt}
 Expiration Time: ${payload.expirationTime}
 Resources:
-${payload.resources.join('\n')}`
+${payload.resources.join('\n')}`;
 }

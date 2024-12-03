@@ -39,9 +39,9 @@ async function build(): Promise<FastifyInstance> {
 async function start(): Promise<void> {
   try {
     const app = await build();
-    await app.listen({ 
-      port: parseInt(process.env.PORT || '3000'), 
-      host: '0.0.0.0' 
+    await app.listen({
+      port: parseInt(process.env.PORT || '3000'),
+      host: '0.0.0.0',
     });
   } catch (err) {
     console.error(err);

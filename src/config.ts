@@ -5,29 +5,29 @@ export const config = {
     properties: {
       PORT: {
         type: 'string',
-        default: '3000'
+        default: '3000',
       },
       PRIVATE_KEY: {
-        type: 'string'
+        type: 'string',
       },
       CORS_ORIGIN: {
         type: 'string',
-        default: '*'
+        default: '*',
       },
       DATABASE_URL: {
         type: 'string',
-        default: 'sqlite://smallocator.db'
+        default: 'sqlite://smallocator.db',
       },
       INDEXER_URL: {
         type: 'string',
-        default: 'https://the-compact-indexer-2.ponder-dev.com/'
+        default: 'https://the-compact-indexer-2.ponder-dev.com/',
       },
       ALLOCATOR_ADDRESS: {
-        type: 'string'
+        type: 'string',
       },
       SIGNING_ADDRESS: {
-        type: 'string'
-      }
-    }
-  }
+        type: 'string',
+      },
+    },
+  },
 };
