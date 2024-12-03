@@ -19,9 +19,14 @@
   "lint-staged": {
     "*.ts": [
       "prettier --write",
-      "tsc --noEmit",
       "eslint --fix",
+      "prettier --check",
       "eslint",
+      "tsc --noEmit",
+      "jest --bail --findRelatedTests"
+    ],
+    "*.{json,md}": [
+      "prettier --write",
       "prettier --check"
     ]
   },
@@ -33,9 +38,10 @@
     "fastify": "^4.24.3",
     "graphql": "^16.8.1",
     "graphql-request": "^6.1.0",
-    "viem": "^1.19.9"
+    "viem": "^2.21.53"
   },
   "devDependencies": {
+    "@types/emscripten": "^1.39.13",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.9.1",
     "@typescript-eslint/eslint-plugin": "^8.17.0",
