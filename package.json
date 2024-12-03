@@ -2,7 +2,7 @@
   "name": "smallocator",
   "version": "0.1.0",
   "author": "0age",
-  "description": "A minimalistic Node.js API server for The Compact protocol",
+  "description": "A simple server-based allocator for The Compact using Typescript & Node.js",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
