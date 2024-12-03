@@ -49,7 +49,7 @@ export async function getCompactsByAddress(
   server: FastifyInstance,
   address: string
 ): Promise<CompactRecord[]> {
-  const result = await server.db.query(
+  const result = await server.db.query<CompactRecord>(
     `SELECT chain_id as "chainId", 
             compact, 
             hash, 
@@ -69,7 +69,7 @@ export async function getCompactByHash(
   chainId: string,
   claimHash: string
 ): Promise<CompactRecord | null> {
-  const result = await server.db.query(
+  const result = await server.db.query<CompactRecord>(
     `SELECT chain_id as "chainId", 
             compact, 
             hash, 

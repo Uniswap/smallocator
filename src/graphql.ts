@@ -77,6 +77,7 @@ export interface CompactDetailsVariables {
   sponsor: string;
   lockId: string;
   chainId: string;
+  [key: string]: string;
 }
 
 // Function to fetch compact details
