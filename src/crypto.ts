@@ -1,15 +1,13 @@
 import {
-  Hex,
+  type Hex,
   getAddress,
-  createWalletClient,
-  http,
-  encodeAbiParameters,
+  hashTypedData,
   keccak256,
   encodePacked,
+  encodeAbiParameters,
   concat,
-  hashTypedData,
 } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { privateKeyToAccount, signMessage } from 'viem/accounts';
 import { type CompactMessage } from './validation';
 
 // EIP-712 domain for The Compact
@@ -41,16 +39,13 @@ const EIP712_DOMAIN_TYPEHASH = keccak256(
   )
 );
 
+// Get the private key for signing operations
 const privateKey = process.env.PRIVATE_KEY as Hex;
 if (!privateKey) {
   throw new Error('PRIVATE_KEY environment variable is required');
 }
 
 const account = privateKeyToAccount(privateKey);
-const walletClient = createWalletClient({
-  account,
-  transport: http(),
-});
 
 export async function generateClaimHash(
   compact: CompactMessage,
@@ -140,10 +135,10 @@ export async function generateClaimHash(
 }
 
 export async function signCompact(hash: Hex, _chainId: bigint): Promise<Hex> {
-  // Sign the hash directly
-  return await walletClient.signMessage({
+  // Sign the hash directly using the private key
+  return await signMessage({
     message: { raw: hash },
-    account,
+    privateKey,
   });
 }
 
@@ -152,10 +147,9 @@ export function getSigningAddress(): string {
 }
 
 // Utility function to verify our signing address matches configuration
-export function verifySigningAddress(): void {
-  const configuredAddress = process.env.SIGNING_ADDRESS;
+export function verifySigningAddress(configuredAddress: string): void {
   if (!configuredAddress) {
-    throw new Error('SIGNING_ADDRESS environment variable is required');
+    throw new Error('No signing address configured');
   }
 
   const normalizedConfigured = getAddress(configuredAddress);
@@ -163,7 +157,8 @@ export function verifySigningAddress(): void {
 
   if (normalizedConfigured !== normalizedActual) {
     throw new Error(
-      `Configured signing address ${normalizedConfigured} does not match derived address ${normalizedActual}`
+      `Configured signing address ${normalizedConfigured} does not match ` +
+        `actual signing address ${normalizedActual}`
     );
   }
 }

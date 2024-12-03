@@ -34,7 +34,7 @@ importers:
         version: 1.21.4(typescript@5.7.2)
     devDependencies:
       '@types/jest':
-        specifier: ^29.5.8
+        specifier: ^29.5.14
         version: 29.5.14
       '@types/node':
         specifier: ^20.9.1
@@ -64,7 +64,7 @@ importers:
         specifier: ^3.4.1
         version: 3.4.1
       ts-jest:
-        specifier: ^29.1.1
+        specifier: ^29.2.5
         version: 29.2.5(@babel/core@7.26.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.26.0))(jest@29.7.0(@types/node@20.17.9)(ts-node@10.9.2(@types/node@20.17.9)(typescript@5.7.2)))(typescript@5.7.2)
       ts-node-dev:
         specifier: ^2.0.0

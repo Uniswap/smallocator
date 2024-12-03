@@ -19,7 +19,7 @@ async function build(): Promise<FastifyInstance> {
   });
 
   // Verify signing address matches configuration
-  verifySigningAddress();
+  verifySigningAddress(process.env.SIGNING_ADDRESS as string);
 
   // Enable CORS
   await server.register(cors, {
