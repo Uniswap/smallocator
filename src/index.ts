@@ -4,6 +4,7 @@ import env from '@fastify/env';
 import { config } from './config';
 import { setupRoutes } from './routes';
 import { setupDatabase } from './database';
+import { verifySigningAddress } from './crypto';
 
 const server = fastify({
   logger: true,
@@ -16,6 +17,9 @@ async function build() {
     schema: config.envSchema,
     dotenv: true,
   });
+
+  // Verify signing address matches configuration
+  verifySigningAddress();
 
   // Enable CORS
   await server.register(cors, {
