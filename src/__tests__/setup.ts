@@ -30,32 +30,55 @@ class DatabaseManager {
       this.db = new PGlite('memory://');
       await this.db.ready;
 
-      // Create tables with correct schema
+      // Create sessions table
       await this.db.query(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           address TEXT NOT NULL,
-          expires_at TIMESTAMP NOT NULL
-        )`);
-
-      await this.db.query(`
-        CREATE TABLE IF NOT EXISTS nonces (
-          domain TEXT NOT NULL,
           nonce TEXT NOT NULL,
-          PRIMARY KEY (domain, nonce)
-        )`);
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          domain TEXT NOT NULL
+        )
+      `);
 
+      // Create compacts table
       await this.db.query(`
         CREATE TABLE IF NOT EXISTS compacts (
+          id TEXT PRIMARY KEY,
           chain_id TEXT NOT NULL,
           claim_hash TEXT NOT NULL,
           arbiter TEXT NOT NULL,
           sponsor TEXT NOT NULL,
+          nonce TEXT NOT NULL,
           expires BIGINT NOT NULL,
+          compact_id TEXT NOT NULL,
           amount TEXT NOT NULL,
+          witness_type_string TEXT,
+          witness_hash TEXT,
           signature TEXT NOT NULL,
-          PRIMARY KEY (chain_id, claim_hash)
-        )`);
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(chain_id, claim_hash)
+        )
+      `);
+
+      // Create nonces table
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS nonces (
+          id TEXT PRIMARY KEY,
+          chain_id TEXT NOT NULL,
+          nonce TEXT NOT NULL,
+          consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(chain_id, nonce)
+        )
+      `);
+
+      // Create indexes
+      await this.db.query('CREATE INDEX IF NOT EXISTS idx_sessions_address ON sessions(address)');
+      await this.db.query('CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)');
+      await this.db.query('CREATE INDEX IF NOT EXISTS idx_compacts_sponsor ON compacts(sponsor)');
+      await this.db.query('CREATE INDEX IF NOT EXISTS idx_compacts_chain_claim ON compacts(chain_id, claim_hash)');
+      await this.db.query('CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)');
     }
     return;
   }

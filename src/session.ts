@@ -19,6 +19,8 @@ export interface Session {
   id: string;
   address: string;
   expiresAt: string;
+  nonce: string;
+  domain: string;
 }
 
 export async function validateAndCreateSession(
@@ -64,18 +66,20 @@ export async function validateAndCreateSession(
       id: randomUUID(),
       address: getAddress(payload.address),
       expiresAt: payload.expirationTime,
+      nonce: payload.nonce,
+      domain: payload.domain
     };
 
     // Store session in database
     await server.db.query(
-      'INSERT INTO sessions (id, address, expires_at) VALUES ($1, $2, $3)',
-      [session.id, session.address, session.expiresAt]
+      'INSERT INTO sessions (id, address, expires_at, nonce, domain) VALUES ($1, $2, $3, $4, $5)',
+      [session.id, session.address, session.expiresAt, session.nonce, session.domain]
     );
 
     // Mark nonce as used
     await server.db.query(
-      'INSERT INTO nonces (domain, nonce) VALUES ($1, $2)',
-      [payload.domain, payload.nonce]
+      'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
+      [randomUUID(), '1', payload.nonce] // Using chain_id 1 for session nonces
     );
 
     return session;
@@ -222,21 +226,13 @@ export async function verifyNonce(
   domain: string,
   nonce: string
 ): Promise<boolean> {
-  if (!nonce || !domain) {
-    throw new Error('Nonce and domain are required');
-  }
-
+  // Check if nonce has been used
   const result = await server.db.query(
-    'SELECT nonce FROM nonces WHERE domain = $1 AND nonce = $2',
-    [domain, nonce]
+    'SELECT id FROM nonces WHERE chain_id = $1 AND nonce = $2',
+    ['1', nonce] // Using chain_id 1 for session nonces
   );
 
-  // Nonce should NOT exist in database yet
-  if (result.rows.length > 0) {
-    throw new Error('Nonce has already been used');
-  }
-
-  return true;
+  return result.rows.length === 0;
 }
 
 function formatMessage(payload: SessionPayload): string {

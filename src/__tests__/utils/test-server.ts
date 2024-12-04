@@ -67,46 +67,17 @@ export async function createTestServer(): Promise<FastifyInstance> {
       throw new Error('Database not initialized');
     }
 
-    // Initialize test database schema
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        id TEXT PRIMARY KEY,
-        address TEXT NOT NULL,
-        expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS nonces (
-        domain TEXT PRIMARY KEY,
-        nonce TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await db.query('DROP TABLE IF EXISTS compacts');
-    await db.query(`
-      CREATE TABLE compacts (
-        chain_id TEXT NOT NULL,
-        hash TEXT NOT NULL,
-        compact JSONB NOT NULL,
-        signature TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (chain_id, hash)
-      );
-    `);
-
+    // Decorate fastify instance with db
     server.decorate('db', db);
 
-    // Set up routes
+    // Register routes
     await setupRoutes(server);
-    await server.ready();
 
+    await server.ready();
     return server;
-  } catch (error) {
-    await server.close();
-    throw error;
+  } catch (err) {
+    console.error('Error setting up test server:', err);
+    throw err;
   }
 }
 

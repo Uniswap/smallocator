@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { getAddress, type Hex } from 'viem';
 import { validateCompact, type CompactMessage } from './validation';
 import { generateClaimHash, signCompact } from './crypto';
+import { randomUUID } from 'crypto';
 
 export interface CompactSubmission {
   chainId: string;
@@ -69,19 +70,51 @@ export async function getCompactsByAddress(
   server: FastifyInstance,
   address: string
 ): Promise<CompactRecord[]> {
-  const result = await server.db.query<CompactRecord>(
-    `SELECT chain_id as "chainId", 
-            compact, 
-            hash, 
-            signature, 
-            created_at as "createdAt"
-     FROM compacts 
-     WHERE compact->>'sponsor' = $1 
-     ORDER BY created_at DESC`,
+  const result = await server.db.query<{
+    chainId: string;
+    arbiter: string;
+    sponsor: string;
+    nonce: string;
+    expires: string;
+    amount: string;
+    compact_id: string;
+    hash: string;
+    signature: string;
+    createdAt: string;
+  }>(
+    `SELECT 
+      chain_id as "chainId",
+      arbiter,
+      sponsor,
+      nonce,
+      expires,
+      amount,
+      compact_id,
+      claim_hash as hash,
+      signature,
+      created_at as "createdAt"
+    FROM compacts 
+    WHERE sponsor = $1 
+    ORDER BY created_at DESC`,
     [getAddress(address)]
   );
 
-  return result.rows;
+  return result.rows.map(row => ({
+    chainId: row.chainId,
+    compact: {
+      id: BigInt(row.compact_id),
+      arbiter: row.arbiter,
+      sponsor: row.sponsor,
+      nonce: BigInt(row.nonce),
+      expires: BigInt(row.expires),
+      amount: row.amount,
+      witnessTypeString: null,
+      witnessHash: null
+    },
+    hash: row.hash,
+    signature: row.signature,
+    createdAt: row.createdAt
+  }));
 }
 
 export async function getCompactByHash(
@@ -89,18 +122,55 @@ export async function getCompactByHash(
   chainId: string,
   claimHash: string
 ): Promise<CompactRecord | null> {
-  const result = await server.db.query<CompactRecord>(
-    `SELECT chain_id as "chainId", 
-            compact, 
-            hash, 
-            signature, 
-            created_at as "createdAt"
-     FROM compacts 
-     WHERE chain_id = $1 AND hash = $2`,
+  const result = await server.db.query<{
+    chainId: string;
+    arbiter: string;
+    sponsor: string;
+    nonce: string;
+    expires: string;
+    amount: string;
+    compact_id: string;
+    hash: string;
+    signature: string;
+    createdAt: string;
+  }>(
+    `SELECT 
+      chain_id as "chainId",
+      arbiter,
+      sponsor,
+      nonce,
+      expires,
+      amount,
+      compact_id,
+      claim_hash as hash,
+      signature,
+      created_at as "createdAt"
+    FROM compacts 
+    WHERE chain_id = $1 AND claim_hash = $2`,
     [chainId, claimHash]
   );
 
-  return result.rows[0] || null;
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+  return {
+    chainId: row.chainId,
+    compact: {
+      id: BigInt(row.compact_id),
+      arbiter: row.arbiter,
+      sponsor: row.sponsor,
+      nonce: BigInt(row.nonce),
+      expires: BigInt(row.expires),
+      amount: row.amount,
+      witnessTypeString: null,
+      witnessHash: null
+    },
+    hash: row.hash,
+    signature: row.signature,
+    createdAt: row.createdAt
+  };
 }
 
 async function storeCompact(
@@ -109,22 +179,32 @@ async function storeCompact(
   hash: Hex,
   signature: Hex
 ): Promise<void> {
-  // Convert BigInt values to strings for JSON storage
-  const compactForStorage = {
-    ...submission.compact,
-    id: submission.compact.id.toString(),
-    nonce: submission.compact.nonce.toString(),
-    expires: submission.compact.expires.toString(),
-  };
-
+  const id = randomUUID();
   await server.db.query(
     `INSERT INTO compacts (
+      id,
       chain_id,
-      compact,
-      hash,
+      claim_hash,
+      arbiter,
+      sponsor,
+      nonce,
+      expires,
+      compact_id,
+      amount,
       signature,
       created_at
-    ) VALUES ($1, $2, $3, $4, NOW())`,
-    [submission.chainId, JSON.stringify(compactForStorage), hash, signature]
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)`,
+    [
+      id,
+      submission.chainId,
+      hash,
+      submission.compact.arbiter,
+      submission.compact.sponsor,
+      submission.compact.nonce.toString(),
+      submission.compact.expires.toString(),
+      submission.compact.id.toString(),
+      submission.compact.amount,
+      signature
+    ]
   );
 }

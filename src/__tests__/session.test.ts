@@ -123,9 +123,10 @@ describe('Session Management', () => {
 
     it('should reject expired session', async () => {
       // Set session to expired in database
+      const expiredTimestamp = new Date(Date.now() - 3600000); // 1 hour ago
       await server.db.query(
         'UPDATE sessions SET expires_at = $1 WHERE id = $2',
-        [Math.floor(Date.now() / 1000) - 3600, sessionId]
+        [expiredTimestamp.toISOString(), sessionId]
       );
 
       const response = await server.inject({
