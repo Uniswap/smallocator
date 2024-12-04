@@ -46,9 +46,10 @@ describe('API Routes', () => {
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
       expect(result).toHaveProperty('session');
-      expect(result.session).toHaveProperty('id');
       expect(result.session).toHaveProperty('address');
-      expect(result.session).toHaveProperty('expiresAt');
+      expect(result.session).toHaveProperty('nonce');
+      expect(result.session).toHaveProperty('expirationTime');
+      expect(result.session).toHaveProperty('domain');
     });
 
     it('should reject invalid ethereum address', async () => {

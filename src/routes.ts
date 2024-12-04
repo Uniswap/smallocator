@@ -67,7 +67,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
     async (
       request: FastifyRequest<{ Params: { address: string } }>,
       reply: FastifyReply
-    ): Promise<{ payload: SessionPayload } | { error: string }> => {
+    ): Promise<{ session: SessionPayload } | { error: string }> => {
       try {
         const { address } = request.params as { address: string };
 
@@ -92,7 +92,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           ['smallocator.example', nonce]
         );
 
-        return { payload };
+        return { session: payload };
       } catch (error) {
         reply.code(400);
         return { error: error instanceof Error ? error.message : 'Invalid address' };

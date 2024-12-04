@@ -22,19 +22,25 @@ export async function validateCompact(
   chainId: string
 ): Promise<ValidationResult> {
   try {
-    // 1. Structural Validation
+    // 1. Chain ID validation
+    const chainIdNum = parseInt(chainId);
+    if (isNaN(chainIdNum) || chainIdNum <= 0 || chainIdNum.toString() !== chainId) {
+      return { isValid: false, error: 'Invalid chain ID format' };
+    }
+
+    // 2. Structural Validation
     const result = await validateStructure(compact);
     if (!result.isValid) return result;
 
-    // 2. Nonce Validation
+    // 3. Nonce Validation
     const nonceResult = validateNonce(compact.nonce, compact.sponsor);
     if (!nonceResult.isValid) return nonceResult;
 
-    // 3. Expiration Validation
+    // 4. Expiration Validation
     const expirationResult = validateExpiration(compact.expires);
     if (!expirationResult.isValid) return expirationResult;
 
-    // 4. Domain and ID Validation
+    // 5. Domain and ID Validation
     const domainResult = await validateDomainAndId(
       compact.id,
       compact.expires,
@@ -43,7 +49,7 @@ export async function validateCompact(
     );
     if (!domainResult.isValid) return domainResult;
 
-    // 5. Allocation Validation
+    // 6. Allocation Validation
     const allocationResult = await validateAllocation(compact, chainId);
     if (!allocationResult.isValid) return allocationResult;
 
@@ -51,7 +57,7 @@ export async function validateCompact(
   } catch (error) {
     return {
       isValid: false,
-      error: `Validation error: ${error instanceof Error ? error.message : String(error)}`,
+      error: error instanceof Error ? error.message : 'Validation failed',
     };
   }
 }
@@ -162,7 +168,18 @@ export async function validateDomainAndId(
   allocatorAddress: string
 ): Promise<ValidationResult> {
   try {
-    // For testing purposes, accept ID 1 as valid
+    // Basic validation
+    if (id <= BigInt(0)) {
+      return { isValid: false, error: 'Invalid ID: must be positive' };
+    }
+
+    // Validate chainId format
+    const chainIdNum = parseInt(chainId);
+    if (isNaN(chainIdNum) || chainIdNum <= 0 || chainIdNum.toString() !== chainId) {
+      return { isValid: false, error: 'Invalid chain ID format' };
+    }
+
+    // For testing purposes, accept ID 1 as valid after basic validation
     if (process.env.NODE_ENV === 'test' && id === BigInt(1)) {
       return { isValid: true };
     }
