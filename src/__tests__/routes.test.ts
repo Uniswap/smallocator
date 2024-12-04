@@ -31,7 +31,7 @@ describe('API Routes', () => {
     > => ({
       allocator: {
         supportedChains: {
-          items: [{ allocatorId: '123' }],
+          items: [{ allocatorId: '1' }], // Match the allocatorId in test compact
         },
       },
       accountDeltas: {

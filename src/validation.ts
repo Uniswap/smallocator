@@ -177,7 +177,7 @@ export async function validateDomainAndId(
   id: bigint,
   expires: bigint,
   chainId: string,
-  allocatorAddress: string
+  _allocatorAddress: string
 ): Promise<ValidationResult> {
   try {
     // Basic validation
@@ -213,22 +213,6 @@ export async function validateDomainAndId(
       BigInt(2592000),
     ];
     const resetPeriod = resetPeriods[resetPeriodIndex];
-    const allocatorId =
-      (id >> BigInt(160)) & ((BigInt(1) << BigInt(92)) - BigInt(1));
-
-    // Verify allocatorId matches the one from GraphQL
-    const response = await getCompactDetails({
-      allocator: allocatorAddress,
-      sponsor: '', // Not needed for this check
-      lockId: '0', // Not needed for this check
-      chainId,
-    });
-
-    const graphqlAllocatorId =
-      response.allocator.supportedChains.items[0]?.allocatorId;
-    if (!graphqlAllocatorId || BigInt(graphqlAllocatorId) !== allocatorId) {
-      return { isValid: false, error: 'Invalid allocator ID' };
-    }
 
     // Check that resetPeriod doesn't allow forced withdrawal before expiration
     const now = BigInt(Math.floor(Date.now() / 1000));
@@ -256,6 +240,10 @@ export async function validateAllocation(
   db: PGlite
 ): Promise<ValidationResult> {
   try {
+    // Extract allocatorId from the compact id
+    const allocatorId =
+      (compact.id >> BigInt(160)) & ((BigInt(1) << BigInt(92)) - BigInt(1));
+
     const response = await getCompactDetails({
       allocator: process.env.ALLOCATOR_ADDRESS!,
       sponsor: compact.sponsor,
@@ -274,6 +262,13 @@ export async function validateAllocation(
         isValid: false,
         error: 'Resource lock has forced withdrawals enabled',
       };
+    }
+
+    // Verify allocatorId matches the one from GraphQL
+    const graphqlAllocatorId =
+      response.allocator.supportedChains.items[0]?.allocatorId;
+    if (!graphqlAllocatorId || BigInt(graphqlAllocatorId) !== allocatorId) {
+      return { isValid: false, error: 'Invalid allocator ID' };
     }
 
     // Calculate pending balance

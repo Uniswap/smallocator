@@ -106,7 +106,7 @@ describe('Validation', () => {
       > => ({
         allocator: {
           supportedChains: {
-            items: [{ allocatorId: '123' }],
+            items: [{ allocatorId: '1' }], // Match the test compact ID
           },
         },
         accountDeltas: {
@@ -195,6 +195,33 @@ describe('Validation', () => {
       // Store original function
       originalRequest = graphqlClient.request;
 
+      // Mock GraphQL response with sufficient balance
+      graphqlClient.request = async (): Promise<
+        AllocatorResponse & AccountDeltasResponse & AccountResponse
+      > => ({
+        allocator: {
+          supportedChains: {
+            items: [{ allocatorId: '1' }], // Match the test compact ID
+          },
+        },
+        accountDeltas: {
+          items: [],
+        },
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000', // 1000 ETH
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
+
       // Clear test data
       await db.query('DELETE FROM compacts');
     });
@@ -206,34 +233,6 @@ describe('Validation', () => {
 
     it('should validate when allocatable balance is sufficient', async (): Promise<void> => {
       const compact = getFreshCompact();
-      const compactAmount = BigInt(compact.amount);
-
-      // Mock GraphQL response with sufficient balance
-      graphqlClient.request = async (): Promise<
-        AllocatorResponse & AccountDeltasResponse & AccountResponse
-      > => ({
-        allocator: {
-          supportedChains: {
-            items: [{ allocatorId: '123' }],
-          },
-        },
-        accountDeltas: {
-          items: [],
-        },
-        account: {
-          resourceLocks: {
-            items: [
-              {
-                withdrawalStatus: 0,
-                balance: (compactAmount * 2n).toString(), // Double the compact amount
-              },
-            ],
-          },
-          claims: {
-            items: [],
-          },
-        },
-      });
 
       const result = await validateAllocation(compact, chainId, db);
       expect(result.isValid).toBe(true);
@@ -241,7 +240,6 @@ describe('Validation', () => {
 
     it('should reject when allocatable balance is insufficient', async (): Promise<void> => {
       const compact = getFreshCompact();
-      const compactAmount = BigInt(compact.amount);
 
       // Mock GraphQL response with insufficient balance
       graphqlClient.request = async (): Promise<
@@ -249,7 +247,7 @@ describe('Validation', () => {
       > => ({
         allocator: {
           supportedChains: {
-            items: [{ allocatorId: '123' }],
+            items: [{ allocatorId: '1' }], // Match the test compact ID
           },
         },
         accountDeltas: {
@@ -260,7 +258,7 @@ describe('Validation', () => {
             items: [
               {
                 withdrawalStatus: 0,
-                balance: (compactAmount / 2n).toString(), // Half the compact amount
+                balance: (BigInt(compact.amount) / 2n).toString(), // Half the compact amount
               },
             ],
           },
@@ -277,7 +275,6 @@ describe('Validation', () => {
 
     it('should consider existing allocated balance', async (): Promise<void> => {
       const compact = getFreshCompact();
-      const compactAmount = BigInt(compact.amount);
 
       // Insert existing compact
       await db.query(
@@ -298,7 +295,7 @@ describe('Validation', () => {
           compact.nonce.toString(),
           (mockTimestampSec + 3600).toString(),
           compact.id.toString(),
-          compactAmount.toString(),
+          compact.amount,
           '0xsig1',
         ]
       );
@@ -309,7 +306,7 @@ describe('Validation', () => {
       > => ({
         allocator: {
           supportedChains: {
-            items: [{ allocatorId: '123' }],
+            items: [{ allocatorId: '1' }], // Match the test compact ID
           },
         },
         accountDeltas: {
@@ -320,7 +317,7 @@ describe('Validation', () => {
             items: [
               {
                 withdrawalStatus: 0,
-                balance: (compactAmount * 2n).toString(), // Enough for two compacts
+                balance: (BigInt(compact.amount) * 2n).toString(), // Enough for two compacts
               },
             ],
           },
@@ -336,7 +333,6 @@ describe('Validation', () => {
 
     it('should exclude processed claims from allocated balance', async (): Promise<void> => {
       const compact = getFreshCompact();
-      const compactAmount = BigInt(compact.amount);
 
       // Insert existing compact
       await db.query(
@@ -357,7 +353,7 @@ describe('Validation', () => {
           compact.nonce.toString(),
           (mockTimestampSec + 3600).toString(),
           compact.id.toString(),
-          compactAmount.toString(),
+          compact.amount,
           '0xsig1',
         ]
       );
@@ -368,7 +364,7 @@ describe('Validation', () => {
       > => ({
         allocator: {
           supportedChains: {
-            items: [{ allocatorId: '123' }],
+            items: [{ allocatorId: '1' }], // Match the test compact ID
           },
         },
         accountDeltas: {
@@ -379,7 +375,7 @@ describe('Validation', () => {
             items: [
               {
                 withdrawalStatus: 0,
-                balance: compactAmount.toString(), // Only enough for one compact
+                balance: compact.amount, // Only enough for one compact
               },
             ],
           },
@@ -406,7 +402,7 @@ describe('Validation', () => {
       > => ({
         allocator: {
           supportedChains: {
-            items: [{ allocatorId: '123' }],
+            items: [{ allocatorId: '1' }], // Match the test compact ID
           },
         },
         accountDeltas: {
@@ -430,6 +426,78 @@ describe('Validation', () => {
       const result = await validateAllocation(compact, chainId, db);
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('forced withdrawals enabled');
+    });
+
+    it('should reject when allocatorId from GraphQL does not match compact ID', async (): Promise<void> => {
+      const compact = getFreshCompact();
+      const chainId = '10';
+
+      // Mock GraphQL response with different allocatorId
+      graphqlClient.request = async (): Promise<
+        AllocatorResponse & AccountDeltasResponse & AccountResponse
+      > => ({
+        allocator: {
+          supportedChains: {
+            items: [{ allocatorId: '999' }], // Different from the one encoded in compact ID
+          },
+        },
+        accountDeltas: {
+          items: [],
+        },
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
+
+      const result = await validateAllocation(compact, chainId, db);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Invalid allocator ID');
+    });
+
+    it('should reject when allocatorId is missing from GraphQL response', async (): Promise<void> => {
+      const compact = getFreshCompact();
+      const chainId = '10';
+
+      // Mock GraphQL response with missing allocatorId
+      graphqlClient.request = async (): Promise<
+        AllocatorResponse & AccountDeltasResponse & AccountResponse
+      > => ({
+        allocator: {
+          supportedChains: {
+            items: [], // Empty array, no allocatorId
+          },
+        },
+        accountDeltas: {
+          items: [],
+        },
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
+
+      const result = await validateAllocation(compact, chainId, db);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Invalid allocator ID');
     });
   });
 });

@@ -104,7 +104,8 @@ export async function createTestSession(
 }
 
 export const validCompact = {
-  id: 1n,
+  // Set allocatorId to 1 in bits 160-251 (92 bits) and reset period index 7 in bits 252-254
+  id: (1n << 160n) | (7n << 252n), // Reset period index 7 = 2592000 seconds (30 days)
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
   sponsor: validPayload.address,
   // Create nonce where first 20 bytes match sponsor address
