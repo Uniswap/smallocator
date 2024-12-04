@@ -99,7 +99,7 @@ export async function getCompactsByAddress(
     [getAddress(address)]
   );
 
-  return result.rows.map(row => ({
+  return result.rows.map((row) => ({
     chainId: row.chainId,
     compact: {
       id: BigInt(row.compact_id),
@@ -109,11 +109,11 @@ export async function getCompactsByAddress(
       expires: BigInt(row.expires),
       amount: row.amount,
       witnessTypeString: null,
-      witnessHash: null
+      witnessHash: null,
     },
     hash: row.hash,
     signature: row.signature,
-    createdAt: row.createdAt
+    createdAt: row.createdAt,
   }));
 }
 
@@ -165,11 +165,11 @@ export async function getCompactByHash(
       expires: BigInt(row.expires),
       amount: row.amount,
       witnessTypeString: null,
-      witnessHash: null
+      witnessHash: null,
     },
     hash: row.hash,
     signature: row.signature,
-    createdAt: row.createdAt
+    createdAt: row.createdAt,
   };
 }
 
@@ -204,7 +204,7 @@ async function storeCompact(
       submission.compact.expires.toString(),
       submission.compact.id.toString(),
       submission.compact.amount,
-      signature
+      signature,
     ]
   );
 }

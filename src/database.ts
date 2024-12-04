@@ -48,11 +48,21 @@ export async function setupDatabase(server: FastifyInstance): Promise<void> {
   `);
 
   // Create indexes
-  await db.query('CREATE INDEX IF NOT EXISTS idx_sessions_address ON sessions(address)');
-  await db.query('CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)');
-  await db.query('CREATE INDEX IF NOT EXISTS idx_compacts_sponsor ON compacts(sponsor)');
-  await db.query('CREATE INDEX IF NOT EXISTS idx_compacts_chain_claim ON compacts(chain_id, claim_hash)');
-  await db.query('CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)');
+  await db.query(
+    'CREATE INDEX IF NOT EXISTS idx_sessions_address ON sessions(address)'
+  );
+  await db.query(
+    'CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)'
+  );
+  await db.query(
+    'CREATE INDEX IF NOT EXISTS idx_compacts_sponsor ON compacts(sponsor)'
+  );
+  await db.query(
+    'CREATE INDEX IF NOT EXISTS idx_compacts_chain_claim ON compacts(chain_id, claim_hash)'
+  );
+  await db.query(
+    'CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)'
+  );
 
   // Attach database instance to fastify
   server.decorate('db', db);

@@ -74,11 +74,21 @@ class DatabaseManager {
       `);
 
       // Create indexes
-      await this.db.query('CREATE INDEX IF NOT EXISTS idx_sessions_address ON sessions(address)');
-      await this.db.query('CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)');
-      await this.db.query('CREATE INDEX IF NOT EXISTS idx_compacts_sponsor ON compacts(sponsor)');
-      await this.db.query('CREATE INDEX IF NOT EXISTS idx_compacts_chain_claim ON compacts(chain_id, claim_hash)');
-      await this.db.query('CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)');
+      await this.db.query(
+        'CREATE INDEX IF NOT EXISTS idx_sessions_address ON sessions(address)'
+      );
+      await this.db.query(
+        'CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)'
+      );
+      await this.db.query(
+        'CREATE INDEX IF NOT EXISTS idx_compacts_sponsor ON compacts(sponsor)'
+      );
+      await this.db.query(
+        'CREATE INDEX IF NOT EXISTS idx_compacts_chain_claim ON compacts(chain_id, claim_hash)'
+      );
+      await this.db.query(
+        'CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)'
+      );
     }
     return;
   }

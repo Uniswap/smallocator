@@ -11,7 +11,6 @@ import {
   getCompactsByAddress,
   getCompactByHash,
   type CompactSubmission,
-  type CompactRecord,
 } from './compact';
 
 // Extend FastifyRequest to include session
@@ -122,8 +121,10 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         let normalizedAddress: string;
         try {
           normalizedAddress = getAddress(address);
-        } catch (e) {
-          return reply.code(400).send({ error: 'Invalid Ethereum address format' });
+        } catch (error) {
+          return reply.code(400).send({
+            error: `Invalid Ethereum address format: ${error instanceof Error ? error.message : String(error)}`,
+          });
         }
 
         const nonce = Date.now().toString();
@@ -318,8 +319,8 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
               ...compact.compact,
               id: compact.compact.id.toString(),
               nonce: compact.compact.nonce.toString(),
-              expires: compact.compact.expires.toString()
-            }
+              expires: compact.compact.expires.toString(),
+            },
           };
 
           return serializedCompact;
@@ -327,7 +328,8 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           server.log.error('Failed to get compact:', error);
           reply.code(500);
           return {
-            error: error instanceof Error ? error.message : 'Failed to get compact'
+            error:
+              error instanceof Error ? error.message : 'Failed to get compact',
           };
         }
       }

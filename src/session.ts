@@ -67,13 +67,19 @@ export async function validateAndCreateSession(
       address: getAddress(payload.address),
       expiresAt: payload.expirationTime,
       nonce: payload.nonce,
-      domain: payload.domain
+      domain: payload.domain,
     };
 
     // Store session in database
     await server.db.query(
       'INSERT INTO sessions (id, address, expires_at, nonce, domain) VALUES ($1, $2, $3, $4, $5)',
-      [session.id, session.address, session.expiresAt, session.nonce, session.domain]
+      [
+        session.id,
+        session.address,
+        session.expiresAt,
+        session.nonce,
+        session.domain,
+      ]
     );
 
     // Mark nonce as used
