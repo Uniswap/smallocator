@@ -55,4 +55,6 @@ jobs:
       run: pnpm check-test-files
 
     - name: Run tests
+      env:
+        NODE_OPTIONS: '--experimental-vm-modules --no-warnings'
       run: pnpm test

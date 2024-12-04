@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --detectOpenHandles",
+    "test:related": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --bail --findRelatedTests",
     "lint": "eslint .",
     "type-check": "tsc --noEmit -p tsconfig.lint.json",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -26,7 +27,7 @@
       "eslint --fix",
       "prettier --check",
       "eslint --max-warnings 0",
-      "jest --bail --findRelatedTests"
+      "pnpm test:related"
     ],
     "*.{json,md}": [
       "prettier --write",
