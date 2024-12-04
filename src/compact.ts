@@ -146,7 +146,7 @@ export async function getCompactByHash(
       signature,
       created_at as "createdAt"
     FROM compacts 
-    WHERE chain_id = $1 AND claim_hash = $2`,
+    WHERE chain_id = $1 AND LOWER(claim_hash) = LOWER($2)`,
     [chainId, claimHash]
   );
 

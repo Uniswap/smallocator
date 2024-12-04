@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAddress } from 'viem';
+import { randomUUID } from 'crypto';
 import {
   validateAndCreateSession,
   verifySession,
@@ -21,6 +22,26 @@ declare module 'fastify' {
       address: string;
     };
   }
+}
+
+// Type for serialized response
+interface SerializedCompactMessage {
+  id: string;
+  arbiter: string;
+  sponsor: string;
+  nonce: string;
+  expires: string;
+  amount: string;
+  witnessTypeString: string | null;
+  witnessHash: string | null;
+}
+
+interface SerializedCompactRecord {
+  chainId: string;
+  compact: SerializedCompactMessage;
+  hash: string;
+  signature: string;
+  createdAt: string;
 }
 
 // Authentication middleware
@@ -98,7 +119,13 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       try {
         const { address } = request.params as { address: string };
 
-        const normalizedAddress = getAddress(address);
+        let normalizedAddress: string;
+        try {
+          normalizedAddress = getAddress(address);
+        } catch (e) {
+          return reply.code(400).send({ error: 'Invalid Ethereum address format' });
+        }
+
         const nonce = Date.now().toString();
         const payload = {
           domain: 'smallocator.example',
@@ -115,16 +142,15 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
 
         // Store nonce
         await server.db.query(
-          'INSERT INTO nonces (domain, nonce) VALUES ($1, $2)',
-          ['smallocator.example', nonce]
+          'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
+          [randomUUID(), '1', nonce]
         );
 
-        return { session: payload };
+        return reply.code(200).send({ session: payload });
       } catch (error) {
-        reply.code(400);
-        return {
+        return reply.code(400).send({
           error: error instanceof Error ? error.message : 'Invalid address',
-        };
+        });
       }
     }
   );
@@ -275,7 +301,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           Params: { chainId: string; claimHash: string };
         }>,
         reply: FastifyReply
-      ): Promise<CompactRecord | { error: string }> => {
+      ): Promise<SerializedCompactRecord | { error: string }> => {
         try {
           const { chainId, claimHash } = request.params;
           const compact = await getCompactByHash(server, chainId, claimHash);
@@ -285,17 +311,23 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
             return { error: 'Compact not found' };
           }
 
-          return compact;
+          // Convert BigInt values to strings for JSON serialization
+          const serializedCompact: SerializedCompactRecord = {
+            ...compact,
+            compact: {
+              ...compact.compact,
+              id: compact.compact.id.toString(),
+              nonce: compact.compact.nonce.toString(),
+              expires: compact.compact.expires.toString()
+            }
+          };
+
+          return serializedCompact;
         } catch (error) {
           server.log.error('Failed to get compact:', error);
-          if (error instanceof Error && error.message.includes('not found')) {
-            reply.code(404);
-          } else {
-            reply.code(400);
-          }
+          reply.code(500);
           return {
-            error:
-              error instanceof Error ? error.message : 'Failed to get compact',
+            error: error instanceof Error ? error.message : 'Failed to get compact'
           };
         }
       }

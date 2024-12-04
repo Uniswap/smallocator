@@ -42,6 +42,17 @@ class DatabaseManager {
         )
       `);
 
+      // Create nonces table
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS nonces (
+          id TEXT PRIMARY KEY,
+          chain_id TEXT NOT NULL,
+          nonce TEXT NOT NULL,
+          consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(chain_id, nonce)
+        )
+      `);
+
       // Create compacts table
       await this.db.query(`
         CREATE TABLE IF NOT EXISTS compacts (
@@ -59,17 +70,6 @@ class DatabaseManager {
           signature TEXT NOT NULL,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(chain_id, claim_hash)
-        )
-      `);
-
-      // Create nonces table
-      await this.db.query(`
-        CREATE TABLE IF NOT EXISTS nonces (
-          id TEXT PRIMARY KEY,
-          chain_id TEXT NOT NULL,
-          nonce TEXT NOT NULL,
-          consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(chain_id, nonce)
         )
       `);
 

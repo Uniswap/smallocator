@@ -222,6 +222,14 @@ describe('API Routes', () => {
           },
         });
 
+        if (response.statusCode === 500) {
+          console.error('Got 500 error:', {
+            payload: response.payload,
+            hash,
+            sessionId,
+          });
+        }
+
         expect(response.statusCode).toBe(200);
       });
 
