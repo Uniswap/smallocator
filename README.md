@@ -169,16 +169,17 @@ All compact operations require a valid session ID in the `x-session-id` header.
 ```bash
 ### Configuration & Installation ###
 # 1. Clone this repo and enter cloned directory
-$ git clone git@github.com:Uniswap/smallocator.git && cd smallocator
+git clone git@github.com:Uniswap/smallocator.git && cd smallocator
 
 # 2. Copy example environment file (modify as needed)
-$ cp .env.example .env
+cp .env.example .env
 
 # 3. Install dependencies
 pnpm install
 
 # 4. Run tests
 pnpm test
+
 
 ### Usage ###
 # Run in development mode with hot reload
