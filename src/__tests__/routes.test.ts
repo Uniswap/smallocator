@@ -8,16 +8,55 @@ import {
   compactToAPI,
 } from './utils/test-server';
 import { generateSignature } from '../crypto';
+import {
+  graphqlClient,
+  AllocatorResponse,
+  AccountDeltasResponse,
+  AccountResponse,
+} from '../graphql';
 
 describe('API Routes', () => {
   let server: FastifyInstance;
+  let originalRequest: typeof graphqlClient.request;
 
   beforeEach(async () => {
     server = await createTestServer();
+
+    // Store original function
+    originalRequest = graphqlClient.request;
+
+    // Mock GraphQL response
+    graphqlClient.request = async (): Promise<
+      AllocatorResponse & AccountDeltasResponse & AccountResponse
+    > => ({
+      allocator: {
+        supportedChains: {
+          items: [{ allocatorId: '123' }],
+        },
+      },
+      accountDeltas: {
+        items: [],
+      },
+      account: {
+        resourceLocks: {
+          items: [
+            {
+              withdrawalStatus: 0,
+              balance: '1000000000000000000000', // 1000 ETH
+            },
+          ],
+        },
+        claims: {
+          items: [],
+        },
+      },
+    });
   });
 
   afterEach(async () => {
     await cleanupTestServer();
+    // Restore original function
+    graphqlClient.request = originalRequest;
   });
 
   describe('GET /health', () => {

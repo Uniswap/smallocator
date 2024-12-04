@@ -1,5 +1,7 @@
 import { getAddress } from 'viem';
 import { getCompactDetails } from './graphql';
+import { getAllocatedBalance } from './balance';
+import { PGlite } from '@electric-sql/pglite';
 
 export interface CompactMessage {
   arbiter: string;
@@ -19,7 +21,8 @@ export interface ValidationResult {
 
 export async function validateCompact(
   compact: CompactMessage,
-  chainId: string
+  chainId: string,
+  db: PGlite
 ): Promise<ValidationResult> {
   try {
     // 1. Chain ID validation
@@ -54,7 +57,7 @@ export async function validateCompact(
     if (!domainResult.isValid) return domainResult;
 
     // 6. Allocation Validation
-    const allocationResult = await validateAllocation(compact, chainId);
+    const allocationResult = await validateAllocation(compact, chainId, db);
     if (!allocationResult.isValid) return allocationResult;
 
     return { isValid: true };
@@ -249,22 +252,10 @@ export async function validateDomainAndId(
 
 export async function validateAllocation(
   compact: CompactMessage,
-  chainId: string
+  chainId: string,
+  db: PGlite
 ): Promise<ValidationResult> {
   try {
-    // For testing purposes, accept any allocation under 1000 ETH
-    if (process.env.NODE_ENV === 'test') {
-      const amount = BigInt(compact.amount);
-      const maxTestAmount = BigInt('1000000000000000000000'); // 1000 ETH
-      if (amount <= maxTestAmount) {
-        return { isValid: true };
-      }
-      return {
-        isValid: false,
-        error: 'Insufficient allocation',
-      };
-    }
-
     const response = await getCompactDetails({
       allocator: process.env.ALLOCATOR_ADDRESS!,
       sponsor: compact.sponsor,
@@ -298,17 +289,21 @@ export async function validateAllocation(
         ? resourceLockBalance - pendingBalance
         : BigInt(0);
 
-    // Calculate allocated balance from recent claims
-    const allocatedBalance = response.account.claims.items.reduce(
-      (sum, _claim) => sum + BigInt(compact.amount),
-      BigInt(0)
+    // Get allocated balance from database
+    const allocatedBalance = await getAllocatedBalance(
+      db,
+      compact.sponsor,
+      chainId,
+      compact.id.toString(),
+      response.account.claims.items.map((item) => item.claimHash)
     );
 
     // Verify sufficient balance
-    if (allocatableBalance < allocatedBalance + BigInt(compact.amount)) {
+    const totalNeededBalance = allocatedBalance + BigInt(compact.amount);
+    if (allocatableBalance < totalNeededBalance) {
       return {
         isValid: false,
-        error: 'Insufficient allocatable balance',
+        error: `Insufficient allocatable balance (have ${allocatableBalance}, need ${totalNeededBalance})`,
       };
     }
 

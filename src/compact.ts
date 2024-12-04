@@ -45,7 +45,8 @@ export async function submitCompact(
   // Validate the compact
   const validationResult = await validateCompact(
     compactForValidation,
-    submission.chainId
+    submission.chainId,
+    server.db
   );
   if (!validationResult.isValid) {
     throw new Error(validationResult.error || 'Invalid compact');
