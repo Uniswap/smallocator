@@ -3,8 +3,9 @@ import {
   getAddress,
   hashTypedData,
   keccak256,
-  encodePacked,
+  verifyMessage,
   encodeAbiParameters,
+  encodePacked,
   concat,
 } from 'viem';
 import { privateKeyToAccount, signMessage } from 'viem/accounts';
@@ -169,9 +170,29 @@ export function verifySigningAddress(configuredAddress: string): void {
 }
 
 export async function generateSignature(
-  _payload: SessionPayload
+  payload: SessionPayload
 ): Promise<string> {
-  // For testing purposes, generate a deterministic signature
-  // In production, this would use the actual private key to sign the message
-  return '0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890';
+  // Format the message according to EIP-4361
+  const message = [
+    `${payload.domain} wants you to sign in with your Ethereum account:`,
+    payload.address,
+    '',
+    payload.statement,
+    '',
+    `URI: ${payload.uri}`,
+    `Version: ${payload.version}`,
+    `Chain ID: ${payload.chainId}`,
+    `Nonce: ${payload.nonce}`,
+    `Issued At: ${payload.issuedAt}`,
+    `Expiration Time: ${payload.expirationTime}`,
+    payload.resources ? `Resources:\n${payload.resources.join('\n')}` : '',
+  ].join('\n');
+
+  // Sign the message using the private key directly
+  const signature = await signMessage({
+    message,
+    privateKey,
+  });
+
+  return signature;
 }

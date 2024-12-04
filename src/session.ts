@@ -32,23 +32,25 @@ export async function validateAndCreateSession(
   }
 
   // Verify the nonce exists and hasn't been used
-  const nonceExists = await verifyNonce(server, payload.domain, payload.nonce);
-  if (!nonceExists) {
+  const nonceIsValid = await verifyNonce(server, payload.domain, payload.nonce);
+  if (!nonceIsValid) {
     throw new Error('Invalid or expired nonce');
   }
 
-  // Verify the signature
+  // Format and verify the signature
   const message = formatMessage(payload);
   if (!signature.startsWith('0x')) {
     throw new Error('Invalid signature format: must start with 0x');
   }
-  const isValid = await verifyMessage({
+
+  // Recover the address from the signature and verify it matches
+  const recoveredAddress = await verifyMessage({
     address: getAddress(payload.address),
     message,
     signature: signature as `0x${string}`,
   });
 
-  if (!isValid) {
+  if (!recoveredAddress) {
     throw new Error('Invalid signature');
   }
 
@@ -61,15 +63,15 @@ export async function validateAndCreateSession(
 
   // Store session in database
   await server.db.query(
-    'INSERT INTO sessions (id, address, expires_at) VALUES ($1, $2, $3)',
-    [session.id, session.address, session.expiresAt]
+    'INSERT INTO sessions (id, address, expires_at, nonce, domain) VALUES ($1, $2, $3, $4, $5)',
+    [session.id, session.address, session.expiresAt, payload.nonce, payload.domain]
   );
 
   // Mark nonce as used
-  await server.db.query('DELETE FROM nonces WHERE domain = $1 AND nonce = $2', [
-    payload.domain,
-    payload.nonce,
-  ]);
+  await server.db.query(
+    'INSERT INTO nonces (nonce, domain) VALUES ($1, $2)',
+    [payload.nonce, payload.domain]
+  );
 
   return session;
 }
@@ -79,13 +81,17 @@ export async function verifySession(
   sessionId: string,
   address?: string
 ): Promise<boolean> {
+  if (!sessionId) {
+    throw new Error('Session ID is required');
+  }
+
   const result = await server.db.query<{ address: string; expires_at: string }>(
     'SELECT address, expires_at FROM sessions WHERE id = $1',
     [sessionId]
   );
 
   if (result.rows.length === 0) {
-    return false;
+    throw new Error('Invalid session ID');
   }
 
   const session = result.rows[0];
@@ -96,61 +102,142 @@ export async function verifySession(
   if (now > expiresAt) {
     // Clean up expired session
     await server.db.query('DELETE FROM sessions WHERE id = $1', [sessionId]);
-    return false;
+    throw new Error('Session has expired');
   }
 
-  // If address is provided, verify it matches the session
+  // If an address is provided, verify it matches the session
   if (address && getAddress(address) !== getAddress(session.address)) {
-    return false;
+    throw new Error('Session address mismatch');
   }
 
   return true;
 }
 
 function isValidPayload(payload: SessionPayload): boolean {
-  return (
-    typeof payload.domain === 'string' &&
-    typeof payload.address === 'string' &&
-    typeof payload.uri === 'string' &&
-    typeof payload.statement === 'string' &&
-    typeof payload.version === 'string' &&
-    typeof payload.chainId === 'number' &&
-    typeof payload.nonce === 'string' &&
-    typeof payload.issuedAt === 'string' &&
-    typeof payload.expirationTime === 'string' &&
-    Array.isArray(payload.resources) &&
-    payload.resources.every((r) => typeof r === 'string') &&
-    new Date(payload.expirationTime) > new Date() &&
-    new Date(payload.issuedAt) <= new Date()
-  );
+  try {
+    if (!payload) {
+      throw new Error('Payload is required');
+    }
+
+    // Check all required fields are present and have correct types
+    if (
+      typeof payload.domain !== 'string' ||
+      typeof payload.address !== 'string' ||
+      typeof payload.uri !== 'string' ||
+      typeof payload.statement !== 'string' ||
+      typeof payload.version !== 'string' ||
+      typeof payload.chainId !== 'number' ||
+      typeof payload.nonce !== 'string' ||
+      typeof payload.issuedAt !== 'string' ||
+      typeof payload.expirationTime !== 'string' ||
+      !Array.isArray(payload.resources)
+    ) {
+      throw new Error('Invalid payload field types');
+    }
+
+    // Validate address format
+    try {
+      getAddress(payload.address);
+    } catch {
+      throw new Error('Invalid Ethereum address');
+    }
+
+    // Validate timestamps
+    const now = new Date();
+    const issuedAt = new Date(payload.issuedAt);
+    const expiresAt = new Date(payload.expirationTime);
+
+    if (isNaN(issuedAt.getTime()) || isNaN(expiresAt.getTime())) {
+      throw new Error('Invalid timestamp format');
+    }
+
+    const MAX_SESSION_DURATION = 3600000; // 1 hour in milliseconds
+    if (
+      Math.abs(issuedAt.getTime() - now.getTime()) > 5000 || // Allow 5 second clock skew
+      expiresAt <= now ||
+      expiresAt.getTime() - now.getTime() > MAX_SESSION_DURATION
+    ) {
+      throw new Error('Invalid timestamp values');
+    }
+
+    // Validate domain matches server's domain
+    if (payload.domain !== process.env.DOMAIN) {
+      throw new Error('Invalid domain');
+    }
+
+    // Validate statement confirms sponsor is signing in
+    if (payload.statement !== 'Sign in to Smallocator') {
+      throw new Error('Invalid statement');
+    }
+
+    // Validate chain ID
+    if (payload.chainId <= 0) {
+      throw new Error('Invalid chain ID');
+    }
+
+    // Validate URI format
+    try {
+      const uri = new URL(payload.uri);
+      if (!uri.href.startsWith(process.env.BASE_URL || '')) {
+        throw new Error('Invalid URI base');
+      }
+    } catch {
+      throw new Error('Invalid URI format');
+    }
+
+    // Validate resources URIs if present
+    for (const resource of payload.resources) {
+      if (typeof resource !== 'string') {
+        throw new Error('Invalid resource type');
+      }
+      try {
+        new URL(resource);
+      } catch {
+        throw new Error('Invalid resource URI');
+      }
+    }
+
+    return true;
+  } catch (error) {
+    throw error;
+  }
 }
 
-async function verifyNonce(
+export async function verifyNonce(
   server: FastifyInstance,
   domain: string,
   nonce: string
 ): Promise<boolean> {
-  const result = await server.db.query<{ count: number }>(
-    'SELECT COUNT(*) as count FROM nonces WHERE domain = $1 AND nonce = $2',
+  if (!nonce || !domain) {
+    throw new Error('Nonce and domain are required');
+  }
+
+  const result = await server.db.query(
+    'SELECT nonce FROM nonces WHERE domain = $1 AND nonce = $2',
     [domain, nonce]
   );
 
-  // Return true if nonce doesn't exist (hasn't been used)
-  return result.rows[0].count === 0;
+  // Nonce should NOT exist in database yet
+  if (result.rows.length > 0) {
+    throw new Error('Nonce has already been used');
+  }
+
+  return true;
 }
 
 function formatMessage(payload: SessionPayload): string {
-  return `${payload.domain} wants you to sign in with your Ethereum account:
-${getAddress(payload.address)}
-
-${payload.statement}
-
-URI: ${payload.uri}
-Version: ${payload.version}
-Chain ID: ${payload.chainId}
-Nonce: ${payload.nonce}
-Issued At: ${payload.issuedAt}
-Expiration Time: ${payload.expirationTime}
-Resources:
-${payload.resources.join('\n')}`;
+  return [
+    `${payload.domain} wants you to sign in with your Ethereum account:`,
+    payload.address,
+    '',
+    payload.statement,
+    '',
+    `URI: ${payload.uri}`,
+    `Version: ${payload.version}`,
+    `Chain ID: ${payload.chainId}`,
+    `Nonce: ${payload.nonce}`,
+    `Issued At: ${payload.issuedAt}`,
+    `Expiration Time: ${payload.expirationTime}`,
+    payload.resources ? `Resources:\n${payload.resources.join('\n')}` : '',
+  ].join('\n');
 }

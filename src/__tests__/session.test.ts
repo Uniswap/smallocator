@@ -1,5 +1,9 @@
-import { FastifyInstance } from 'fastify';
-import { createTestServer, validPayload } from './utils/test-server';
+import { createWalletClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { mainnet } from 'viem/chains';
+import { createPublicClient } from 'viem';
+import { createTestServer, validPayload, cleanupTestServer } from './utils/test-server';
+import type { FastifyInstance } from 'fastify';
 import { generateSignature } from '../crypto';
 
 describe('Session Management', () => {
@@ -7,11 +11,11 @@ describe('Session Management', () => {
 
   beforeEach(async () => {
     server = await createTestServer();
-    await server.ready();
   });
 
   afterEach(async () => {
     await server.close();
+    await cleanupTestServer();
   });
 
   describe('Session Creation', () => {
@@ -29,6 +33,8 @@ describe('Session Management', () => {
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
       expect(result).toHaveProperty('sessionId');
+      expect(typeof result.sessionId).toBe('string');
+      expect(result.sessionId.length).toBeGreaterThan(0);
     });
 
     it('should reject invalid signature', async () => {
@@ -42,6 +48,8 @@ describe('Session Management', () => {
       });
 
       expect(response.statusCode).toBe(400);
+      const result = JSON.parse(response.payload);
+      expect(result).toHaveProperty('error');
     });
   });
 
@@ -87,6 +95,29 @@ describe('Session Management', () => {
       });
 
       expect(response.statusCode).toBe(401);
+      const result = JSON.parse(response.payload);
+      expect(result).toHaveProperty('error');
+    });
+
+    it('should reject expired session', async () => {
+      // Set session to expired in database
+      await server.db.query(
+        'UPDATE sessions SET expires_at = $1 WHERE id = $2',
+        [Math.floor(Date.now() / 1000) - 3600, sessionId]
+      );
+
+      const response = await server.inject({
+        method: 'GET',
+        url: '/session/verify',
+        headers: {
+          'x-session-id': sessionId,
+        },
+      });
+
+      expect(response.statusCode).toBe(401);
+      const result = JSON.parse(response.payload);
+      expect(result).toHaveProperty('error');
+      expect(result.error).toContain('expired');
     });
   });
 });

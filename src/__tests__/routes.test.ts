@@ -11,11 +11,12 @@ describe('API Routes', () => {
 
   beforeEach(async () => {
     server = await createTestServer();
-    await server.ready();
   });
 
   afterEach(async () => {
     await server.close();
+    // Add a small delay to ensure cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   describe('GET /health', () => {

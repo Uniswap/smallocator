@@ -66,11 +66,11 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
     '/session/:address',
     async (
       request: FastifyRequest<{ Params: { address: string } }>,
-      _reply: FastifyReply
+      reply: FastifyReply
     ): Promise<{ payload: SessionPayload } | { error: string }> => {
-      const { address } = request.params as { address: string };
-
       try {
+        const { address } = request.params as { address: string };
+
         const normalizedAddress = getAddress(address);
         const nonce = Date.now().toString();
         const payload = {
@@ -94,9 +94,8 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
 
         return { payload };
       } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Invalid address',
-        };
+        reply.code(400);
+        return { error: error instanceof Error ? error.message : 'Invalid address' };
       }
     }
   );
@@ -113,7 +112,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       request: FastifyRequest<{
         Body: { signature: string; payload: SessionPayload };
       }>,
-      _reply: FastifyReply
+      reply: FastifyReply
     ): Promise<
       | { session: { id: string; address: string; expiresAt: string } }
       | { error: string }
@@ -128,10 +127,8 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         return { session };
       } catch (err) {
         server.log.error('Session creation failed:', err);
-        return {
-          error:
-            err instanceof Error ? err.message : 'Failed to create session',
-        };
+        reply.code(400);
+        return { error: err instanceof Error ? err.message : 'Failed to create session' };
       }
     }
   );
@@ -148,7 +145,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       '/compact',
       async (
         request: FastifyRequest<{ Body: CompactSubmission }>,
-        _reply: FastifyReply
+        reply: FastifyReply
       ): Promise<
         { result: { hash: string; signature: string } } | { error: string }
       > => {
@@ -159,6 +156,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           );
 
           if (!session.rows.length) {
+            reply.code(404);
             return { error: 'Session not found' };
           }
 
@@ -170,7 +168,8 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           return { result };
         } catch (err) {
           server.log.error('Error submitting compact:', err);
-          return { error: 'Internal server error' };
+          reply.code(500);
+          return { error: err instanceof Error ? err.message : 'Internal server error' };
         }
       }
     );
@@ -180,7 +179,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       '/compacts',
       async (
         request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
-        _reply: FastifyReply
+        reply: FastifyReply
       ): Promise<{ compacts: CompactRecord[] } | { error: string }> => {
         try {
           const session = await server.db.query<{ address: string }>(
@@ -189,6 +188,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           );
 
           if (!session.rows.length) {
+            reply.code(404);
             return { error: 'Session not found' };
           }
 
@@ -199,7 +199,8 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           return { compacts };
         } catch (err) {
           server.log.error('Error retrieving compacts:', err);
-          return { error: 'Internal server error' };
+          reply.code(500);
+          return { error: err instanceof Error ? err.message : 'Internal server error' };
         }
       }
     );
@@ -216,20 +217,22 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         request: FastifyRequest<{
           Params: { chainId: string; claimHash: string };
         }>,
-        _reply: FastifyReply
+        reply: FastifyReply
       ): Promise<{ compact: CompactRecord | null } | { error: string }> => {
         try {
           const { chainId, claimHash } = request.params;
           const compact = await getCompactByHash(server, chainId, claimHash);
 
           if (!compact) {
+            reply.code(404);
             return { error: 'Compact not found' };
           }
 
           return { compact };
         } catch (err) {
           server.log.error('Error retrieving compact:', err);
-          return { error: 'Internal server error' };
+          reply.code(500);
+          return { error: err instanceof Error ? err.message : 'Internal server error' };
         }
       }
     );
