@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { getAddress, type Hex } from 'viem/utils';
+import { type Hex } from 'viem';
+import { getAddress } from 'viem/utils';
 import { validateCompact, type CompactMessage, storeNonce } from './validation';
 import { generateClaimHash, signCompact } from './crypto';
 import { randomUUID } from 'crypto';

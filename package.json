@@ -13,7 +13,7 @@
     "test:related": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --bail --findRelatedTests",
     "lint": "eslint .",
     "type-check": "tsc --noEmit -p tsconfig.lint.json",
-    "type-check:staged": "tsc --noEmit",
+    "type-check:staged": "tsc --noEmit -p tsconfig.json",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "prepare": "husky",
