@@ -128,17 +128,18 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         }
 
         const nonce = Date.now().toString();
+        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
         const payload = {
-          domain: 'smallocator.example',
+          domain: new URL(baseUrl).host,
           address: normalizedAddress,
-          uri: 'https://smallocator.example',
+          uri: baseUrl,
           statement: 'Sign in to Smallocator',
           version: '1',
           chainId: 1,
           nonce,
           issuedAt: new Date().toISOString(),
           expirationTime: new Date(Date.now() + 3600000).toISOString(),
-          resources: ['https://smallocator.example/resources'],
+          resources: [`${baseUrl}/resources`],
         };
 
         // Store nonce

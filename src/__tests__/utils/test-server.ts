@@ -7,16 +7,16 @@ import { dbManager } from '../setup';
 
 // Helper to generate test data
 export const validPayload = {
-  domain: 'smallocator.example',
+  domain: new URL(process.env.BASE_URL || 'http://localhost:3000').host,
   address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-  uri: 'https://smallocator.example',
+  uri: process.env.BASE_URL || 'http://localhost:3000',
   statement: 'Sign in to Smallocator',
   version: '1',
   chainId: 1,
   nonce: randomUUID(), // Use UUID for session nonce
   issuedAt: new Date().toISOString(),
   expirationTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-  resources: ['https://smallocator.example/resources'],
+  resources: [`${process.env.BASE_URL || 'http://localhost:3000'}/resources`],
 };
 
 // Helper to get fresh valid payload with current timestamps
