@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { getAddress } from 'viem';
+import { getAddress } from 'viem/utils';
 import { randomUUID } from 'crypto';
 import {
   validateAndCreateSession,

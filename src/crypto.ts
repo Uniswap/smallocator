@@ -1,12 +1,12 @@
 import {
   type Hex,
-  getAddress,
   hashTypedData,
   keccak256,
   encodeAbiParameters,
   encodePacked,
   concat,
-} from 'viem';
+} from 'viem/utils';
+import { getAddress } from 'viem/utils';
 import { privateKeyToAccount, signMessage } from 'viem/accounts';
 import { type CompactMessage } from './validation';
 import { type SessionPayload } from './session';

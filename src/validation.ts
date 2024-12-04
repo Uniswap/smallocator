@@ -1,4 +1,4 @@
-import { getAddress } from 'viem';
+import { getAddress } from 'viem/utils';
 import { getCompactDetails } from './graphql';
 import { getAllocatedBalance } from './balance';
 import { PGlite } from '@electric-sql/pglite';

@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { getAddress, verifyMessage } from 'viem';
+import { getAddress, verifyMessage } from 'viem/utils';
 import { randomUUID } from 'crypto';
 
 export interface SessionPayload {
