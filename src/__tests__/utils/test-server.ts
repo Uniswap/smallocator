@@ -133,7 +133,7 @@ export const validCompact = {
   id: 1n,
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
   sponsor: '0x2345678901234567890123456789012345678901',
-  nonce: '0x2345678901234567890123456789012345678901-0', // Sponsor address + counter
+  nonce: 0x2345678901234567890123456789012345678901000000000000000000000f00n,
   expires: BigInt(Math.floor(Date.now() / 1000) + 3600), // 1 hour from now
   amount: '1000000000000000000',
   witnessTypeString: 'witness-type',
@@ -142,12 +142,26 @@ export const validCompact = {
 };
 
 // Helper to get fresh compact with current expiration
-let compactCounter = 0;
+let compactCounter = 0n;
 export function getFreshCompact() {
+  const counter = compactCounter++; 
+  // Create nonce as BigInt: sponsor address + counter
+  const sponsorBigInt = BigInt(validCompact.sponsor);
+  const nonce = (sponsorBigInt << 96n) + counter;
   return {
     ...validCompact,
-    nonce: `${validCompact.sponsor}-${compactCounter++}`, // Sponsor address + unique counter
+    nonce,
     expires: BigInt(Math.floor(Date.now() / 1000) + 3600),
+  };
+}
+
+// Helper to convert BigInt values to strings for API requests
+export function compactToAPI(compact: typeof validCompact) {
+  return {
+    ...compact,
+    id: compact.id.toString(),
+    expires: compact.expires.toString(),
+    nonce: '0x' + compact.nonce.toString(16).padStart(64, '0'),
   };
 }
 

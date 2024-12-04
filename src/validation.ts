@@ -4,7 +4,7 @@ import { getCompactDetails } from './graphql';
 export interface CompactMessage {
   arbiter: string;
   sponsor: string;
-  nonce: string;
+  nonce: bigint;
   expires: bigint;
   id: bigint;
   amount: string;
@@ -114,13 +114,16 @@ export async function validateStructure(
 }
 
 export function validateNonce(
-  nonce: string,
+  nonce: bigint,
   sponsor: string
 ): ValidationResult {
   try {
+    // Convert nonce to 32-byte hex string
+    const nonceHex = '0x' + nonce.toString(16).padStart(64, '0');
+    
     // Check that the first 20 bytes of the nonce match the sponsor's address
     const sponsorAddress = getAddress(sponsor).toLowerCase();
-    const noncePrefix = nonce.slice(0, 42).toLowerCase();
+    const noncePrefix = nonceHex.slice(0, 42).toLowerCase();
 
     if (noncePrefix !== sponsorAddress) {
       return {
@@ -128,6 +131,8 @@ export function validateNonce(
         error: 'Nonce does not match sponsor address',
       };
     }
+
+    // TODO: Check database to confirm that the nonce has not been used before in this domain
 
     return { isValid: true };
   } catch (error) {

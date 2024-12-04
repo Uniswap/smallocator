@@ -6,6 +6,7 @@ import {
   getFreshValidPayload,
   getFreshCompact,
   cleanupTestServer,
+  compactToAPI,
 } from './utils/test-server';
 import { generateSignature } from '../crypto';
 
@@ -124,11 +125,7 @@ describe('API Routes', () => {
         const freshCompact = getFreshCompact();
         const compactPayload = {
           chainId: '1',
-          compact: {
-            ...freshCompact,
-            id: freshCompact.id.toString(),
-            expires: freshCompact.expires.toString(),
-          },
+          compact: compactToAPI(freshCompact),
         };
 
         const response = await server.inject({
@@ -147,11 +144,7 @@ describe('API Routes', () => {
         const freshCompact = getFreshCompact();
         const compactPayload = {
           chainId: '1',
-          compact: {
-            ...freshCompact,
-            id: freshCompact.id.toString(),
-            expires: freshCompact.expires.toString(),
-          },
+          compact: compactToAPI(freshCompact),
         };
 
         const response = await server.inject({
@@ -194,11 +187,7 @@ describe('API Routes', () => {
         const freshCompact = getFreshCompact();
         const compactPayload = {
           chainId: '1',
-          compact: {
-            ...freshCompact,
-            id: freshCompact.id.toString(),
-            expires: freshCompact.expires.toString(),
-          },
+          compact: compactToAPI(freshCompact),
         };
 
         // First submit a compact
