@@ -175,6 +175,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       | { error: string }
     > => {
       try {
+        
         const { signature, payload } = request.body;
         server.log.info('Creating session with payload:', payload);
         const session = await validateAndCreateSession(
