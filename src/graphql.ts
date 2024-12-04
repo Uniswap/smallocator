@@ -1,4 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
+import { getFinalizationThreshold } from './chain-config';
 
 // GraphQL endpoint from the architecture document
 const INDEXER_ENDPOINT = 'https://the-compact-indexer-2.ponder-dev.com/';
@@ -41,9 +42,32 @@ export interface AccountResponse {
   };
 }
 
+// Calculate timestamps for GraphQL query
+export function calculateQueryTimestamps(chainId: string): {
+  finalizationTimestamp: number;
+  thresholdTimestamp: number;
+} {
+  const currentTimeSeconds = Math.ceil(Date.now() / 1000);
+  const finalizationThreshold = getFinalizationThreshold(chainId);
+
+  return {
+    // Current time minus finalization threshold
+    finalizationTimestamp: currentTimeSeconds - finalizationThreshold,
+    // Current time minus 3 hours (in seconds)
+    thresholdTimestamp: currentTimeSeconds - 3 * 60 * 60,
+  };
+}
+
 // The main query from the architecture document
 export const GET_COMPACT_DETAILS = `
-  query GetDetails($allocator: String!, $sponsor: String!, $lockId: BigInt!, $chainId: BigInt!) {
+  query GetDetails(
+    $allocator: String!,
+    $sponsor: String!,
+    $lockId: BigInt!,
+    $chainId: BigInt!,
+    $finalizationTimestamp: BigInt!,
+    $thresholdTimestamp: BigInt!
+  ) {
     allocator(address: $allocator) {
       supportedChains(where: {chainId: $chainId}) {
         items {
@@ -51,7 +75,17 @@ export const GET_COMPACT_DETAILS = `
         }
       }
     }
-    accountDeltas(where: {address: $sponsor, resourceLock: $lockId, chainId: $chainId, delta_gt: "0"}, orderBy: "blockTimestamp", orderDirection: "DESC") {
+    accountDeltas(
+      where: {
+        address: $sponsor,
+        resourceLock: $lockId,
+        chainId: $chainId,
+        delta_gt: "0",
+        blockTimestamp_gt: $finalizationTimestamp
+      },
+      orderBy: "blockTimestamp",
+      orderDirection: "DESC"
+    ) {
       items {
         delta
       }
@@ -63,7 +97,15 @@ export const GET_COMPACT_DETAILS = `
           balance
         }
       }
-      claims(where: {allocator: $allocator, chainId: $chainId}, orderBy: "timestamp", orderDirection: "DESC") {
+      claims(
+        where: {
+          allocator: $allocator,
+          chainId: $chainId,
+          timestamp_gt: $thresholdTimestamp
+        },
+        orderBy: "timestamp",
+        orderDirection: "DESC"
+      ) {
         items {
           claimHash
         }
@@ -77,21 +119,37 @@ export interface CompactDetailsVariables {
   sponsor: string;
   lockId: string;
   chainId: string;
-  [key: string]: string;
+  finalizationTimestamp: string;
+  thresholdTimestamp: string;
+  [key: string]: string; // Add index signature for GraphQL client
 }
+
+// Base variables without timestamps
+export type CompactDetailsBaseVariables = Omit<
+  CompactDetailsVariables,
+  'finalizationTimestamp' | 'thresholdTimestamp'
+>;
 
 // Function to fetch compact details
 export async function getCompactDetails(
-  variables: CompactDetailsVariables
+  variables: CompactDetailsBaseVariables
 ): Promise<AllocatorResponse & AccountDeltasResponse & AccountResponse> {
   try {
+    const { finalizationTimestamp, thresholdTimestamp } =
+      calculateQueryTimestamps(variables.chainId);
+
+    const fullVariables = {
+      ...variables,
+      finalizationTimestamp: finalizationTimestamp.toString(),
+      thresholdTimestamp: thresholdTimestamp.toString(),
+    };
+
     const response = await graphqlClient.request<
       AllocatorResponse & AccountDeltasResponse & AccountResponse
-    >(GET_COMPACT_DETAILS, variables);
+    >(GET_COMPACT_DETAILS, fullVariables);
 
     return response;
   } catch (error) {
-    console.error('Error fetching compact details:', error);
     throw error;
   }
 }
