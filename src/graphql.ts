@@ -95,3 +95,43 @@ export async function getCompactDetails(
     throw error;
   }
 }
+
+export interface ProcessedCompactDetails {
+  totalDelta: bigint;
+  allocatorId: string | null;
+  withdrawalStatus: number | null;
+  balance: string | null;
+  claimHashes: string[];
+}
+
+export function processCompactDetails(
+  response: AllocatorResponse & AccountDeltasResponse & AccountResponse
+): ProcessedCompactDetails {
+  // Extract allocatorId (may not be present if no supported chains found)
+  const allocatorId =
+    response.allocator.supportedChains.items[0]?.allocatorId ?? null;
+
+  // Sum up all deltas
+  const totalDelta = response.accountDeltas.items.reduce(
+    (sum, item) => sum + BigInt(item.delta),
+    BigInt(0)
+  );
+
+  // Extract withdrawal status and balance (may not be present if no resource locks found)
+  const resourceLock = response.account.resourceLocks.items[0];
+  const withdrawalStatus = resourceLock?.withdrawalStatus ?? null;
+  const balance = resourceLock?.balance ?? null;
+
+  // Extract all claim hashes
+  const claimHashes = response.account.claims.items.map(
+    (item) => item.claimHash
+  );
+
+  return {
+    totalDelta,
+    allocatorId,
+    withdrawalStatus,
+    balance,
+    claimHashes,
+  };
+}
