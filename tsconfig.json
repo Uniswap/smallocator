@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -20,6 +21,6 @@
     "checkJs": false,
     "types": ["node", "jest"]
   },
-  "include": ["src/**/*", "src/**/*.test.ts"],
+  "include": ["src/**/*", "src/**/*.test.ts", "src/types/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
