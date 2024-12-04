@@ -80,6 +80,9 @@ declare module 'viem' {
     message: T;
   }): Hash;
   export function keccak256(value: Hex | string): Hash;
-  export function encodePacked(types: readonly string[], values: readonly any[]): Hex;
+  export function encodePacked(
+    types: readonly string[],
+    values: readonly any[]
+  ): Hex;
   export function concat(values: readonly Hex[]): Hex;
 }
