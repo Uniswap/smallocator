@@ -1,6 +1,6 @@
 import {
   createTestServer,
-  validPayload,
+  getFreshValidPayload,
   cleanupTestServer,
 } from './utils/test-server';
 import type { FastifyInstance } from 'fastify';
@@ -22,12 +22,13 @@ describe('Session Management', () => {
 
   describe('Session Creation', () => {
     it('should create a new session with valid payload', async () => {
-      const signature = await generateSignature(validPayload);
+      const payload = getFreshValidPayload();
+      const signature = await generateSignature(payload);
       const response = await server.inject({
         method: 'POST',
         url: '/session',
         payload: {
-          payload: validPayload,
+          payload,
           signature,
         },
       });
@@ -45,7 +46,7 @@ describe('Session Management', () => {
         method: 'POST',
         url: '/session',
         payload: {
-          payload: validPayload,
+          payload: getFreshValidPayload(),
           signature: 'invalid-signature',
         },
       });
@@ -60,12 +61,13 @@ describe('Session Management', () => {
     let sessionId: string;
 
     beforeEach(async () => {
-      const signature = await generateSignature(validPayload);
+      const payload = getFreshValidPayload();
+      const signature = await generateSignature(payload);
       const response = await server.inject({
         method: 'POST',
         url: '/session',
         payload: {
-          payload: validPayload,
+          payload,
           signature,
         },
       });
@@ -102,7 +104,7 @@ describe('Session Management', () => {
 
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
-      expect(result).toHaveProperty('address', validPayload.address);
+      expect(result).toHaveProperty('address', getFreshValidPayload().address);
     });
 
     it('should reject invalid session ID', async () => {
