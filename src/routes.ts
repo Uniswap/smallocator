@@ -119,6 +119,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
     > => {
       try {
         const { signature, payload } = request.body;
+        server.log.info('Creating session with payload:', payload);
         const session = await validateAndCreateSession(
           server,
           signature,
@@ -126,7 +127,11 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         );
         return { session };
       } catch (err) {
-        server.log.error('Session creation failed:', err);
+        server.log.error('Session creation failed:', {
+          error: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined,
+          payload: request.body.payload
+        });
         reply.code(400);
         return { error: err instanceof Error ? err.message : 'Failed to create session' };
       }

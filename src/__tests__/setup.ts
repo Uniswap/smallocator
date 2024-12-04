@@ -28,6 +28,33 @@ class DatabaseManager {
     if (!this.db) {
       this.db = new PGlite('memory://');
       await this.db.ready;
+
+      // Create tables with correct schema
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY,
+          address TEXT NOT NULL,
+          expires_at TIMESTAMP NOT NULL
+        )`);
+
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS nonces (
+          domain TEXT NOT NULL,
+          nonce TEXT NOT NULL,
+          PRIMARY KEY (domain, nonce)
+        )`);
+
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS compacts (
+          chain_id TEXT NOT NULL,
+          claim_hash TEXT NOT NULL,
+          arbiter TEXT NOT NULL,
+          sponsor TEXT NOT NULL,
+          expires BIGINT NOT NULL,
+          amount TEXT NOT NULL,
+          signature TEXT NOT NULL,
+          PRIMARY KEY (chain_id, claim_hash)
+        )`);
     }
     return this.db;
   }
@@ -54,12 +81,20 @@ class DatabaseManager {
 
 export const dbManager = DatabaseManager.getInstance();
 
-// Before all tests
+// Global test setup
 beforeAll(async () => {
   await dbManager.initialize();
 });
 
-// After all tests
+// Global test cleanup
 afterAll(async () => {
   await dbManager.cleanup();
+  // Ensure all pending operations are complete
+  await new Promise(resolve => setTimeout(resolve, 100));
+}, 10000); // Increase timeout for cleanup
+
+// Reset database between tests
+afterEach(async () => {
+  await dbManager.cleanup();
+  await dbManager.initialize();
 });

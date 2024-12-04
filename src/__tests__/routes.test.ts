@@ -14,7 +14,9 @@ describe('API Routes', () => {
   });
 
   afterEach(async () => {
-    await server.close();
+    if (server) {
+      await server.close();
+    }
     // Add a small delay to ensure cleanup
     await new Promise(resolve => setTimeout(resolve, 100));
   });
@@ -43,8 +45,10 @@ describe('API Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
-      expect(result).toHaveProperty('payload');
-      expect(result.payload).toHaveProperty('nonce');
+      expect(result).toHaveProperty('session');
+      expect(result.session).toHaveProperty('id');
+      expect(result.session).toHaveProperty('address');
+      expect(result.session).toHaveProperty('expiresAt');
     });
 
     it('should reject invalid ethereum address', async () => {
@@ -71,7 +75,10 @@ describe('API Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
-      expect(result).toHaveProperty('sessionId');
+      expect(result).toHaveProperty('session');
+      expect(result.session).toHaveProperty('id');
+      expect(result.session).toHaveProperty('address');
+      expect(result.session).toHaveProperty('expiresAt');
     });
 
     it('should reject invalid signature', async () => {
@@ -104,7 +111,7 @@ describe('API Routes', () => {
       });
 
       const result = JSON.parse(response.payload);
-      sessionId = result.sessionId;
+      sessionId = result.session.id;
     });
 
     describe('POST /compact', () => {

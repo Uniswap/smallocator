@@ -1,7 +1,3 @@
-import { createWalletClient } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { mainnet } from 'viem/chains';
-import { createPublicClient } from 'viem';
 import { createTestServer, validPayload, cleanupTestServer } from './utils/test-server';
 import type { FastifyInstance } from 'fastify';
 import { generateSignature } from '../crypto';
@@ -14,7 +10,9 @@ describe('Session Management', () => {
   });
 
   afterEach(async () => {
-    await server.close();
+    if (server) {
+      await server.close();
+    }
     await cleanupTestServer();
   });
 
@@ -32,9 +30,10 @@ describe('Session Management', () => {
 
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
-      expect(result).toHaveProperty('sessionId');
-      expect(typeof result.sessionId).toBe('string');
-      expect(result.sessionId.length).toBeGreaterThan(0);
+      expect(result).toHaveProperty('session');
+      expect(result.session).toHaveProperty('id');
+      expect(typeof result.session.id).toBe('string');
+      expect(result.session.id.length).toBeGreaterThan(0);
     });
 
     it('should reject invalid signature', async () => {
@@ -68,7 +67,7 @@ describe('Session Management', () => {
       });
 
       const result = JSON.parse(response.payload);
-      sessionId = result.sessionId;
+      sessionId = result.session.id;
     });
 
     it('should verify valid session', async () => {

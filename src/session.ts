@@ -26,54 +26,64 @@ export async function validateAndCreateSession(
   signature: string,
   payload: SessionPayload
 ): Promise<Session> {
-  // Validate payload structure
-  if (!isValidPayload(payload)) {
-    throw new Error('Invalid session payload structure');
+  try {
+    // Validate payload structure
+    if (!isValidPayload(payload)) {
+      throw new Error('Invalid session payload structure');
+    }
+
+    // Verify the nonce exists and hasn't been used
+    const nonceIsValid = await verifyNonce(server, payload.domain, payload.nonce);
+    if (!nonceIsValid) {
+      throw new Error('Invalid or expired nonce');
+    }
+
+    // Format and verify the signature
+    const message = formatMessage(payload);
+    if (!signature.startsWith('0x')) {
+      throw new Error('Invalid signature format: must start with 0x');
+    }
+
+    // Recover the address from the signature and verify it matches
+    const recoveredAddress = await verifyMessage({
+      address: getAddress(payload.address),
+      message,
+      signature: signature as `0x${string}`,
+    });
+
+    if (!recoveredAddress) {
+      throw new Error('Invalid signature');
+    }
+
+    // Create session
+    const session: Session = {
+      id: randomUUID(),
+      address: getAddress(payload.address),
+      expiresAt: payload.expirationTime,
+    };
+
+    // Store session in database
+    await server.db.query(
+      'INSERT INTO sessions (id, address, expires_at) VALUES ($1, $2, $3)',
+      [session.id, session.address, session.expiresAt]
+    );
+
+    // Mark nonce as used
+    await server.db.query(
+      'INSERT INTO nonces (domain, nonce) VALUES ($1, $2)',
+      [payload.domain, payload.nonce]
+    );
+
+    return session;
+  } catch (error) {
+    server.log.error('Session validation failed:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      payload,
+      signature
+    });
+    throw error;
   }
-
-  // Verify the nonce exists and hasn't been used
-  const nonceIsValid = await verifyNonce(server, payload.domain, payload.nonce);
-  if (!nonceIsValid) {
-    throw new Error('Invalid or expired nonce');
-  }
-
-  // Format and verify the signature
-  const message = formatMessage(payload);
-  if (!signature.startsWith('0x')) {
-    throw new Error('Invalid signature format: must start with 0x');
-  }
-
-  // Recover the address from the signature and verify it matches
-  const recoveredAddress = await verifyMessage({
-    address: getAddress(payload.address),
-    message,
-    signature: signature as `0x${string}`,
-  });
-
-  if (!recoveredAddress) {
-    throw new Error('Invalid signature');
-  }
-
-  // Create session
-  const session: Session = {
-    id: randomUUID(),
-    address: getAddress(payload.address),
-    expiresAt: payload.expirationTime,
-  };
-
-  // Store session in database
-  await server.db.query(
-    'INSERT INTO sessions (id, address, expires_at, nonce, domain) VALUES ($1, $2, $3, $4, $5)',
-    [session.id, session.address, session.expiresAt, payload.nonce, payload.domain]
-  );
-
-  // Mark nonce as used
-  await server.db.query(
-    'INSERT INTO nonces (nonce, domain) VALUES ($1, $2)',
-    [payload.nonce, payload.domain]
-  );
-
-  return session;
 }
 
 export async function verifySession(
