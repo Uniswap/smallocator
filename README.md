@@ -49,7 +49,7 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
    Submit the signed payload to create a session. Example request:
    ```json
    {
-     "signature": "0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
+     "signature": "0x1234...7890",
      "payload": {
        "domain": "localhost:3000",
        "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
@@ -99,7 +99,7 @@ All compact operations require a valid session ID in the `x-session-id` header.
    ```json
    {
      "hash": "0x1234567890123456789012345678901234567890123456789012345678901234",
-     "signature": "0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+     "signature": "0x1234...7890"
    }
    ```
 
@@ -126,7 +126,7 @@ All compact operations require a valid session ID in the `x-session-id` header.
          "witnessTypeString": "ExampleWitness exampleWitness)ExampleWitness(uint256 foo, bytes32 bar)",
          "witnessHash": "0x0000000000000000000000000000000000000000000000000000000000000123"
        },
-       "signature": "0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
+       "signature": "0x1234...7890",
        "createdAt": "2024-03-07T12:00:00Z"
      }
    ]
@@ -151,7 +151,7 @@ All compact operations require a valid session ID in the `x-session-id` header.
        "witnessTypeString": "ExampleWitness exampleWitness)ExampleWitness(uint256 foo, bytes32 bar)",
        "witnessHash": "0x0000000000000000000000000000000000000000000000000000000000000123"
      },
-     "signature": "0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
+     "signature": "0x1234...7890",
      "createdAt": "2024-03-07T12:00:00Z"
    }
    ```
@@ -164,44 +164,23 @@ All compact operations require a valid session ID in the `x-session-id` header.
 - pnpm >= 9.14.1
 - TypeScript >= 5.2
 
-### Configuration
-
-1. Copy the example environment file:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Configure the following variables in `.env`:
-
-   ```shell
-   # Server Configuration
-   BASE_URL=http://localhost:3000
-   PORT=3000
-   CORS_ORIGIN=*
-
-   # Database Configuration
-   DATABASE_URL=sqlite://smallocator.db
-
-   # Crypto Configuration
-   PRIVATE_KEY=your_private_key_here
-   ALLOCATOR_ADDRESS=signing_address_or_contract_address
-   SIGNING_ADDRESS=derived_from_private_key
-
-   # External Services
-   INDEXER_URL=https://the-compact-indexer-2.ponder-dev.com/
-   ```
-
-### Installation
+### Development
 
 ```bash
-# Install dependencies
+### Configuration & Installation ###
+# 1. Clone this repo and enter cloned directory
+$ git clone git@github.com:Uniswap/smallocator.git && cd smallocator
+
+# 2. Copy example environment file (modify as needed)
+$ cp .env.example .env
+
+# 3. Install dependencies
 pnpm install
-```
 
-### Development Commands
+# 4. Run tests
+pnpm test
 
-```bash
+### Usage ###
 # Run in development mode with hot reload
 pnpm dev
 
@@ -226,7 +205,7 @@ pnpm start
 
 ### Testing
 
-The project includes comprehensive test suites:
+The project utilizes Jest to implement various test suites:
 
 - Unit tests for core functionality
 - Integration tests for API endpoints
