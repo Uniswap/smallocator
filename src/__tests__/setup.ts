@@ -83,19 +83,20 @@ class DatabaseManager {
 export const dbManager = DatabaseManager.getInstance();
 
 // Global test setup
-beforeAll(async () => {
+beforeEach(async () => {
   await dbManager.initialize();
 });
 
 // Global test cleanup
 afterAll(async () => {
+  // Wait for any pending operations to complete
+  await new Promise((resolve) => setTimeout(resolve, 500));
   await dbManager.cleanup();
-  // Ensure all pending operations are complete
-  await new Promise((resolve) => setTimeout(resolve, 100));
-}, 10000); // Increase timeout for cleanup
+}, 10000);
 
 // Reset database between tests
 afterEach(async () => {
+  // Wait for any pending operations to complete
+  await new Promise((resolve) => setTimeout(resolve, 500));
   await dbManager.cleanup();
-  await dbManager.initialize();
 });

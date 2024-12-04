@@ -13,14 +13,24 @@ import {
   type CompactRecord,
 } from './compact';
 
+// Extend FastifyRequest to include session
+declare module 'fastify' {
+  interface FastifyRequest {
+    session?: {
+      id: string;
+      address: string;
+    };
+  }
+}
+
 // Authentication middleware
 function createAuthMiddleware(server: FastifyInstance) {
   return async function authenticateRequest(
-    request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ): Promise<void> {
     const sessionId = request.headers['x-session-id'];
-    if (!sessionId) {
+    if (!sessionId || Array.isArray(sessionId)) {
       reply.code(401).send({ error: 'Session ID required' });
       return;
     }
@@ -44,7 +54,7 @@ function createAuthMiddleware(server: FastifyInstance) {
       }
 
       // Store the session in the request object
-      (request as any).session = {
+      request.session = {
         id: sessionId,
         address: result.rows[0].address,
       };
@@ -168,7 +178,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       reply: FastifyReply
     ): Promise<{ address: string } | { error: string }> => {
       const sessionId = request.headers['x-session-id'];
-      if (!sessionId) {
+      if (!sessionId || Array.isArray(sessionId)) {
         reply.code(401);
         return { error: 'Session ID required' };
       }
@@ -198,53 +208,47 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
     // Submit a new compact
     protectedRoutes.post<{
       Body: CompactSubmission;
-    }>(
-      '/compact',
-      async (
-        request: FastifyRequest<{ Body: CompactSubmission }>,
-        reply: FastifyReply
-      ): Promise<
-        { result: { hash: string; signature: string } } | { error: string }
-      > => {
-        try {
-          const result = await submitCompact(
-            server,
-            request.body,
-            (request as any).session.address
-          );
-          return { result };
-        } catch (error) {
-          server.log.error('Failed to submit compact:', error);
-          if (
-            error instanceof Error &&
-            error.message.includes('Sponsor address does not match')
-          ) {
-            reply.code(403);
-          } else {
-            reply.code(400);
-          }
-          return {
-            error:
-              error instanceof Error
-                ? error.message
-                : 'Failed to submit compact',
-          };
-        }
+    }>('/compact', async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.session) {
+        reply.code(401);
+        return { error: 'Unauthorized' };
       }
-    );
+
+      try {
+        const result = await submitCompact(
+          server,
+          request.body as CompactSubmission,
+          request.session.address
+        );
+        return { result };
+      } catch (error) {
+        server.log.error('Failed to submit compact:', error);
+        if (
+          error instanceof Error &&
+          error.message.includes('Sponsor address does not match')
+        ) {
+          reply.code(403);
+        } else {
+          reply.code(400);
+        }
+        return {
+          error:
+            error instanceof Error ? error.message : 'Failed to submit compact',
+        };
+      }
+    });
 
     // Get compacts for authenticated user
     protectedRoutes.get(
       '/compacts',
-      async (
-        request: FastifyRequest,
-        reply: FastifyReply
-      ): Promise<CompactRecord[] | { error: string }> => {
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        if (!request.session) {
+          reply.code(401);
+          return { error: 'Unauthorized' };
+        }
+
         try {
-          return await getCompactsByAddress(
-            server,
-            (request as any).session.address
-          );
+          return await getCompactsByAddress(server, request.session.address);
         } catch (error) {
           server.log.error('Failed to get compacts:', error);
           if (

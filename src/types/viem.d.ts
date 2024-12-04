@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 declare module 'viem' {
   export type Hex = `0x${string}`;
   export type Address = Hex;
