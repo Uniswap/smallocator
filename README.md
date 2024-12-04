@@ -1,6 +1,6 @@
 # Smallocator
 
-A minimalistic server-based allocator for [The Compact](https://github.com/Uniswap/the-compact). Smallocator provides a secure and efficient API for managing resource lock allocations across multiple blockchains, with support for EIP-4361 session authentication and signing EIP-712 `Compact` messages.
+A minimalistic server-based allocator for [The Compact](https://github.com/Uniswap/the-compact). Smallocator provides an API for sponsors to request resource lock allocations across multiple blockchains, with support for EIP-4361 session authentication and signing EIP-712 `Compact` messages.
 
 > ⚠️ Smallocator is under developement and is intended to serve as a reference for understanding server-based allocator functionality and for testing purposes. Use caution when using Smallocator in a production environment.
 
@@ -49,9 +49,18 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
    Submit the signed payload to create a session. Example request:
    ```json
    {
-     "signature": "0x...",
+     "signature": "0x1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
      "payload": {
-       // The payload received from GET /session/:address
+       "domain": "localhost:3000",
+       "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+       "uri": "http://localhost:3000",
+       "statement": "Sign in to Smallocator",
+       "version": "1",
+       "chainId": 1,
+       "nonce": "d6e1c0c4-3d78-4daa-9e57-5485b7c8c6c3",
+       "issuedAt": "2024-03-07T12:00:00.000Z",
+       "expirationTime": "2024-03-07T13:00:00.000Z",
+       "resources": ["http://localhost:3000/resources"]
      }
    }
    ```
