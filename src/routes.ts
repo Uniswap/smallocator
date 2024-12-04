@@ -31,6 +31,8 @@ function createAuthMiddleware(server: FastifyInstance) {
         reply.code(401).send({ error: 'Invalid session' });
         return;
       }
+      // Store the session in the request object
+      (request as any).session = session;
     } catch (err) {
       server.log.error('Session verification failed:', err);
       reply.code(401).send({ error: 'Invalid session' });
@@ -138,6 +140,34 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
     }
   );
 
+  // Verify session
+  server.get(
+    '/session/verify',
+    async (
+      request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
+      reply: FastifyReply
+    ): Promise<{ address: string } | { error: string }> => {
+      const sessionId = request.headers['x-session-id'];
+      if (!sessionId) {
+        reply.code(401);
+        return { error: 'Session ID required' };
+      }
+
+      try {
+        const session = await verifySession(server, sessionId);
+        const result = await server.db.query<{ address: string }>(
+          'SELECT address FROM sessions WHERE id = $1',
+          [sessionId]
+        );
+        return { address: result.rows[0].address };
+      } catch (err) {
+        server.log.error('Session verification failed:', err);
+        reply.code(401);
+        return { error: err instanceof Error ? err.message : 'Invalid session' };
+      }
+    }
+  );
+
   // Protected routes
   server.register(async function (protectedRoutes) {
     // Add authentication to all routes in this context
@@ -155,75 +185,46 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         { result: { hash: string; signature: string } } | { error: string }
       > => {
         try {
-          const session = await server.db.query<{ address: string }>(
-            'SELECT address FROM sessions WHERE id = $1',
-            [request.headers['x-session-id']]
-          );
-
-          if (!session.rows.length) {
-            reply.code(404);
-            return { error: 'Session not found' };
-          }
-
           const result = await submitCompact(
             server,
             request.body,
-            session.rows[0].address
+            (request as any).session.address
           );
           return { result };
-        } catch (err) {
-          server.log.error('Error submitting compact:', err);
-          reply.code(500);
-          return { error: err instanceof Error ? err.message : 'Internal server error' };
+        } catch (error) {
+          server.log.error('Failed to submit compact:', error);
+          reply.code(400);
+          return { error: error instanceof Error ? error.message : 'Failed to submit compact' };
         }
       }
     );
 
-    // Get all compacts for the authenticated user
+    // Get compacts for authenticated user
     protectedRoutes.get(
       '/compacts',
       async (
-        request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
+        request: FastifyRequest,
         reply: FastifyReply
-      ): Promise<{ compacts: CompactRecord[] } | { error: string }> => {
+      ): Promise<CompactRecord[] | { error: string }> => {
         try {
-          const session = await server.db.query<{ address: string }>(
-            'SELECT address FROM sessions WHERE id = $1',
-            [request.headers['x-session-id']]
-          );
-
-          if (!session.rows.length) {
-            reply.code(404);
-            return { error: 'Session not found' };
-          }
-
-          const compacts = await getCompactsByAddress(
-            server,
-            session.rows[0].address
-          );
-          return { compacts };
-        } catch (err) {
-          server.log.error('Error retrieving compacts:', err);
-          reply.code(500);
-          return { error: err instanceof Error ? err.message : 'Internal server error' };
+          return await getCompactsByAddress(server, (request as any).session.address);
+        } catch (error) {
+          server.log.error('Failed to get compacts:', error);
+          reply.code(400);
+          return { error: error instanceof Error ? error.message : 'Failed to get compacts' };
         }
       }
     );
 
-    // Get a specific compact by hash
-    protectedRoutes.get<{
-      Params: {
-        chainId: string;
-        claimHash: string;
-      };
-    }>(
+    // Get specific compact
+    protectedRoutes.get(
       '/compact/:chainId/:claimHash',
       async (
         request: FastifyRequest<{
           Params: { chainId: string; claimHash: string };
         }>,
         reply: FastifyReply
-      ): Promise<{ compact: CompactRecord | null } | { error: string }> => {
+      ): Promise<CompactRecord | { error: string }> => {
         try {
           const { chainId, claimHash } = request.params;
           const compact = await getCompactByHash(server, chainId, claimHash);
@@ -233,11 +234,11 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
             return { error: 'Compact not found' };
           }
 
-          return { compact };
-        } catch (err) {
-          server.log.error('Error retrieving compact:', err);
-          reply.code(500);
-          return { error: err instanceof Error ? err.message : 'Internal server error' };
+          return compact;
+        } catch (error) {
+          server.log.error('Failed to get compact:', error);
+          reply.code(400);
+          return { error: error instanceof Error ? error.message : 'Failed to get compact' };
         }
       }
     );

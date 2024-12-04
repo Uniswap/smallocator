@@ -115,7 +115,7 @@ export async function createTestSession(server: FastifyInstance, address: string
   }
 
   const result = JSON.parse(response.payload);
-  return result.sessionId;
+  return result.session.id;
 }
 
 export const validCompact = {
