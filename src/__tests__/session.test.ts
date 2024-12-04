@@ -70,7 +70,24 @@ describe('Session Management', () => {
         },
       });
 
+      if (response.statusCode !== 200) {
+        console.error(`Failed to create session: ${response.payload}`);
+      }
+      expect(response.statusCode).toBe(200);
+
       const result = JSON.parse(response.payload);
+      if (!result.session) {
+        console.error(`Invalid response format: ${JSON.stringify(result)}`);
+      }
+      expect(result).toHaveProperty('session');
+
+      if (!result.session?.id) {
+        console.error(
+          `Session object missing ID: ${JSON.stringify(result.session)}`
+        );
+      }
+      expect(result.session).toHaveProperty('id');
+
       sessionId = result.session.id;
     });
 
