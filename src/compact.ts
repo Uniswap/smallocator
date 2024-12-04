@@ -72,10 +72,6 @@ export async function getCompactsByAddress(
     [getAddress(address)]
   );
 
-  if (result.rows.length === 0) {
-    throw new Error('No compacts found for address');
-  }
-
   return result.rows;
 }
 
