@@ -40,7 +40,13 @@ export async function createTestServer(): Promise<FastifyInstance> {
     await server.register(env, {
       schema: {
         type: 'object',
-        required: ['SIGNING_ADDRESS', 'ALLOCATOR_ADDRESS', 'PRIVATE_KEY', 'DOMAIN', 'BASE_URL'],
+        required: [
+          'SIGNING_ADDRESS',
+          'ALLOCATOR_ADDRESS',
+          'PRIVATE_KEY',
+          'DOMAIN',
+          'BASE_URL',
+        ],
         properties: {
           SIGNING_ADDRESS: { type: 'string' },
           ALLOCATOR_ADDRESS: { type: 'string' },
@@ -96,7 +102,7 @@ export async function createTestServer(): Promise<FastifyInstance> {
     // Set up routes
     await setupRoutes(server);
     await server.ready();
-    
+
     return server;
   } catch (error) {
     await server.close();
@@ -105,7 +111,10 @@ export async function createTestServer(): Promise<FastifyInstance> {
 }
 
 // Helper to create a test session
-export async function createTestSession(server: FastifyInstance, address: string = validPayload.address): Promise<string> {
+export async function createTestSession(
+  server: FastifyInstance,
+  address: string = validPayload.address
+): Promise<string> {
   const response = await server.inject({
     method: 'POST',
     url: '/session',
@@ -128,11 +137,14 @@ export const validCompact = {
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
   sponsor: validPayload.address,
   // Create nonce where first 20 bytes match sponsor address
-  nonce: BigInt('0x' + validPayload.address.toLowerCase().slice(2) + '0'.repeat(24)),
+  nonce: BigInt(
+    '0x' + validPayload.address.toLowerCase().slice(2) + '0'.repeat(24)
+  ),
   expires: BigInt(Math.floor(Date.now() / 1000) + 3600), // 1 hour from now
   amount: '1000000000000000000',
   witnessTypeString: 'witness-type',
-  witnessHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
+  witnessHash:
+    '0x1234567890123456789012345678901234567890123456789012345678901234',
   chainId: 1,
 };
 
@@ -145,7 +157,7 @@ export function getFreshCompact() {
   const counterHex = counter.toString(16).padStart(24, '0'); // 12 bytes for counter
   const nonceHex = '0x' + sponsorAddress + counterHex;
   const nonce = BigInt(nonceHex);
-  
+
   return {
     ...validCompact,
     nonce,
@@ -160,7 +172,7 @@ export function compactToAPI(compact: typeof validCompact) {
     id: compact.id.toString(),
     expires: compact.expires.toString(),
     nonce: '0x' + compact.nonce.toString(16).padStart(64, '0'),
-    chainId: compact.chainId.toString(),  // Convert chainId to string
+    chainId: compact.chainId.toString(), // Convert chainId to string
   };
 }
 

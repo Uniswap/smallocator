@@ -24,7 +24,11 @@ export async function validateCompact(
   try {
     // 1. Chain ID validation
     const chainIdNum = parseInt(chainId);
-    if (isNaN(chainIdNum) || chainIdNum <= 0 || chainIdNum.toString() !== chainId) {
+    if (
+      isNaN(chainIdNum) ||
+      chainIdNum <= 0 ||
+      chainIdNum.toString() !== chainId
+    ) {
       return { isValid: false, error: 'Invalid chain ID format' };
     }
 
@@ -120,7 +124,7 @@ export function validateNonce(
   try {
     // Convert nonce to 32-byte hex string (without 0x prefix)
     const nonceHex = nonce.toString(16).padStart(64, '0');
-    
+
     // Check that the first 20 bytes of the nonce match the sponsor's address
     const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2); // Remove 0x prefix
     const noncePrefix = nonceHex.slice(0, 40); // First 20 bytes = 40 hex chars
@@ -180,7 +184,11 @@ export async function validateDomainAndId(
 
     // Validate chainId format
     const chainIdNum = parseInt(chainId);
-    if (isNaN(chainIdNum) || chainIdNum <= 0 || chainIdNum.toString() !== chainId) {
+    if (
+      isNaN(chainIdNum) ||
+      chainIdNum <= 0 ||
+      chainIdNum.toString() !== chainId
+    ) {
       return { isValid: false, error: 'Invalid chain ID format' };
     }
 

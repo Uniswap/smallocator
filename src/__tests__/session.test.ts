@@ -1,4 +1,8 @@
-import { createTestServer, validPayload, cleanupTestServer } from './utils/test-server';
+import {
+  createTestServer,
+  validPayload,
+  cleanupTestServer,
+} from './utils/test-server';
 import type { FastifyInstance } from 'fastify';
 import { generateSignature } from '../crypto';
 

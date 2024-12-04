@@ -3,7 +3,6 @@ import {
   getAddress,
   hashTypedData,
   keccak256,
-  verifyMessage,
   encodeAbiParameters,
   encodePacked,
   concat,

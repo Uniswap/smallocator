@@ -1,5 +1,5 @@
 import { validateDomainAndId, validateCompact } from '../validation';
-import { validCompact, getFreshCompact } from './utils/test-server';
+import { getFreshCompact } from './utils/test-server';
 
 describe('Validation', () => {
   describe('validateDomainAndId', () => {
@@ -9,7 +9,12 @@ describe('Validation', () => {
       const chainId = '1';
       const allocatorAddress = '0x2345678901234567890123456789012345678901';
 
-      const result = await validateDomainAndId(id, expires, chainId, allocatorAddress);
+      const result = await validateDomainAndId(
+        id,
+        expires,
+        chainId,
+        allocatorAddress
+      );
       expect(result.isValid).toBe(true);
     });
 
@@ -19,7 +24,12 @@ describe('Validation', () => {
       const chainId = '1';
       const allocatorAddress = '0x2345678901234567890123456789012345678901';
 
-      const result = await validateDomainAndId(id, expires, chainId, allocatorAddress);
+      const result = await validateDomainAndId(
+        id,
+        expires,
+        chainId,
+        allocatorAddress
+      );
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('Invalid ID');
     });
@@ -30,7 +40,12 @@ describe('Validation', () => {
       const chainId = 'invalid';
       const allocatorAddress = '0x2345678901234567890123456789012345678901';
 
-      const result = await validateDomainAndId(id, expires, chainId, allocatorAddress);
+      const result = await validateDomainAndId(
+        id,
+        expires,
+        chainId,
+        allocatorAddress
+      );
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('Invalid chain ID');
     });

@@ -27,9 +27,18 @@ export async function submitCompact(
   // Convert string values to BigInt for validation
   const compactForValidation = {
     ...submission.compact,
-    id: typeof submission.compact.id === 'string' ? BigInt(submission.compact.id) : submission.compact.id,
-    nonce: typeof submission.compact.nonce === 'string' ? BigInt(submission.compact.nonce) : submission.compact.nonce,
-    expires: typeof submission.compact.expires === 'string' ? BigInt(submission.compact.expires) : submission.compact.expires,
+    id:
+      typeof submission.compact.id === 'string'
+        ? BigInt(submission.compact.id)
+        : submission.compact.id,
+    nonce:
+      typeof submission.compact.nonce === 'string'
+        ? BigInt(submission.compact.nonce)
+        : submission.compact.nonce,
+    expires:
+      typeof submission.compact.expires === 'string'
+        ? BigInt(submission.compact.expires)
+        : submission.compact.expires,
   };
 
   // Validate the compact
@@ -105,7 +114,7 @@ async function storeCompact(
     ...submission.compact,
     id: submission.compact.id.toString(),
     nonce: submission.compact.nonce.toString(),
-    expires: submission.compact.expires.toString()
+    expires: submission.compact.expires.toString(),
   };
 
   await server.db.query(

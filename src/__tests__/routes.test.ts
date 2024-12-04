@@ -2,7 +2,6 @@ import { FastifyInstance } from 'fastify';
 import {
   createTestServer,
   validPayload,
-  validCompact,
   getFreshValidPayload,
   getFreshCompact,
   cleanupTestServer,
@@ -205,7 +204,10 @@ describe('API Routes', () => {
         });
 
         const submitResponseData = JSON.parse(submitResponse.payload);
-        if (submitResponse.statusCode !== 200 || !submitResponseData.result?.hash) {
+        if (
+          submitResponse.statusCode !== 200 ||
+          !submitResponseData.result?.hash
+        ) {
           console.error('Failed to submit compact:', submitResponse.payload);
           throw new Error('Failed to submit compact');
         }

@@ -33,7 +33,11 @@ export async function validateAndCreateSession(
     }
 
     // Verify the nonce exists and hasn't been used
-    const nonceIsValid = await verifyNonce(server, payload.domain, payload.nonce);
+    const nonceIsValid = await verifyNonce(
+      server,
+      payload.domain,
+      payload.nonce
+    );
     if (!nonceIsValid) {
       throw new Error('Invalid or expired nonce');
     }
@@ -80,7 +84,7 @@ export async function validateAndCreateSession(
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       payload,
-      signature
+      signature,
     });
     throw error;
   }

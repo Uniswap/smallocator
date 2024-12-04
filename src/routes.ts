@@ -46,7 +46,7 @@ function createAuthMiddleware(server: FastifyInstance) {
       // Store the session in the request object
       (request as any).session = {
         id: sessionId,
-        address: result.rows[0].address
+        address: result.rows[0].address,
       };
     } catch (err) {
       server.log.error('Session verification failed:', err);
@@ -112,7 +112,9 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         return { session: payload };
       } catch (error) {
         reply.code(400);
-        return { error: error instanceof Error ? error.message : 'Invalid address' };
+        return {
+          error: error instanceof Error ? error.message : 'Invalid address',
+        };
       }
     }
   );
@@ -147,10 +149,13 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         server.log.error('Session creation failed:', {
           error: err instanceof Error ? err.message : 'Unknown error',
           stack: err instanceof Error ? err.stack : undefined,
-          payload: request.body.payload
+          payload: request.body.payload,
         });
         reply.code(400);
-        return { error: err instanceof Error ? err.message : 'Failed to create session' };
+        return {
+          error:
+            err instanceof Error ? err.message : 'Failed to create session',
+        };
       }
     }
   );
@@ -169,7 +174,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const session = await verifySession(server, sessionId);
+        await verifySession(server, sessionId);
         const result = await server.db.query<{ address: string }>(
           'SELECT address FROM sessions WHERE id = $1',
           [sessionId]
@@ -178,7 +183,9 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       } catch (err) {
         server.log.error('Session verification failed:', err);
         reply.code(401);
-        return { error: err instanceof Error ? err.message : 'Invalid session' };
+        return {
+          error: err instanceof Error ? err.message : 'Invalid session',
+        };
       }
     }
   );
@@ -208,12 +215,20 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           return { result };
         } catch (error) {
           server.log.error('Failed to submit compact:', error);
-          if (error instanceof Error && error.message.includes('Sponsor address does not match')) {
+          if (
+            error instanceof Error &&
+            error.message.includes('Sponsor address does not match')
+          ) {
             reply.code(403);
           } else {
             reply.code(400);
           }
-          return { error: error instanceof Error ? error.message : 'Failed to submit compact' };
+          return {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Failed to submit compact',
+          };
         }
       }
     );
@@ -226,15 +241,24 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         reply: FastifyReply
       ): Promise<CompactRecord[] | { error: string }> => {
         try {
-          return await getCompactsByAddress(server, (request as any).session.address);
+          return await getCompactsByAddress(
+            server,
+            (request as any).session.address
+          );
         } catch (error) {
           server.log.error('Failed to get compacts:', error);
-          if (error instanceof Error && error.message.includes('No compacts found')) {
+          if (
+            error instanceof Error &&
+            error.message.includes('No compacts found')
+          ) {
             reply.code(404);
           } else {
             reply.code(400);
           }
-          return { error: error instanceof Error ? error.message : 'Failed to get compacts' };
+          return {
+            error:
+              error instanceof Error ? error.message : 'Failed to get compacts',
+          };
         }
       }
     );
@@ -265,7 +289,10 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           } else {
             reply.code(400);
           }
-          return { error: error instanceof Error ? error.message : 'Failed to get compact' };
+          return {
+            error:
+              error instanceof Error ? error.message : 'Failed to get compact',
+          };
         }
       }
     );
