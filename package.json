@@ -15,8 +15,9 @@
     "type-check": "tsc --noEmit -p tsconfig.lint.json",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "prepare": "husky install && lint-staged",
-    "check-test-files": "node scripts/check-test-files.js"
+    "prepare": "husky",
+    "check-test-files": "node scripts/check-test-files.js",
+    "lint-staged": "lint-staged"
   },
   "lint-staged": {
     "**/*.{test,spec}.ts": [
@@ -52,7 +53,7 @@
     "@typescript-eslint/parser": "^8.17.0",
     "eslint": "^9.16.0",
     "eslint-config-prettier": "^9.1.0",
-    "husky": "^9.1.7",
+    "husky": "^8.0.0",
     "jest": "^29.7.0",
     "lint-staged": "^15.2.10",
     "prettier": "^3.4.1",
