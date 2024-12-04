@@ -25,7 +25,7 @@ class DatabaseManager {
     return DatabaseManager.instance;
   }
 
-  async initialize() {
+  async initialize(): Promise<void> {
     if (!this.db) {
       this.db = new PGlite('memory://');
       await this.db.ready;
@@ -57,17 +57,17 @@ class DatabaseManager {
           PRIMARY KEY (chain_id, claim_hash)
         )`);
     }
-    return this.db;
+    return;
   }
 
-  async getDb() {
+  async getDb(): Promise<PGlite> {
     if (!this.db) {
-      return this.initialize();
+      return this.initialize().then(() => this.db as PGlite);
     }
-    return this.db;
+    return this.db as PGlite;
   }
 
-  async cleanup() {
+  async cleanup(): Promise<void> {
     if (this.db) {
       // Drop all tables
       await this.db.query('DROP TABLE IF EXISTS sessions CASCADE');

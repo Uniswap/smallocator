@@ -20,7 +20,7 @@ export const validPayload = {
 };
 
 // Helper to get fresh valid payload with current timestamps
-export function getFreshValidPayload() {
+export function getFreshValidPayload(): typeof validPayload {
   return {
     ...validPayload,
     nonce: randomUUID(), // Use UUID for session nonce
@@ -150,7 +150,7 @@ export const validCompact = {
 
 // Helper to get fresh compact with current expiration
 let compactCounter = 0n;
-export function getFreshCompact() {
+export function getFreshCompact(): typeof validCompact {
   const counter = compactCounter++;
   // Create nonce as 32-byte hex where first 20 bytes are sponsor address
   const sponsorAddress = validCompact.sponsor.toLowerCase().replace('0x', '');
@@ -166,7 +166,9 @@ export function getFreshCompact() {
 }
 
 // Helper to convert BigInt values to strings for API requests
-export function compactToAPI(compact: typeof validCompact) {
+export function compactToAPI(
+  compact: typeof validCompact
+): Record<string, string | number> {
   return {
     ...compact,
     id: compact.id.toString(),
@@ -176,6 +178,6 @@ export function compactToAPI(compact: typeof validCompact) {
   };
 }
 
-export async function cleanupTestServer() {
+export async function cleanupTestServer(): Promise<void> {
   await dbManager.cleanup();
 }
