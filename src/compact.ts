@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { getAddress, type Hex } from 'viem';
-import { validateCompact, type CompactMessage } from './validation';
+import { validateCompact, type CompactMessage, storeNonce } from './validation';
 import { generateClaimHash, signCompact } from './crypto';
 import { randomUUID } from 'crypto';
 
@@ -51,6 +51,9 @@ export async function submitCompact(
   if (!validationResult.isValid) {
     throw new Error(validationResult.error || 'Invalid compact');
   }
+
+  // Store the nonce as used
+  await storeNonce(compactForValidation.nonce, submission.chainId, server.db);
 
   // Generate the claim hash
   const hash = await generateClaimHash(

@@ -18,7 +18,7 @@ describe('Validation', () => {
   beforeAll(async (): Promise<void> => {
     db = new PGlite();
 
-    // Create test table
+    // Create test tables
     await db.query(`
       CREATE TABLE IF NOT EXISTS compacts (
         id TEXT PRIMARY KEY,
@@ -37,11 +37,22 @@ describe('Validation', () => {
         UNIQUE(chain_id, claim_hash)
       )
     `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS nonces (
+        id TEXT PRIMARY KEY,
+        chain_id TEXT NOT NULL,
+        nonce TEXT NOT NULL,
+        consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(chain_id, nonce)
+      )
+    `);
   });
 
   afterAll(async (): Promise<void> => {
     // Clean up
     await db.query('DROP TABLE IF EXISTS compacts');
+    await db.query('DROP TABLE IF EXISTS nonces');
   });
 
   describe('validateDomainAndId', () => {
@@ -182,6 +193,94 @@ describe('Validation', () => {
       const result = await validateCompact(getFreshCompact(), 'invalid', db);
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('Invalid chain ID');
+    });
+  });
+
+  describe('validateNonce', () => {
+    const chainId = '1';
+    let originalRequest: typeof graphqlClient.request;
+
+    beforeEach(async () => {
+      // Clear test data
+      await db.query('DELETE FROM nonces');
+
+      // Store original function
+      originalRequest = graphqlClient.request;
+
+      // Mock GraphQL response
+      graphqlClient.request = async (): Promise<
+        AllocatorResponse & AccountDeltasResponse & AccountResponse
+      > => ({
+        allocator: {
+          supportedChains: {
+            items: [{ allocatorId: '1' }],
+          },
+        },
+        accountDeltas: {
+          items: [],
+        },
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
+    });
+
+    afterEach(async () => {
+      // Restore original function
+      graphqlClient.request = originalRequest;
+    });
+
+    it('should validate a fresh nonce', async (): Promise<void> => {
+      const compact = getFreshCompact();
+      const result = await validateCompact(compact, chainId, db);
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject a used nonce', async (): Promise<void> => {
+      const compact = getFreshCompact();
+
+      // Insert nonce as used
+      await db.query(
+        'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
+        ['test-id', chainId, compact.nonce.toString()]
+      );
+
+      const result = await validateCompact(compact, chainId, db);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('Nonce has already been used');
+    });
+
+    it('should reject a nonce with incorrect sponsor prefix', async (): Promise<void> => {
+      const compact = getFreshCompact();
+      // Modify nonce to have wrong sponsor prefix
+      compact.nonce = BigInt('0x1234' + '0'.repeat(60));
+
+      const result = await validateCompact(compact, chainId, db);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('Nonce does not match sponsor address');
+    });
+
+    it('should allow same nonce in different chains', async (): Promise<void> => {
+      const compact = getFreshCompact();
+
+      // Insert nonce as used in a different chain
+      await db.query(
+        'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
+        ['test-id', '10', compact.nonce.toString()]
+      );
+
+      const result = await validateCompact(compact, chainId, db);
+      expect(result.isValid).toBe(true);
     });
   });
 

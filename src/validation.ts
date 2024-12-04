@@ -2,6 +2,7 @@ import { getAddress } from 'viem';
 import { getCompactDetails } from './graphql';
 import { getAllocatedBalance } from './balance';
 import { PGlite } from '@electric-sql/pglite';
+import { randomUUID } from 'crypto';
 
 export interface CompactMessage {
   arbiter: string;
@@ -40,7 +41,12 @@ export async function validateCompact(
     if (!result.isValid) return result;
 
     // 3. Nonce Validation
-    const nonceResult = validateNonce(compact.nonce, compact.sponsor);
+    const nonceResult = await validateNonce(
+      compact.nonce,
+      compact.sponsor,
+      chainId,
+      db
+    );
     if (!nonceResult.isValid) return nonceResult;
 
     // 4. Expiration Validation
@@ -120,10 +126,12 @@ export async function validateStructure(
   }
 }
 
-export function validateNonce(
+export async function validateNonce(
   nonce: bigint,
-  sponsor: string
-): ValidationResult {
+  sponsor: string,
+  chainId: string,
+  db: PGlite
+): Promise<ValidationResult> {
   try {
     // Convert nonce to 32-byte hex string (without 0x prefix)
     const nonceHex = nonce.toString(16).padStart(64, '0');
@@ -139,7 +147,18 @@ export function validateNonce(
       };
     }
 
-    // TODO: Check database to confirm that the nonce has not been used before in this domain
+    // Check if nonce has been used before in this domain
+    const result = await db.query<{ count: number }>(
+      'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND nonce = $2',
+      [chainId, nonce.toString()]
+    );
+
+    if (result.rows[0].count > 0) {
+      return {
+        isValid: false,
+        error: 'Nonce has already been used',
+      };
+    }
 
     return { isValid: true };
   } catch (error) {
@@ -311,4 +330,15 @@ export async function validateAllocation(
       }`,
     };
   }
+}
+
+export async function storeNonce(
+  nonce: bigint,
+  chainId: string,
+  db: PGlite
+): Promise<void> {
+  await db.query(
+    'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
+    [randomUUID(), chainId, nonce.toString()]
+  );
 }

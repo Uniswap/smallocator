@@ -197,6 +197,65 @@ describe('API Routes', () => {
 
         expect(response.statusCode).toBe(401);
       });
+
+      it('should store nonce after successful submission', async (): Promise<void> => {
+        const freshCompact = getFreshCompact();
+        const chainId = '1';
+
+        // Store original function
+        const originalRequest = graphqlClient.request;
+
+        // Mock GraphQL response
+        graphqlClient.request = async (): Promise<
+          AllocatorResponse & AccountDeltasResponse & AccountResponse
+        > => ({
+          allocator: {
+            supportedChains: {
+              items: [{ allocatorId: '1' }],
+            },
+          },
+          accountDeltas: {
+            items: [],
+          },
+          account: {
+            resourceLocks: {
+              items: [
+                {
+                  withdrawalStatus: 0,
+                  balance: '1000000000000000000000',
+                },
+              ],
+            },
+            claims: {
+              items: [],
+            },
+          },
+        });
+
+        try {
+          // Submit compact
+          const response = await server.inject({
+            method: 'POST',
+            url: '/compact',
+            headers: {
+              'x-session-id': sessionId,
+            },
+            payload: { chainId, compact: compactToAPI(freshCompact) },
+          });
+
+          expect(response.statusCode).toBe(200);
+
+          // Verify nonce was stored
+          const result = await server.db.query<{ count: number }>(
+            'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND nonce = $2',
+            [chainId, freshCompact.nonce.toString()]
+          );
+          expect(result.rows[0].count).toBe(1);
+        } finally {
+          // Restore original function
+          graphqlClient.request = originalRequest;
+        }
+      });
     });
 
     describe('GET /compacts', () => {
