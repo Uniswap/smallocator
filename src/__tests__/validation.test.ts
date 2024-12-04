@@ -1,5 +1,5 @@
 import { validateDomainAndId, validateCompact } from '../validation';
-import { validCompact } from './utils/test-server';
+import { validCompact, getFreshCompact } from './utils/test-server';
 
 describe('Validation', () => {
   describe('validateDomainAndId', () => {
@@ -38,23 +38,23 @@ describe('Validation', () => {
 
   describe('validateCompact', () => {
     it('should validate correct compact', async () => {
-      const result = await validateCompact(validCompact, '1');
+      const result = await validateCompact(getFreshCompact(), '1');
       expect(result.isValid).toBe(true);
     });
 
     it('should reject invalid arbiter address', async () => {
       const invalidCompact = {
-        ...validCompact,
+        ...getFreshCompact(),
         arbiter: 'invalid-address',
       };
       const result = await validateCompact(invalidCompact, '1');
       expect(result.isValid).toBe(false);
-      expect(result.error).toBeTruthy();
+      expect(result.error).toContain('Invalid arbiter address');
     });
 
     it('should reject invalid sponsor address', async () => {
       const invalidCompact = {
-        ...validCompact,
+        ...getFreshCompact(),
         sponsor: 'invalid-address',
       };
       const result = await validateCompact(invalidCompact, '1');
@@ -64,7 +64,7 @@ describe('Validation', () => {
 
     it('should reject invalid expires timestamp', async () => {
       const invalidCompact = {
-        ...validCompact,
+        ...getFreshCompact(),
         expires: BigInt(-1),
       };
       const result = await validateCompact(invalidCompact, '1');
@@ -74,7 +74,7 @@ describe('Validation', () => {
 
     it('should reject invalid amount', async () => {
       const invalidCompact = {
-        ...validCompact,
+        ...getFreshCompact(),
         amount: '-1',
       };
       const result = await validateCompact(invalidCompact, '1');
@@ -83,7 +83,7 @@ describe('Validation', () => {
     });
 
     it('should reject invalid chain id', async () => {
-      const result = await validateCompact(validCompact, 'invalid');
+      const result = await validateCompact(getFreshCompact(), 'invalid');
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('Invalid chain ID');
     });

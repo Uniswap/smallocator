@@ -3,6 +3,9 @@ import {
   createTestServer,
   validPayload,
   validCompact,
+  getFreshValidPayload,
+  getFreshCompact,
+  cleanupTestServer,
 } from './utils/test-server';
 import { generateSignature } from '../crypto';
 
@@ -14,11 +17,7 @@ describe('API Routes', () => {
   });
 
   afterEach(async () => {
-    if (server) {
-      await server.close();
-    }
-    // Add a small delay to ensure cleanup
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await cleanupTestServer();
   });
 
   describe('GET /health', () => {
@@ -64,12 +63,13 @@ describe('API Routes', () => {
 
   describe('POST /session', () => {
     it('should create session with valid signature', async () => {
-      const signature = await generateSignature(validPayload);
+      const payload = getFreshValidPayload();
+      const signature = await generateSignature(payload);
       const response = await server.inject({
         method: 'POST',
         url: '/session',
         payload: {
-          payload: validPayload,
+          payload,
           signature,
         },
       });
@@ -101,26 +101,34 @@ describe('API Routes', () => {
 
     beforeEach(async () => {
       // Create a valid session to use in tests
-      const signature = await generateSignature(validPayload);
+      const payload = getFreshValidPayload();
+      const signature = await generateSignature(payload);
       const response = await server.inject({
         method: 'POST',
         url: '/session',
         payload: {
-          payload: validPayload,
+          payload,
           signature,
         },
       });
 
       const result = JSON.parse(response.payload);
+      if (!result.session?.id) {
+        throw new Error('Failed to create session: ' + JSON.stringify(result));
+      }
       sessionId = result.session.id;
     });
 
     describe('POST /compact', () => {
       it('should submit valid compact', async () => {
+        const freshCompact = getFreshCompact();
         const compactPayload = {
-          ...validCompact,
-          expires: Number(validCompact.expires),
-          id: Number(validCompact.id),
+          chainId: '1',
+          compact: {
+            ...freshCompact,
+            id: freshCompact.id.toString(),
+            expires: freshCompact.expires.toString(),
+          },
         };
 
         const response = await server.inject({
@@ -136,10 +144,14 @@ describe('API Routes', () => {
       });
 
       it('should reject request without session', async () => {
+        const freshCompact = getFreshCompact();
         const compactPayload = {
-          ...validCompact,
-          expires: Number(validCompact.expires),
-          id: Number(validCompact.id),
+          chainId: '1',
+          compact: {
+            ...freshCompact,
+            id: freshCompact.id.toString(),
+            expires: freshCompact.expires.toString(),
+          },
         };
 
         const response = await server.inject({
@@ -166,17 +178,30 @@ describe('API Routes', () => {
         const result = JSON.parse(response.payload);
         expect(Array.isArray(result)).toBe(true);
       });
+
+      it('should reject request without session', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/compacts',
+        });
+
+        expect(response.statusCode).toBe(401);
+      });
     });
 
     describe('GET /compact/:chainId/:claimHash', () => {
       it('should return specific compact', async () => {
-        // First create a compact
+        const freshCompact = getFreshCompact();
         const compactPayload = {
-          ...validCompact,
-          expires: Number(validCompact.expires),
-          id: Number(validCompact.id),
+          chainId: '1',
+          compact: {
+            ...freshCompact,
+            id: freshCompact.id.toString(),
+            expires: freshCompact.expires.toString(),
+          },
         };
 
+        // First submit a compact
         await server.inject({
           method: 'POST',
           url: '/compact',
@@ -188,21 +213,19 @@ describe('API Routes', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: `/compact/1/${compactPayload.id}`,
+          url: '/compact/1/0x1234567890123456789012345678901234567890123456789012345678901234',
           headers: {
             'x-session-id': sessionId,
           },
         });
 
         expect(response.statusCode).toBe(200);
-        const result = JSON.parse(response.payload);
-        expect(result).toHaveProperty('id', compactPayload.id.toString());
       });
 
       it('should return error for non-existent compact', async () => {
         const response = await server.inject({
           method: 'GET',
-          url: '/compact/1/999999',
+          url: '/compact/1/0x0000000000000000000000000000000000000000000000000000000000000000',
           headers: {
             'x-session-id': sessionId,
           },

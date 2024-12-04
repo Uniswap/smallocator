@@ -1,6 +1,7 @@
 import fastify, { FastifyInstance } from 'fastify';
 import env from '@fastify/env';
 import cors from '@fastify/cors';
+import { randomUUID } from 'crypto';
 import { setupRoutes } from '../../routes';
 import { dbManager } from '../setup';
 
@@ -12,11 +13,21 @@ export const validPayload = {
   statement: 'Sign in to Smallocator',
   version: '1',
   chainId: 1,
-  nonce: Date.now().toString(),
+  nonce: randomUUID(), // Use UUID for session nonce
   issuedAt: new Date().toISOString(),
   expirationTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
   resources: ['https://smallocator.example/resources'],
 };
+
+// Helper to get fresh valid payload with current timestamps
+export function getFreshValidPayload() {
+  return {
+    ...validPayload,
+    nonce: randomUUID(), // Use UUID for session nonce
+    issuedAt: new Date().toISOString(),
+    expirationTime: new Date(Date.now() + 3600000).toISOString(),
+  };
+}
 
 // Create a test server instance
 export async function createTestServer(): Promise<FastifyInstance> {
@@ -119,16 +130,26 @@ export async function createTestSession(server: FastifyInstance, address: string
 }
 
 export const validCompact = {
-  id: BigInt(1),
+  id: 1n,
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
   sponsor: '0x2345678901234567890123456789012345678901',
-  nonce: '1',
-  expires: BigInt(Math.floor(Date.now() / 1000) + 3600),
+  nonce: '0x2345678901234567890123456789012345678901-0', // Sponsor address + counter
+  expires: BigInt(Math.floor(Date.now() / 1000) + 3600), // 1 hour from now
   amount: '1000000000000000000',
   witnessTypeString: 'witness-type',
   witnessHash: '0x1234567890123456789012345678901234567890123456789012345678901234',
   chainId: 1,
 };
+
+// Helper to get fresh compact with current expiration
+let compactCounter = 0;
+export function getFreshCompact() {
+  return {
+    ...validCompact,
+    nonce: `${validCompact.sponsor}-${compactCounter++}`, // Sponsor address + unique counter
+    expires: BigInt(Math.floor(Date.now() / 1000) + 3600),
+  };
+}
 
 export async function cleanupTestServer() {
   await dbManager.cleanup();
