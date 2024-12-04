@@ -118,12 +118,12 @@ export function validateNonce(
   sponsor: string
 ): ValidationResult {
   try {
-    // Convert nonce to 32-byte hex string
-    const nonceHex = '0x' + nonce.toString(16).padStart(64, '0');
+    // Convert nonce to 32-byte hex string (without 0x prefix)
+    const nonceHex = nonce.toString(16).padStart(64, '0');
     
     // Check that the first 20 bytes of the nonce match the sponsor's address
-    const sponsorAddress = getAddress(sponsor).toLowerCase();
-    const noncePrefix = nonceHex.slice(0, 42).toLowerCase();
+    const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2); // Remove 0x prefix
+    const noncePrefix = nonceHex.slice(0, 40); // First 20 bytes = 40 hex chars
 
     if (noncePrefix !== sponsorAddress) {
       return {

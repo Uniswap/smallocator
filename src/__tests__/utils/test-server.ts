@@ -79,18 +79,12 @@ export async function createTestServer(): Promise<FastifyInstance> {
       );
     `);
 
+    await db.query('DROP TABLE IF EXISTS compacts');
     await db.query(`
-      CREATE TABLE IF NOT EXISTS compacts (
-        chain_id INTEGER NOT NULL,
+      CREATE TABLE compacts (
+        chain_id TEXT NOT NULL,
         hash TEXT NOT NULL,
-        arbiter TEXT NOT NULL,
-        sponsor TEXT NOT NULL,
-        nonce TEXT NOT NULL,
-        expires BIGINT NOT NULL,
-        id TEXT NOT NULL,
-        amount TEXT NOT NULL,
-        witness_type_string TEXT,
-        witness_hash TEXT,
+        compact JSONB NOT NULL,
         signature TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (chain_id, hash)
@@ -132,8 +126,9 @@ export async function createTestSession(server: FastifyInstance, address: string
 export const validCompact = {
   id: 1n,
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-  sponsor: '0x2345678901234567890123456789012345678901',
-  nonce: 0x2345678901234567890123456789012345678901000000000000000000000f00n,
+  sponsor: validPayload.address,
+  // Create nonce where first 20 bytes match sponsor address
+  nonce: BigInt('0x' + validPayload.address.toLowerCase().slice(2) + '0'.repeat(24)),
   expires: BigInt(Math.floor(Date.now() / 1000) + 3600), // 1 hour from now
   amount: '1000000000000000000',
   witnessTypeString: 'witness-type',
@@ -144,10 +139,13 @@ export const validCompact = {
 // Helper to get fresh compact with current expiration
 let compactCounter = 0n;
 export function getFreshCompact() {
-  const counter = compactCounter++; 
-  // Create nonce as BigInt: sponsor address + counter
-  const sponsorBigInt = BigInt(validCompact.sponsor);
-  const nonce = (sponsorBigInt << 96n) + counter;
+  const counter = compactCounter++;
+  // Create nonce as 32-byte hex where first 20 bytes are sponsor address
+  const sponsorAddress = validCompact.sponsor.toLowerCase().replace('0x', '');
+  const counterHex = counter.toString(16).padStart(24, '0'); // 12 bytes for counter
+  const nonceHex = '0x' + sponsorAddress + counterHex;
+  const nonce = BigInt(nonceHex);
+  
   return {
     ...validCompact,
     nonce,
@@ -162,6 +160,7 @@ export function compactToAPI(compact: typeof validCompact) {
     id: compact.id.toString(),
     expires: compact.expires.toString(),
     nonce: '0x' + compact.nonce.toString(16).padStart(64, '0'),
+    chainId: compact.chainId.toString(),  // Convert chainId to string
   };
 }
 

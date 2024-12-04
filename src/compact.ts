@@ -24,9 +24,17 @@ export async function submitCompact(
     throw new Error('Sponsor address does not match session');
   }
 
+  // Convert string values to BigInt for validation
+  const compactForValidation = {
+    ...submission.compact,
+    id: typeof submission.compact.id === 'string' ? BigInt(submission.compact.id) : submission.compact.id,
+    nonce: typeof submission.compact.nonce === 'string' ? BigInt(submission.compact.nonce) : submission.compact.nonce,
+    expires: typeof submission.compact.expires === 'string' ? BigInt(submission.compact.expires) : submission.compact.expires,
+  };
+
   // Validate the compact
   const validationResult = await validateCompact(
-    submission.compact,
+    compactForValidation,
     submission.chainId
   );
   if (!validationResult.isValid) {
@@ -35,7 +43,7 @@ export async function submitCompact(
 
   // Generate the claim hash
   const hash = await generateClaimHash(
-    submission.compact,
+    compactForValidation,
     BigInt(submission.chainId)
   );
 
@@ -63,6 +71,10 @@ export async function getCompactsByAddress(
      ORDER BY created_at DESC`,
     [getAddress(address)]
   );
+
+  if (result.rows.length === 0) {
+    throw new Error('No compacts found for address');
+  }
 
   return result.rows;
 }
@@ -92,6 +104,14 @@ async function storeCompact(
   hash: Hex,
   signature: Hex
 ): Promise<void> {
+  // Convert BigInt values to strings for JSON storage
+  const compactForStorage = {
+    ...submission.compact,
+    id: submission.compact.id.toString(),
+    nonce: submission.compact.nonce.toString(),
+    expires: submission.compact.expires.toString()
+  };
+
   await server.db.query(
     `INSERT INTO compacts (
       chain_id,
@@ -100,6 +120,6 @@ async function storeCompact(
       signature,
       created_at
     ) VALUES ($1, $2, $3, $4, NOW())`,
-    [submission.chainId, submission.compact, hash, signature]
+    [submission.chainId, JSON.stringify(compactForStorage), hash, signature]
   );
 }

@@ -137,6 +137,10 @@ describe('API Routes', () => {
           payload: compactPayload,
         });
 
+        if (response.statusCode !== 200) {
+          console.error('Error submitting compact:', response.payload);
+        }
+
         expect(response.statusCode).toBe(200);
       });
 
@@ -191,7 +195,7 @@ describe('API Routes', () => {
         };
 
         // First submit a compact
-        await server.inject({
+        const submitResponse = await server.inject({
           method: 'POST',
           url: '/compact',
           headers: {
@@ -200,9 +204,17 @@ describe('API Routes', () => {
           payload: compactPayload,
         });
 
+        const submitResponseData = JSON.parse(submitResponse.payload);
+        if (submitResponse.statusCode !== 200 || !submitResponseData.result?.hash) {
+          console.error('Failed to submit compact:', submitResponse.payload);
+          throw new Error('Failed to submit compact');
+        }
+
+        const { hash } = submitResponseData.result;
+
         const response = await server.inject({
           method: 'GET',
-          url: '/compact/1/0x1234567890123456789012345678901234567890123456789012345678901234',
+          url: `/compact/1/${hash}`,
           headers: {
             'x-session-id': sessionId,
           },
