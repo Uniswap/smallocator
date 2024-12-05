@@ -6,8 +6,13 @@ interface WalletConnectProps {
 
 export function WalletConnect({ hasSession }: WalletConnectProps) {
   return (
-    <div className="flex justify-end mb-4">
-      <ConnectButton showBalance={hasSession} />
+    <div className="flex items-center justify-end h-full">
+      <ConnectButton
+        showBalance={hasSession}
+        accountStatus={{ smallScreen: 'avatar', largeScreen: 'full' }}
+        chainStatus={{ smallScreen: 'icon', largeScreen: 'full' }}
+        label="Connect Wallet"
+      />
     </div>
   );
 }

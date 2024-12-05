@@ -40,3 +40,8 @@
 .read-the-docs {
   color: #888;
 }
+
+button.connect-wallet {
+  background-color: #00ff00 !important;
+  color: #0a0a0a !important;
+}
