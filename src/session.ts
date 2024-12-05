@@ -34,6 +34,7 @@ export async function validateAndCreateSession(
   try {
     // Validate payload structure
     if (!isValidPayload(payload)) {
+      server.log.error({ payload }, 'Invalid payload structure');
       throw new Error('Invalid session payload structure');
     }
 
@@ -45,24 +46,80 @@ export async function validateAndCreateSession(
       payload.chainId
     );
     if (!nonceIsValid) {
+      server.log.error(
+        {
+          domain: payload.domain,
+          nonce: payload.nonce,
+          chainId: payload.chainId,
+        },
+        'Invalid nonce'
+      );
       throw new Error('Invalid or expired nonce');
     }
 
     // Format and verify the signature
     const message = formatMessage(payload);
+    server.log.info(
+      {
+        formattedMessage: message,
+        address: payload.address,
+        signatureStart: signature.slice(0, 10),
+      },
+      'Verifying signature'
+    );
+
     if (!signature.startsWith('0x')) {
+      server.log.error(
+        { signatureStart: signature.slice(0, 10) },
+        'Invalid signature format'
+      );
       throw new Error('Invalid signature format: must start with 0x');
     }
 
     // Recover the address from the signature and verify it matches
-    const recoveredAddress = await verifyMessage({
-      address: getAddress(payload.address),
-      message,
-      signature: signature as `0x${string}`,
-    });
+    try {
+      const recoveredAddress = await verifyMessage({
+        address: getAddress(payload.address),
+        message,
+        signature: signature as `0x${string}`,
+      });
 
-    if (!recoveredAddress) {
-      throw new Error('Invalid signature');
+      if (!recoveredAddress) {
+        server.log.error(
+          {
+            expectedAddress: getAddress(payload.address),
+            recoveredAddress,
+            messageLength: message.length,
+            messagePreview: message.slice(0, 100),
+          },
+          'Signature verification failed - no address recovered'
+        );
+        throw new Error(
+          'Signature verification failed: recovered address does not match'
+        );
+      }
+
+      server.log.info(
+        {
+          address: payload.address,
+          recoveredAddress,
+        },
+        'Signature verified successfully'
+      );
+    } catch (error) {
+      server.log.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          address: payload.address,
+          messageLength: message.length,
+          messagePreview: message.slice(0, 100),
+        },
+        'Signature verification error'
+      );
+      throw new Error(
+        `Signature verification failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     // Create session
@@ -94,12 +151,14 @@ export async function validateAndCreateSession(
 
     return session;
   } catch (error) {
-    server.log.error('Session validation failed:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      payload,
-      signature,
-    });
+    server.log.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        payload,
+        signature,
+      },
+      'Session validation failed'
+    );
     throw error;
   }
 }
@@ -170,27 +229,49 @@ function isValidPayload(payload: SessionPayload): boolean {
       throw new Error('Invalid Ethereum address');
     }
 
-    // Validate timestamps
-    const now = new Date();
-    const issuedAt = new Date(payload.issuedAt);
-    const expiresAt = new Date(payload.expirationTime);
+    // Validate URI format
+    try {
+      const uri = new URL(payload.uri);
+      if (!process.env.BASE_URL) {
+        throw new Error('BASE_URL environment variable not set');
+      }
+      if (!uri.href.startsWith(process.env.BASE_URL)) {
+        throw new Error(
+          `Invalid URI base: expected ${process.env.BASE_URL}, got ${uri.href}`
+        );
+      }
+    } catch (error) {
+      const e = error as Error;
+      throw new Error(`Invalid URI format: ${e.message}`);
+    }
 
-    if (isNaN(issuedAt.getTime()) || isNaN(expiresAt.getTime())) {
+    // Validate timestamp fields
+    const now = Date.now();
+    const issuedAtTime = new Date(payload.issuedAt).getTime();
+    const expirationTime = new Date(payload.expirationTime).getTime();
+
+    if (isNaN(issuedAtTime) || isNaN(expirationTime)) {
       throw new Error('Invalid timestamp format');
     }
 
-    const MAX_SESSION_DURATION = 3600000; // 1 hour in milliseconds
-    if (
-      Math.abs(issuedAt.getTime() - now.getTime()) > 5000 || // Allow 5 second clock skew
-      expiresAt <= now ||
-      expiresAt.getTime() - now.getTime() > MAX_SESSION_DURATION
-    ) {
-      throw new Error('Invalid timestamp values');
+    if (issuedAtTime > now) {
+      throw new Error('Session issued in the future');
+    }
+
+    if (expirationTime <= now) {
+      throw new Error('Session has expired');
     }
 
     // Validate domain matches server's domain
-    if (payload.domain !== process.env.DOMAIN) {
-      throw new Error('Invalid domain');
+    if (!process.env.BASE_URL) {
+      throw new Error('BASE_URL environment variable not set');
+    }
+
+    const serverDomain = new URL(process.env.BASE_URL).host;
+    if (payload.domain !== serverDomain) {
+      throw new Error(
+        `Invalid domain: expected ${serverDomain}, got ${payload.domain}`
+      );
     }
 
     // Validate statement confirms sponsor is signing in
@@ -201,16 +282,6 @@ function isValidPayload(payload: SessionPayload): boolean {
     // Validate chain ID
     if (payload.chainId < 1) {
       throw new Error('Invalid chain ID');
-    }
-
-    // Validate URI format
-    try {
-      const uri = new URL(payload.uri);
-      if (!uri.href.startsWith(process.env.BASE_URL || '')) {
-        throw new Error('Invalid URI base');
-      }
-    } catch {
-      throw new Error('Invalid URI format');
     }
 
     // Validate resources URIs if present
@@ -227,6 +298,17 @@ function isValidPayload(payload: SessionPayload): boolean {
 
     return true;
   } catch (error) {
+    console.error('Payload validation failed:', {
+      error: error instanceof Error ? error.message : String(error),
+      payload: {
+        ...payload,
+        // Exclude sensitive fields if needed
+        signature: undefined,
+      },
+      env: {
+        BASE_URL: process.env.BASE_URL,
+      },
+    });
     throw error;
   }
 }

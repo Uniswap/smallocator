@@ -16,11 +16,12 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
 
     const nonce = crypto.randomUUID();
     const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    const domain = new URL(baseUrl).host;
     
     try {
       const signature = await signMessageAsync({
         message: [
-          'Smallocator wants you to sign in with your Ethereum account:',
+          `${domain} wants you to sign in with your Ethereum account:`,
           address,
           '',
           'Sign in to Smallocator',
@@ -31,6 +32,8 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
           `Nonce: ${nonce}`,
           `Issued At: ${new Date().toISOString()}`,
           `Expiration Time: ${new Date(Date.now() + 30 * 60 * 1000).toISOString()}`,
+          'Resources:',
+          `${baseUrl}/resources`,
         ].join('\n'),
       });
 
