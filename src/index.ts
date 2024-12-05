@@ -11,7 +11,64 @@ import { setupDatabase } from './database';
 import { verifySigningAddress } from './crypto';
 
 const server = fastify({
-  logger: true,
+  logger: {
+    level: 'error', // Only log errors by default
+    transport: {
+      target: 'pino-pretty',
+      options: {
+        translateTime: 'HH:MM:ss Z',
+        ignore: 'pid,hostname',
+      },
+    },
+  },
+});
+
+// List of API endpoints we want to log
+const API_ENDPOINTS = [
+  '/health',
+  '/session',
+  '/compact',
+  '/compacts',
+  '/balance',
+  '/balances',
+  '/session/',
+  '/compact/',
+  '/balance/',
+];
+
+// Helper to check if a URL is an API endpoint
+function isApiEndpoint(url: string): boolean {
+  return API_ENDPOINTS.some(
+    (endpoint) => url === endpoint || url.startsWith(`${endpoint}/`)
+  );
+}
+
+server.addHook('onRequest', async (request) => {
+  if (isApiEndpoint(request.url)) {
+    request.log.info(
+      {
+        method: request.method,
+        url: request.url,
+        id: request.id,
+      },
+      'API Request'
+    );
+  }
+});
+
+server.addHook('onResponse', async (request, reply) => {
+  if (isApiEndpoint(request.url)) {
+    request.log.info(
+      {
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode,
+        id: request.id,
+        duration: reply.elapsedTime,
+      },
+      'API Response'
+    );
+  }
 });
 
 // Register plugins and configure server
@@ -53,6 +110,7 @@ async function build(): Promise<FastifyInstance> {
     root: path.join(process.cwd(), 'frontend/dist'),
     prefix: '/',
     decorateReply: false,
+    logLevel: 'error', // Only log errors for static files
   });
 
   // Catch-all route to serve index.html for client-side routing
@@ -79,19 +137,23 @@ async function build(): Promise<FastifyInstance> {
   return server;
 }
 
-// Start the server
-async function start(): Promise<void> {
-  try {
-    const app = await build();
-    await app.listen({
-      port: parseInt(process.env.PORT || '3000'),
-      host: '0.0.0.0',
-    });
-  } catch (err) {
-    console.error(err);
-    process.exit(1);
-  }
+// Start server if this is the main module
+const isMainModule =
+  process.argv[1]?.endsWith('index.ts') ||
+  process.argv[1]?.endsWith('index.js');
+if (isMainModule) {
+  // Use void to explicitly mark the promise as handled
+  void (async (): Promise<void> => {
+    try {
+      const server = await build();
+      server.log.level = 'info'; // Temporarily increase log level for startup
+      await server.listen({ port: 3000, host: '0.0.0.0' });
+      server.log.level = 'error'; // Reset back to error-only after startup
+    } catch (err) {
+      console.error('Error starting server:', err);
+      process.exit(1);
+    }
+  })();
 }
 
-// Handle floating promise with void operator
-void start();
+export { build };

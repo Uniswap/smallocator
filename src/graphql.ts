@@ -1,9 +1,10 @@
 import { GraphQLClient } from 'graphql-request';
 import { getFinalizationThreshold } from './chain-config';
 
-// GraphQL endpoint from the architecture document
-const INDEXER_ENDPOINT =
-  process.env.GRAPHQL_ENDPOINT || 'http://localhost:4000/graphql';
+// GraphQL endpoint from environment
+const INDEXER_ENDPOINT = process.env.INDEXER_URL
+  ? `${process.env.INDEXER_URL.replace(/\/$/, '')}/graphql`
+  : 'http://localhost:4000/graphql';
 
 // Create a singleton GraphQL client
 export const graphqlClient = new GraphQLClient(INDEXER_ENDPOINT);

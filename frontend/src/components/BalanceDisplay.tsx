@@ -2,51 +2,58 @@ import { useAccount } from 'wagmi';
 import { useState, useEffect } from 'react';
 
 interface Balance {
+  chainId: string;
+  lockId: string;
   allocatableBalance: string;
   allocatedBalance: string;
+  balanceAvailableToAllocate: string;
   withdrawalStatus: number;
 }
 
-interface BalanceDisplayProps {
-  chainId: string;
-  lockId: string;
-}
-
-export function BalanceDisplay({ chainId, lockId }: BalanceDisplayProps) {
+export function BalanceDisplay() {
   const { isConnected } = useAccount();
-  const [balance, setBalance] = useState<Balance | null>(null);
+  const [balances, setBalances] = useState<Balance[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchBalance() {
+    async function fetchBalances() {
       if (!isConnected) return;
       
       setLoading(true);
       setError(null);
       
       try {
-        const response = await fetch(`/api/balance/${chainId}/${lockId}`);
-        if (!response.ok) throw new Error('Failed to fetch balance');
+        const sessionId = localStorage.getItem('sessionId');
+        if (!sessionId) {
+          throw new Error('No session ID found');
+        }
+        
+        const response = await fetch('/balances', {
+          headers: {
+            'x-session-id': sessionId
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch balances');
         
         const data = await response.json();
-        setBalance(data);
+        setBalances(data.balances);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch balance');
+        setError(err instanceof Error ? err.message : 'Failed to fetch balances');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchBalance();
-  }, [chainId, lockId, isConnected]);
+    fetchBalances();
+  }, [isConnected]);
 
   if (!isConnected) return null;
   
   if (loading) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-sm">
-        <p className="text-gray-600">Loading balance...</p>
+        <p className="text-gray-600">Loading balances...</p>
       </div>
     );
   }
@@ -59,34 +66,41 @@ export function BalanceDisplay({ chainId, lockId }: BalanceDisplayProps) {
     );
   }
 
-  if (!balance) return null;
-
-  const balanceAvailable = balance.withdrawalStatus === 0 && 
-    BigInt(balance.allocatableBalance) > BigInt(balance.allocatedBalance)
-    ? (BigInt(balance.allocatableBalance) - BigInt(balance.allocatedBalance)).toString()
-    : "0";
+  if (balances.length === 0) {
+    return (
+      <div className="p-6 bg-white rounded-lg shadow-sm">
+        <p className="text-gray-600">No balances found</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-sm">
-      <h2 className="text-xl font-semibold mb-4">Balance Information</h2>
-      <div className="space-y-4">
-        <div>
-          <p className="text-sm text-gray-600">Allocatable Balance</p>
-          <p className="text-lg font-medium">{balance.allocatableBalance}</p>
+    <div className="space-y-6">
+      {balances.map((balance) => (
+        <div key={`${balance.chainId}-${balance.lockId}`} className="p-6 bg-white rounded-lg shadow-sm">
+          <h2 className="text-xl font-semibold mb-4">
+            Chain {balance.chainId} - Lock {balance.lockId}
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600">Allocatable Balance</p>
+              <p className="text-lg font-medium">{balance.allocatableBalance}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Allocated Balance</p>
+              <p className="text-lg font-medium">{balance.allocatedBalance}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Available to Allocate</p>
+              <p className="text-lg font-medium">{balance.balanceAvailableToAllocate}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Withdrawal Status</p>
+              <p className="text-lg font-medium">{balance.withdrawalStatus}</p>
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="text-sm text-gray-600">Allocated Balance</p>
-          <p className="text-lg font-medium">{balance.allocatedBalance}</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-600">Available to Allocate</p>
-          <p className="text-lg font-medium">{balanceAvailable}</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-600">Withdrawal Status</p>
-          <p className="text-lg font-medium">{balance.withdrawalStatus}</p>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }

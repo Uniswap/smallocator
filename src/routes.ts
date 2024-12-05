@@ -84,7 +84,12 @@ function createAuthMiddleware(server: FastifyInstance) {
         address: result.rows[0].address,
       };
     } catch (err) {
-      server.log.error('Session verification failed:', err);
+      server.log.error({
+        msg: 'Session verification failed',
+        err: err instanceof Error ? err.message : String(err),
+        sessionId,
+        path: request.url,
+      });
       reply.code(401).send({ error: 'Invalid session' });
       return;
     }
@@ -253,7 +258,12 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         );
         return { address: result.rows[0].address };
       } catch (err) {
-        server.log.error('Session verification failed:', err);
+        server.log.error({
+          msg: 'Session verification failed',
+          err: err instanceof Error ? err.message : String(err),
+          sessionId,
+          path: request.url,
+        });
         reply.code(401);
         return {
           error: err instanceof Error ? err.message : 'Invalid session',

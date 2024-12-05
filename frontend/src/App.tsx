@@ -46,7 +46,7 @@ function App() {
               <SessionManager onSessionCreated={() => setHasSession(true)} />
               {hasSession && (
                 <div className="mt-8">
-                  <BalanceDisplay chainId="1" lockId="0x1234" />
+                  <BalanceDisplay />
                 </div>
               )}
             </main>

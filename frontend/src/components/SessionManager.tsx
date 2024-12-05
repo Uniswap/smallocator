@@ -1,5 +1,5 @@
 import { useAccount, useSignMessage, useChainId } from 'wagmi';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface SessionManagerProps {
   onSessionCreated: () => void;
@@ -11,6 +11,15 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
   const chainId = useChainId();
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const existingSession = localStorage.getItem('sessionId');
+    if (existingSession) {
+      setSessionToken(existingSession);
+      onSessionCreated();
+    }
+  }, [onSessionCreated]);
 
   const createSession = useCallback(async () => {
     if (!address || !chainId || isLoading) {
@@ -64,7 +73,9 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
       
       if (response.ok) {
         const data = await response.json();
-        setSessionToken(data.session.id);
+        const sessionId = data.session.id;
+        localStorage.setItem('sessionId', sessionId);
+        setSessionToken(sessionId);
         onSessionCreated();
       } else {
         const errorText = await response.text();
