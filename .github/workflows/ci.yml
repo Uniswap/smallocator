@@ -68,3 +68,16 @@ jobs:
       run: |
         mkdir -p test-data
         pnpm test
+
+    - name: Run smoke tests
+      env:
+        NODE_OPTIONS: '--experimental-vm-modules --no-warnings'
+        SIGNING_ADDRESS: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+        ALLOCATOR_ADDRESS: '0x2345678901234567890123456789012345678901'
+        PRIVATE_KEY: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+        DOMAIN: 'smallocator.example'
+        BASE_URL: 'https://smallocator.example'
+        DATABASE_URL: 'sqlite::memory:'
+        SKIP_SIGNING_VERIFICATION: 'true'
+        NODE_ENV: 'test'
+      run: pnpm smoke-test
