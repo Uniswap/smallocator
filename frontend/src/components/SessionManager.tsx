@@ -17,6 +17,11 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
     const nonce = crypto.randomUUID();
     const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
     const domain = new URL(baseUrl).host;
+    const resources = [`${baseUrl}/resources`];
+    
+    // Create timestamps once to ensure consistency
+    const issuedAt = new Date().toISOString();
+    const expirationTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     
     try {
       const signature = await signMessageAsync({
@@ -30,10 +35,10 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
           `Version: 1`,
           `Chain ID: ${chainId}`,
           `Nonce: ${nonce}`,
-          `Issued At: ${new Date().toISOString()}`,
-          `Expiration Time: ${new Date(Date.now() + 30 * 60 * 1000).toISOString()}`,
+          `Issued At: ${issuedAt}`,
+          `Expiration Time: ${expirationTime}`,
           'Resources:',
-          `${baseUrl}/resources`,
+          ...resources,
         ].join('\n'),
       });
 
@@ -45,16 +50,16 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
         body: JSON.stringify({
           signature,
           payload: {
-            domain: new URL(baseUrl).host,
+            domain,
             address,
             uri: baseUrl,
             statement: 'Sign in to Smallocator',
             version: '1',
             chainId,
             nonce,
-            issuedAt: new Date().toISOString(),
-            expirationTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-            resources: [],
+            issuedAt,
+            expirationTime,
+            resources,
           },
         }),
       });
