@@ -1,8 +1,8 @@
 import { FastifyInstance as BaseFastifyInstance } from 'fastify';
-import { Database } from '../database';
+import { PGlite } from '@electric-sql/pglite';
 
 declare module 'fastify' {
-  export interface FastifyInstance extends BaseFastifyInstance {
-    db: Database;
+  interface FastifyInstance {
+    db: PGlite;
   }
 }

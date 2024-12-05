@@ -1,4 +1,5 @@
 import './env';
+import './types';
 import fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import env from '@fastify/env';
