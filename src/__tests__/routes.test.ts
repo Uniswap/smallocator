@@ -384,15 +384,45 @@ describe('API Routes', () => {
       });
 
       it('should return 404 for non-existent lock', async () => {
-        const response = await server.inject({
-          method: 'GET',
-          url: '/balance/1/0x0000000000000000000000000000000000000000000000000000000000000000',
-          headers: {
-            'x-session-id': sessionId,
+        // Store original function
+        const originalRequest = graphqlClient.request;
+
+        // Mock GraphQL response with no resource lock
+        graphqlClient.request = async (): Promise<
+          AllocatorResponse & AccountDeltasResponse & AccountResponse
+        > => ({
+          allocator: {
+            supportedChains: {
+              items: [{ allocatorId: '1' }],
+            },
+          },
+          accountDeltas: {
+            items: [],
+          },
+          account: {
+            resourceLocks: {
+              items: [], // Empty array indicates no resource lock found
+            },
+            claims: {
+              items: [],
+            },
           },
         });
 
-        expect(response.statusCode).toBe(404);
+        try {
+          const response = await server.inject({
+            method: 'GET',
+            url: '/balance/1/0x0000000000000000000000000000000000000000000000000000000000000000',
+            headers: {
+              'x-session-id': sessionId,
+            },
+          });
+
+          expect(response.statusCode).toBe(404);
+        } finally {
+          // Restore original function
+          graphqlClient.request = originalRequest;
+        }
       });
 
       it('should return zero balanceAvailableToAllocate when withdrawal enabled', async () => {

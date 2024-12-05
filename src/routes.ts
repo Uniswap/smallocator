@@ -258,12 +258,6 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           const { chainId, lockId } = request.params;
           const sponsor = request.session.address;
 
-          // Extract allocatorId from the lockId
-          const lockIdBigInt = BigInt(lockId);
-          const allocatorId =
-            (lockIdBigInt >> BigInt(160)) &
-            ((BigInt(1) << BigInt(92)) - BigInt(1));
-
           // Get details from GraphQL
           const response = await getCompactDetails({
             allocator: process.env.ALLOCATOR_ADDRESS!,
@@ -278,6 +272,12 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
             reply.code(404);
             return { error: 'Resource lock not found' };
           }
+
+          // Extract allocatorId from the lockId
+          const lockIdBigInt = BigInt(lockId);
+          const allocatorId =
+            (lockIdBigInt >> BigInt(160)) &
+            ((BigInt(1) << BigInt(92)) - BigInt(1));
 
           // Verify allocatorId matches
           const graphqlAllocatorId =

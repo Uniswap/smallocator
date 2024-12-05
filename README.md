@@ -133,10 +133,13 @@ All compact operations require a valid session ID in the `x-session-id` header.
    ```
 
 3. **Get Specific Compact**
+
    ```http
    GET /compact/:chainId/:claimHash
    ```
+
    Example response:
+
    ```json
    {
      "chainId": "10",
@@ -155,6 +158,24 @@ All compact operations require a valid session ID in the `x-session-id` header.
      "createdAt": "2024-03-07T12:00:00Z"
    }
    ```
+
+4. **Get Resource Lock Balance**
+   ```http
+   GET /balance/:chainId/:lockId
+   ```
+   Returns balance information for a specific resource lock. Example response:
+   ```json
+   {
+     "allocatableBalance": "1000000000000000000",
+     "allocatedBalance": "500000000000000000",
+     "balanceAvailableToAllocate": "500000000000000000",
+     "withdrawalStatus": 0
+   }
+   ```
+   The `balanceAvailableToAllocate` will be:
+   - `"0"` if `withdrawalStatus` is non-zero
+   - `"0"` if `allocatedBalance` >= `allocatableBalance`
+   - `allocatableBalance - allocatedBalance` otherwise
 
 ## Development
 
