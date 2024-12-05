@@ -143,7 +143,7 @@ describe('Session Management', () => {
     it('should verify valid session', async () => {
       const response = await server.inject({
         method: 'GET',
-        url: '/session/verify',
+        url: '/session',
         headers: {
           'x-session-id': sessionId,
         },
@@ -151,13 +151,16 @@ describe('Session Management', () => {
 
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.payload);
-      expect(result).toHaveProperty('address', getFreshValidPayload().address);
+      expect(result.session).toBeDefined();
+      expect(result.session.address).toBe(getFreshValidPayload().address);
+      expect(result.session.id).toBe(sessionId);
+      expect(result.session.expiresAt).toBeDefined();
     });
 
     it('should reject invalid session ID', async () => {
       const response = await server.inject({
         method: 'GET',
-        url: '/session/verify',
+        url: '/session',
         headers: {
           'x-session-id': 'invalid-session-id',
         },
@@ -169,16 +172,15 @@ describe('Session Management', () => {
     });
 
     it('should reject expired session', async () => {
-      // Set session to expired in database
-      const expiredTimestamp = new Date(Date.now() - 3600000); // 1 hour ago
+      // First create an expired session
       await server.db.query(
-        'UPDATE sessions SET expires_at = $1 WHERE id = $2',
-        [expiredTimestamp.toISOString(), sessionId]
+        "UPDATE sessions SET expires_at = CURRENT_TIMESTAMP - interval '1 hour' WHERE id = $1",
+        [sessionId]
       );
 
       const response = await server.inject({
         method: 'GET',
-        url: '/session/verify',
+        url: '/session',
         headers: {
           'x-session-id': sessionId,
         },

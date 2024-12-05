@@ -253,16 +253,19 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           return reply.code(401).send({ error: 'Session ID required' });
         }
 
-        // Query the session
+        // Verify and get session
+        await verifySession(server, sessionId);
+
+        // Get full session details
         const result = await server.db.query<{
           id: string;
           address: string;
           expires_at: string;
-        }>(
-          'SELECT id, address, expires_at FROM sessions WHERE id = $1 AND expires_at > CURRENT_TIMESTAMP',
-          [sessionId]
-        );
+        }>('SELECT id, address, expires_at FROM sessions WHERE id = $1', [
+          sessionId,
+        ]);
 
+        // This should never happen since verifySession would throw, but TypeScript doesn't know that
         if (!result.rows || result.rows.length === 0) {
           return reply
             .code(404)
@@ -278,45 +281,15 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           },
         };
       } catch (error) {
-        server.log.error('Failed to get session:', error);
-        return reply.code(500).send({
-          error: 'Failed to get session status',
-        });
-      }
-    }
-  );
-
-  // Verify session
-  server.get(
-    '/session/verify',
-    async (
-      request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
-      reply: FastifyReply
-    ): Promise<{ address: string } | { error: string }> => {
-      const sessionId = request.headers['x-session-id'];
-      if (!sessionId || Array.isArray(sessionId)) {
-        reply.code(401);
-        return { error: 'Session ID required' };
-      }
-
-      try {
-        await verifySession(server, sessionId);
-        const result = await server.db.query<{ address: string }>(
-          'SELECT address FROM sessions WHERE id = $1',
-          [sessionId]
-        );
-        return { address: result.rows[0].address };
-      } catch (err) {
         server.log.error({
           msg: 'Session verification failed',
-          err: err instanceof Error ? err.message : String(err),
-          sessionId,
+          err: error instanceof Error ? error.message : String(error),
+          sessionId: request.headers['x-session-id'],
           path: request.url,
         });
-        reply.code(401);
-        return {
-          error: err instanceof Error ? err.message : 'Invalid session',
-        };
+        return reply.code(401).send({
+          error: error instanceof Error ? error.message : 'Invalid session',
+        });
       }
     }
   );

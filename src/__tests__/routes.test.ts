@@ -187,6 +187,151 @@ describe('API Routes', () => {
     });
   });
 
+  describe('Session Management', () => {
+    let sessionId: string;
+    let address: string;
+
+    beforeEach(async () => {
+      address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+      // First get a session request
+      const sessionResponse = await server.inject({
+        method: 'GET',
+        url: `/session/1/${address}`,
+      });
+
+      expect(sessionResponse.statusCode).toBe(200);
+      const sessionRequest = JSON.parse(sessionResponse.payload);
+
+      // Normalize timestamps to match database precision
+      const payload = {
+        ...sessionRequest.session,
+        issuedAt: new Date(sessionRequest.session.issuedAt).toISOString(),
+        expirationTime: new Date(
+          sessionRequest.session.expirationTime
+        ).toISOString(),
+      };
+
+      // Create a valid session
+      const signature = await generateSignature(payload);
+      const response = await server.inject({
+        method: 'POST',
+        url: '/session',
+        payload: {
+          payload,
+          signature,
+        },
+      });
+
+      const result = JSON.parse(response.payload);
+      expect(response.statusCode).toBe(200);
+      expect(result.session?.id).toBeDefined();
+      sessionId = result.session.id;
+    });
+
+    describe('GET /session', () => {
+      it('should verify valid session', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/session',
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const result = JSON.parse(response.payload);
+        expect(result.session).toBeDefined();
+        expect(result.session.id).toBe(sessionId);
+        expect(result.session.address).toBe(address);
+        expect(result.session.expiresAt).toBeDefined();
+      });
+
+      it('should reject invalid session ID', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/session',
+          headers: {
+            'x-session-id': 'invalid-session-id',
+          },
+        });
+
+        expect(response.statusCode).toBe(401);
+        const result = JSON.parse(response.payload);
+        expect(result.error).toBeDefined();
+      });
+
+      it('should reject missing session ID', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/session',
+        });
+
+        expect(response.statusCode).toBe(401);
+        const result = JSON.parse(response.payload);
+        expect(result.error).toBe('Session ID required');
+      });
+    });
+
+    describe('DELETE /session', () => {
+      it('should delete valid session', async () => {
+        // First verify session exists
+        const verifyResponse = await server.inject({
+          method: 'GET',
+          url: '/session',
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+        expect(verifyResponse.statusCode).toBe(200);
+
+        // Delete session
+        const deleteResponse = await server.inject({
+          method: 'DELETE',
+          url: '/session',
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+        expect(deleteResponse.statusCode).toBe(200);
+
+        // Verify session is gone
+        const finalResponse = await server.inject({
+          method: 'GET',
+          url: '/session',
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+        expect(finalResponse.statusCode).toBe(401);
+      });
+
+      it('should reject deleting invalid session', async () => {
+        const response = await server.inject({
+          method: 'DELETE',
+          url: '/session',
+          headers: {
+            'x-session-id': 'invalid-session-id',
+          },
+        });
+
+        expect(response.statusCode).toBe(401);
+        const result = JSON.parse(response.payload);
+        expect(result.error).toBeDefined();
+      });
+
+      it('should reject deleting without session ID', async () => {
+        const response = await server.inject({
+          method: 'DELETE',
+          url: '/session',
+        });
+
+        expect(response.statusCode).toBe(401);
+        const result = JSON.parse(response.payload);
+        expect(result.error).toBe('Session ID required');
+      });
+    });
+  });
+
   describe('Protected Routes', () => {
     let sessionId: string;
 
