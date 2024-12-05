@@ -15,7 +15,6 @@ export interface SessionPayload {
   nonce: string;
   issuedAt: string;
   expirationTime: string;
-  resources?: string[];
 }
 
 export interface Session {
@@ -262,20 +261,6 @@ function isValidPayload(payload: SessionPayload): boolean {
       throw new Error('Invalid chain ID');
     }
 
-    // Validate resources URIs if present
-    if (payload.resources) {
-      for (const resource of payload.resources) {
-        if (typeof resource !== 'string') {
-          throw new Error('Invalid resource type');
-        }
-        try {
-          new URL(resource);
-        } catch {
-          throw new Error('Invalid resource URI');
-        }
-      }
-    }
-
     return true;
   } catch (error) {
     console.error('Payload validation failed:', {
@@ -287,7 +272,7 @@ function isValidPayload(payload: SessionPayload): boolean {
 }
 
 function formatMessage(payload: SessionPayload): string {
-  const lines = [
+  return [
     `${payload.domain} wants you to sign in with your Ethereum account:`,
     payload.address,
     '',
@@ -299,12 +284,5 @@ function formatMessage(payload: SessionPayload): string {
     `Nonce: ${payload.nonce}`,
     `Issued At: ${payload.issuedAt}`,
     `Expiration Time: ${payload.expirationTime}`,
-  ];
-
-  if (payload.resources?.length) {
-    lines.push('Resources:');
-    lines.push(...payload.resources.map((r) => `- ${r}`));
-  }
-
-  return lines.join('\n');
+  ].join('\n');
 }

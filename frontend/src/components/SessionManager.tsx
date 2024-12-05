@@ -1,5 +1,5 @@
 import { useAccount, useSignMessage, useChainId } from 'wagmi';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 interface SessionManagerProps {
   onSessionCreated: () => void;
@@ -10,32 +10,36 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
   const { signMessageAsync } = useSignMessage();
   const chainId = useChainId();
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const createSession = async () => {
-    if (!address || !chainId) return;
+  const createSession = useCallback(async () => {
+    if (!address || !chainId || isLoading) {
+      return;
+    }
 
+    setIsLoading(true);
     try {
       // First, get the payload from server
-      const payloadResponse = await fetch(`/session/${address}`);
+      const payloadResponse = await fetch(`/session/${chainId}/${address}`);
       if (!payloadResponse.ok) {
         throw new Error('Failed to get session payload');
       }
       
-      const { payload } = await payloadResponse.json();
+      const { session } = await payloadResponse.json();
       
       // Format the message according to EIP-4361
       const message = [
-        `${payload.domain} wants you to sign in with your Ethereum account:`,
-        payload.address,
+        `${session.domain} wants you to sign in with your Ethereum account:`,
+        session.address,
         '',
-        payload.statement,
+        session.statement,
         '',
-        `URI: ${payload.uri}`,
-        `Version: ${payload.version}`,
-        `Chain ID: ${payload.chainId}`,
-        `Nonce: ${payload.nonce}`,
-        `Issued At: ${payload.issuedAt}`,
-        `Expiration Time: ${payload.expirationTime}`,
+        `URI: ${session.uri}`,
+        `Version: ${session.version}`,
+        `Chain ID: ${session.chainId}`,
+        `Nonce: ${session.nonce}`,
+        `Issued At: ${session.issuedAt}`,
+        `Expiration Time: ${session.expirationTime}`,
       ].join('\n');
 
       // Get signature from wallet
@@ -51,35 +55,55 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
         },
         body: JSON.stringify({
           signature,
-          payload,
+          payload: {
+            ...session,
+            chainId: parseInt(session.chainId.toString(), 10), // Ensure chainId is a number
+          },
         }),
       });
       
       if (response.ok) {
         const data = await response.json();
-        setSessionToken(data.token);
+        setSessionToken(data.session.id);
         onSessionCreated();
       } else {
-        console.error('Failed to create session:', await response.text());
+        const errorText = await response.text();
+        console.error('Failed to create session:', errorText);
       }
     } catch (error) {
       console.error('Failed to create session:', error);
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (isConnected && address && !sessionToken && chainId) {
-      createSession();
-    }
-  }, [isConnected, address, sessionToken, chainId]);
+  }, [address, chainId, signMessageAsync, onSessionCreated]);
 
   if (!isConnected) {
     return (
-      <div>
-        <p>Please connect your wallet to continue.</p>
+      <div className="text-center">
+        <p className="text-gray-600">Please connect your wallet to continue.</p>
       </div>
     );
   }
 
-  return null;
+  if (sessionToken) {
+    return null;
+  }
+
+  const canLogin = isConnected && address && chainId && !isLoading;
+
+  return (
+    <div className="text-center">
+      <button
+        onClick={createSession}
+        disabled={!canLogin}
+        className={`px-4 py-2 rounded-lg font-medium ${
+          canLogin
+            ? 'bg-blue-600 text-white hover:bg-blue-700'
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+        }`}
+      >
+        {isLoading ? 'Signing in...' : 'Sign in with Ethereum'}
+      </button>
+    </div>
+  );
 }

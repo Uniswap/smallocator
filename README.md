@@ -263,8 +263,8 @@ git clone git@github.com:Uniswap/smallocator.git && cd smallocator
 # 2. Copy example environment file (modify as needed)
 cp .env.example .env
 
-# 3. Install dependencies
-pnpm install
+# 3. Install frontend and backend dependencies
+pnpm install:all
 
 # 4. Run tests
 pnpm test

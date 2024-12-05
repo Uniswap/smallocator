@@ -12,10 +12,29 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
-        '/api': {
+        '/session': {
           target: baseUrl,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        '/health': {
+          target: baseUrl,
+          changeOrigin: true,
+        },
+        '/compact': {
+          target: baseUrl,
+          changeOrigin: true,
+        },
+        '/compacts': {
+          target: baseUrl,
+          changeOrigin: true,
+        },
+        '/balance': {
+          target: baseUrl,
+          changeOrigin: true,
+        },
+        '/balances': {
+          target: baseUrl,
+          changeOrigin: true,
         },
       },
     },

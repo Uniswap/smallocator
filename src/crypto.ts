@@ -187,9 +187,6 @@ export async function generateSignature(
           `Nonce: ${payload.nonce}`,
           `Issued At: ${payload.issuedAt}`,
           `Expiration Time: ${payload.expirationTime}`,
-          payload.resources
-            ? `Resources:\n${payload.resources.join('\n')}`
-            : '',
         ].join('\n');
 
   // Sign the message using the private key directly

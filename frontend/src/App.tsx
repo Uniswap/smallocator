@@ -4,7 +4,7 @@ import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http } from 'wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import { WalletConnect } from './components/WalletConnect';
 import { SessionManager } from './components/SessionManager';
@@ -19,10 +19,17 @@ const config = getDefaultConfig({
   },
 });
 
-const queryClient = new QueryClient();
-
 function App() {
   const [hasSession, setHasSession] = useState(false);
+  
+  const queryClient = useMemo(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+      },
+    },
+  }), []);
 
   return (
     <WagmiProvider config={config}>
