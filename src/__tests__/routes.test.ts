@@ -343,5 +343,110 @@ describe('API Routes', () => {
         expect(response.statusCode).toBe(404);
       });
     });
+
+    describe('GET /balance/:chainId/:lockId', () => {
+      it('should return balance information for valid lock', async () => {
+        const freshCompact = getFreshCompact();
+        const lockId = freshCompact.id.toString();
+
+        const response = await server.inject({
+          method: 'GET',
+          url: `/balance/1/${lockId}`,
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const result = JSON.parse(response.payload);
+        expect(result).toHaveProperty('allocatableBalance');
+        expect(result).toHaveProperty('allocatedBalance');
+        expect(result).toHaveProperty('balanceAvailableToAllocate');
+        expect(result).toHaveProperty('withdrawalStatus');
+
+        // Verify numeric string formats
+        expect(/^\d+$/.test(result.allocatableBalance)).toBe(true);
+        expect(/^\d+$/.test(result.allocatedBalance)).toBe(true);
+        expect(/^\d+$/.test(result.balanceAvailableToAllocate)).toBe(true);
+        expect(typeof result.withdrawalStatus).toBe('number');
+      });
+
+      it('should return 401 without session', async () => {
+        const freshCompact = getFreshCompact();
+        const lockId = freshCompact.id.toString();
+
+        const response = await server.inject({
+          method: 'GET',
+          url: `/balance/1/${lockId}`,
+        });
+
+        expect(response.statusCode).toBe(401);
+      });
+
+      it('should return 404 for non-existent lock', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/balance/1/0x0000000000000000000000000000000000000000000000000000000000000000',
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+
+        expect(response.statusCode).toBe(404);
+      });
+
+      it('should return zero balanceAvailableToAllocate when withdrawal enabled', async () => {
+        // Store original function
+        const originalRequest = graphqlClient.request;
+
+        // Mock GraphQL response with withdrawal status = 1
+        graphqlClient.request = async (): Promise<
+          AllocatorResponse & AccountDeltasResponse & AccountResponse
+        > => ({
+          allocator: {
+            supportedChains: {
+              items: [{ allocatorId: '1' }],
+            },
+          },
+          accountDeltas: {
+            items: [],
+          },
+          account: {
+            resourceLocks: {
+              items: [
+                {
+                  withdrawalStatus: 1,
+                  balance: '1000000000000000000000',
+                },
+              ],
+            },
+            claims: {
+              items: [],
+            },
+          },
+        });
+
+        try {
+          const freshCompact = getFreshCompact();
+          const lockId = freshCompact.id.toString();
+
+          const response = await server.inject({
+            method: 'GET',
+            url: `/balance/1/${lockId}`,
+            headers: {
+              'x-session-id': sessionId,
+            },
+          });
+
+          expect(response.statusCode).toBe(200);
+          const result = JSON.parse(response.payload);
+          expect(result.balanceAvailableToAllocate).toBe('0');
+          expect(result.withdrawalStatus).toBe(1);
+        } finally {
+          // Restore original function
+          graphqlClient.request = originalRequest;
+        }
+      });
+    });
   });
 });

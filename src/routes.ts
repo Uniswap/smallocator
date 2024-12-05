@@ -12,9 +12,14 @@ import {
   getCompactByHash,
   type CompactSubmission,
 } from './compact';
+import { getCompactDetails } from './graphql';
+import { getAllocatedBalance } from './balance';
 
-// Extend FastifyRequest to include session
+// Declare db property on FastifyInstance
 declare module 'fastify' {
+  interface FastifyInstance {
+    db: import('@electric-sql/pglite').PGlite;
+  }
   interface FastifyRequest {
     session?: {
       id: string;
@@ -232,6 +237,106 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
   server.register(async function (protectedRoutes) {
     // Add authentication to all routes in this context
     protectedRoutes.addHook('preHandler', authenticateRequest);
+
+    // Get available balance for a specific lock
+    protectedRoutes.get<{
+      Params: { chainId: string; lockId: string };
+    }>(
+      '/balance/:chainId/:lockId',
+      async (
+        request: FastifyRequest<{
+          Params: { chainId: string; lockId: string };
+        }>,
+        reply: FastifyReply
+      ) => {
+        if (!request.session) {
+          reply.code(401);
+          return { error: 'Unauthorized' };
+        }
+
+        try {
+          const { chainId, lockId } = request.params;
+          const sponsor = request.session.address;
+
+          // Extract allocatorId from the lockId
+          const lockIdBigInt = BigInt(lockId);
+          const allocatorId =
+            (lockIdBigInt >> BigInt(160)) &
+            ((BigInt(1) << BigInt(92)) - BigInt(1));
+
+          // Get details from GraphQL
+          const response = await getCompactDetails({
+            allocator: process.env.ALLOCATOR_ADDRESS!,
+            sponsor,
+            lockId,
+            chainId,
+          });
+
+          // Verify the resource lock exists
+          const resourceLock = response.account.resourceLocks.items[0];
+          if (!resourceLock) {
+            reply.code(404);
+            return { error: 'Resource lock not found' };
+          }
+
+          // Verify allocatorId matches
+          const graphqlAllocatorId =
+            response.allocator.supportedChains.items[0]?.allocatorId;
+          if (
+            !graphqlAllocatorId ||
+            BigInt(graphqlAllocatorId) !== allocatorId
+          ) {
+            reply.code(400);
+            return { error: 'Invalid allocator ID' };
+          }
+
+          // Calculate pending balance
+          const pendingBalance = response.accountDeltas.items.reduce(
+            (sum, delta) => sum + BigInt(delta.delta),
+            BigInt(0)
+          );
+
+          // Calculate allocatable balance
+          const resourceLockBalance = BigInt(resourceLock.balance);
+          const allocatableBalance =
+            resourceLockBalance > pendingBalance
+              ? resourceLockBalance - pendingBalance
+              : BigInt(0);
+
+          // Get allocated balance from database
+          const allocatedBalance = await getAllocatedBalance(
+            server.db,
+            sponsor,
+            chainId,
+            lockId,
+            response.account.claims.items.map((item) => item.claimHash)
+          );
+
+          // Calculate balance available to allocate
+          let balanceAvailableToAllocate = BigInt(0);
+          if (resourceLock.withdrawalStatus === 0) {
+            if (allocatedBalance < allocatableBalance) {
+              balanceAvailableToAllocate =
+                allocatableBalance - allocatedBalance;
+            }
+          }
+
+          return {
+            allocatableBalance: allocatableBalance.toString(),
+            allocatedBalance: allocatedBalance.toString(),
+            balanceAvailableToAllocate: balanceAvailableToAllocate.toString(),
+            withdrawalStatus: resourceLock.withdrawalStatus,
+          };
+        } catch (error) {
+          server.log.error('Failed to get balance:', error);
+          reply.code(500);
+          return {
+            error:
+              error instanceof Error ? error.message : 'Failed to get balance',
+          };
+        }
+      }
+    );
 
     // Submit a new compact
     protectedRoutes.post<{

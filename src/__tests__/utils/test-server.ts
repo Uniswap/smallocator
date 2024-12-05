@@ -105,7 +105,7 @@ export async function createTestSession(
 
 export const validCompact = {
   // Set allocatorId to 1 in bits 160-251 (92 bits) and reset period index 7 in bits 252-254
-  id: (1n << 160n) | (7n << 252n), // Reset period index 7 = 2592000 seconds (30 days)
+  id: (BigInt(1) << BigInt(160)) | (BigInt(7) << BigInt(252)), // Reset period index 7 = 2592000 seconds (30 days)
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
   sponsor: validPayload.address,
   // Create nonce where first 20 bytes match sponsor address
@@ -121,7 +121,7 @@ export const validCompact = {
 };
 
 // Helper to get fresh compact with current expiration
-let compactCounter = 0n;
+let compactCounter = BigInt(0);
 export function getFreshCompact(): typeof validCompact {
   const counter = compactCounter++;
   // Create nonce as 32-byte hex where first 20 bytes are sponsor address
