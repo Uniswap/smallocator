@@ -1,4 +1,13 @@
 import { spawn } from 'child_process';
+import { appendFileSync } from 'fs';
+
+// Helper to log both to console and file
+function log(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `${timestamp} ${message}\n`;
+  console.log(message);
+  appendFileSync('/tmp/smallocator-smoke-test.log', logMessage);
+}
 
 // Utility to run a command and wait for server to start
 function waitForServer(command, args, timeoutMs) {
@@ -56,42 +65,57 @@ function waitForServer(command, args, timeoutMs) {
 
 // Kill process using port with timeout
 async function killProcessOnPort(port) {
+  log(`Checking for processes on port ${port}...`);
   try {
-    // Find process using port
-    const findProcess = spawn('lsof', ['-t', `-i:${port}`], { shell: true });
-    const pid = await new Promise((resolve) => {
+    // Try to find process ID using lsof
+    const { stdout } = await new Promise((resolve, reject) => {
+      const lsof = spawn('lsof', ['-i', `:${port}`, '-t'], { stdio: ['pipe', 'pipe', 'pipe'] });
       let output = '';
-      findProcess.stdout?.on('data', (data) => {
+      
+      lsof.stdout.on('data', (data) => {
         output += data;
       });
-      findProcess.on('close', () => {
-        resolve(output.trim());
+
+      lsof.on('close', (code) => {
+        resolve({ stdout: output, code });
+      });
+
+      lsof.on('error', (err) => {
+        reject(err);
       });
     });
 
+    const pid = stdout.trim();
     if (pid) {
+      log(`Found process ${pid} on port ${port}, attempting to kill...`);
       // Kill the process
-      await new Promise((resolve) => {
-        const kill = spawn('kill', ['-9', pid], { stdio: 'inherit', shell: true });
-        kill.on('exit', () => resolve());
-      });
+      process.kill(parseInt(pid), 'SIGTERM');
       
-      // Wait for port to be free with timeout
-      const maxAttempts = 10;
-      for (let i = 0; i < maxAttempts; i++) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const checkPort = spawn('lsof', ['-t', `-i:${port}`], { shell: true });
-        const stillInUse = await new Promise(resolve => {
-          checkPort.on('close', code => resolve(code === 0));
-        });
-        if (!stillInUse) break;
-        if (i === maxAttempts - 1) {
-          throw new Error(`Port ${port} is still in use after ${maxAttempts} attempts to free it`);
+      // Wait for process to exit
+      let attempts = 10;
+      while (attempts > 0) {
+        try {
+          log(`Checking if process ${pid} is still running (${attempts} attempts left)...`);
+          process.kill(parseInt(pid), 0); // Check if process exists
+          await new Promise(resolve => setTimeout(resolve, 500));
+          attempts--;
+        } catch (e) {
+          log(`Process ${pid} successfully terminated`);
+          return; // Process no longer exists
         }
       }
+      log(`Process ${pid} did not terminate gracefully, forcing kill...`);
+      process.kill(parseInt(pid), 'SIGKILL');
+    } else {
+      log(`No process found on port ${port}`);
     }
-  } catch (e) {
-    console.error(`Error killing process on port ${port}:`, e.message);
+  } catch (error) {
+    if (error.code === 'ESRCH') {
+      log('Process already terminated');
+    } else {
+      log(`Error killing process: ${error}`);
+      throw error;
+    }
   }
 }
 
@@ -107,9 +131,9 @@ async function main() {
     await killProcessOnPort(PORT);
 
     // Test development mode
-    console.log(`Testing development mode (pnpm dev) on port ${PORT}...`);
+    log(`Testing development mode (pnpm dev) on port ${PORT}...`);
     devServer = await waitForServer('PORT=' + PORT + ' pnpm', ['dev'], 10000);
-    console.log('✓ Development server started successfully');
+    log('✓ Development server started successfully');
     
     // Kill the development server
     if (devServer) {
@@ -118,9 +142,9 @@ async function main() {
     }
     
     // Test production mode
-    console.log('\nTesting production mode (pnpm start)...');
+    log('\nTesting production mode (pnpm start)...');
     // First build
-    console.log('Building...');
+    log('Building...');
     const buildProcess = spawn('pnpm', ['build'], { stdio: 'inherit', shell: true });
     await new Promise((resolve, reject) => {
       buildProcess.on('exit', (code) => {
@@ -130,24 +154,33 @@ async function main() {
     });
     
     prodServer = await waitForServer('PORT=' + PORT + ' pnpm', ['start'], 10000);
-    console.log('✓ Production server started successfully');
+    log('✓ Production server started successfully');
     
-    console.log('\n✅ All smoke tests passed!');
+    log('\n✅ All smoke tests passed!');
     process.exit(0);
   } catch (error) {
-    console.error('\n❌ Smoke tests failed:', error.message);
+    log('\n❌ Smoke tests failed:', error.message);
     process.exit(1);
   } finally {
+    log('\nStarting cleanup process...');
     // Cleanup: ensure all servers are stopped gracefully
     if (devServer) {
+      log('Stopping development server...');
       devServer.kill('SIGTERM');
+      log('Waiting for development server cleanup...');
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
+      log('Development server cleanup complete');
     }
     if (prodServer) {
+      log('Stopping production server...');
       prodServer.kill('SIGTERM');
+      log('Waiting for production server cleanup...');
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
+      log('Production server cleanup complete');
     }
+    log('Running final port cleanup...');
     await killProcessOnPort(PORT); // Final cleanup
+    log('Cleanup process complete');
   }
 }
 
