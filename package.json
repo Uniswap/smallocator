@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "prebuild": "rm -rf dist",
-    "build": "esbuild src/index.ts --bundle --platform=node --outdir=dist --format=esm --sourcemap --packages=external && cp .env dist/",
+    "build": "esbuild src/index.ts --bundle --platform=node --outdir=dist --format=esm --sourcemap --packages=external && cp .env dist/ 2>/dev/null || true",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --detectOpenHandles",
     "test:related": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --bail --findRelatedTests src/__tests__/*.test.ts",
     "lint": "eslint .",
