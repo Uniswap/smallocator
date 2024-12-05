@@ -13,7 +13,12 @@ function runWithTimeout(command, args, timeoutMs) {
     // Set timeout to kill the process
     const timeout = setTimeout(() => {
       killed = true;
-      process.kill();
+      // Send SIGTERM to the entire process group
+      try {
+        process.kill('-SIGTERM');
+      } catch (e) {
+        // Ignore errors if process is already dead
+      }
       resolve(); // Process started successfully if it ran for the timeout duration
     }, timeoutMs);
 
@@ -28,14 +33,37 @@ function runWithTimeout(command, args, timeoutMs) {
         reject(new Error(`Process exited with code ${code}`));
       }
     });
+
+    // Store the process in case we need to kill it from outside
+    return process;
   });
 }
 
 async function main() {
+  let devProcess = null;
   try {
     // Test development mode
     console.log('Testing development mode (pnpm dev)...');
     await runWithTimeout('pnpm', ['dev'], 5000);
+    
+    // Kill any lingering processes on port 3000
+    try {
+      await new Promise((resolve, reject) => {
+        const kill = spawn('pkill', ['-f', 'tsx watch src/index.ts'], {
+          stdio: 'inherit',
+          shell: true
+        });
+        kill.on('exit', (code) => {
+          // pkill returns 1 if no processes were killed, which is fine
+          resolve();
+        });
+      });
+    } catch (e) {
+      // Ignore errors from pkill
+    }
+
+    // Wait a bit for the port to be freed
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Test production mode
     console.log('Testing production mode (pnpm start)...');
@@ -55,6 +83,19 @@ async function main() {
   } catch (error) {
     console.error('❌ Smoke tests failed:', error.message);
     process.exit(1);
+  } finally {
+    // Cleanup: ensure all child processes are killed
+    try {
+      await new Promise((resolve) => {
+        const kill = spawn('pkill', ['-f', '(tsx watch|node dist/index.js)'], {
+          stdio: 'inherit',
+          shell: true
+        });
+        kill.on('exit', () => resolve());
+      });
+    } catch (e) {
+      // Ignore cleanup errors
+    }
   }
 }
 
