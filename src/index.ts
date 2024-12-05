@@ -1,7 +1,6 @@
 import './env';
 import './types';
 import fastify, { FastifyInstance } from 'fastify';
-import cors from '@fastify/cors';
 import env from '@fastify/env';
 import fastifyStatic from '@fastify/static';
 import * as path from 'path';
@@ -9,6 +8,7 @@ import { config } from './config';
 import { setupRoutes } from './routes';
 import { setupDatabase } from './database';
 import { verifySigningAddress } from './crypto';
+import cors from '@fastify/cors'; // Import cors plugin
 
 const server = fastify({
   logger: {
@@ -82,9 +82,10 @@ async function build(): Promise<FastifyInstance> {
   // Verify signing address matches configuration
   verifySigningAddress(process.env.SIGNING_ADDRESS as string);
 
-  // Enable CORS
+  // Enable CORS for both development and external API access
   await server.register(cors, {
-    origin: process.env.CORS_ORIGIN || true,
+    origin: true, // Allow all origins for API access
+    credentials: true,
   });
 
   // Initialize database
