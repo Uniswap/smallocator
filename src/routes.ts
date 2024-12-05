@@ -300,73 +300,86 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         // Get all resource locks for the sponsor
         const response = await getAllResourceLocks(sponsor);
 
+        // Add defensive checks
+        if (!response?.account?.resourceLocks?.items) {
+          return { balances: [] };
+        }
+
         // Filter locks to only include those managed by this allocator
         const ourLocks = response.account.resourceLocks.items.filter(
           (item) =>
-            item.resourceLock.allocatorAddress.toLowerCase() ===
+            item?.resourceLock?.allocatorAddress?.toLowerCase() ===
             process.env.ALLOCATOR_ADDRESS!.toLowerCase()
         );
 
         // Get balance details for each lock
-        const balances = await Promise.all(
-          ourLocks.map(async (lock) => {
-            // Get details from GraphQL
-            const lockDetails = await getCompactDetails({
-              allocator: process.env.ALLOCATOR_ADDRESS!,
-              sponsor,
-              lockId: lock.resourceLock.lockId,
-              chainId: lock.chainId,
-            });
+        const balances = (
+          await Promise.all(
+            ourLocks.map(async (lock) => {
+              // Get details from GraphQL
+              const lockDetails = await getCompactDetails({
+                allocator: process.env.ALLOCATOR_ADDRESS!,
+                sponsor,
+                lockId: lock.resourceLock.lockId,
+                chainId: lock.chainId,
+              });
 
-            const resourceLock = lockDetails.account.resourceLocks.items[0];
-            if (!resourceLock) {
-              return null; // Skip if lock no longer exists
-            }
-
-            // Calculate pending balance
-            const pendingBalance = lockDetails.accountDeltas.items.reduce(
-              (sum, delta) => sum + BigInt(delta.delta),
-              BigInt(0)
-            );
-
-            // Calculate allocatable balance
-            const allocatableBalance =
-              BigInt(resourceLock.balance) + pendingBalance;
-
-            // Get allocated balance
-            const allocatedBalance = await getAllocatedBalance(
-              server.db,
-              sponsor,
-              lock.chainId,
-              lock.resourceLock.lockId,
-              lockDetails.account.claims.items.map((claim) => claim.claimHash)
-            );
-
-            // Calculate available balance
-            let balanceAvailableToAllocate = BigInt(0);
-            if (resourceLock.withdrawalStatus === 0) {
-              if (allocatedBalance < allocatableBalance) {
-                balanceAvailableToAllocate =
-                  allocatableBalance - allocatedBalance;
+              // Add defensive check for lockDetails
+              if (!lockDetails?.account?.resourceLocks?.items?.[0]) {
+                return null; // This lock will be filtered out
               }
-            }
 
-            return {
-              chainId: lock.chainId,
-              lockId: lock.resourceLock.lockId,
-              allocatableBalance: allocatableBalance.toString(),
-              allocatedBalance: allocatedBalance.toString(),
-              balanceAvailableToAllocate: balanceAvailableToAllocate.toString(),
-              withdrawalStatus: resourceLock.withdrawalStatus,
-            };
-          })
+              const resourceLock = lockDetails.account.resourceLocks.items[0];
+              if (!resourceLock) {
+                return null; // Skip if lock no longer exists
+              }
+
+              // Calculate pending balance
+              const pendingBalance = lockDetails.accountDeltas.items.reduce(
+                (sum, delta) => sum + BigInt(delta.delta),
+                BigInt(0)
+              );
+
+              // Calculate allocatable balance
+              const allocatableBalance =
+                BigInt(resourceLock.balance) + pendingBalance;
+
+              // Get allocated balance
+              const allocatedBalance = await getAllocatedBalance(
+                server.db,
+                sponsor,
+                lock.chainId,
+                lock.resourceLock.lockId,
+                lockDetails.account.claims.items.map((claim) => claim.claimHash)
+              );
+
+              // Calculate available balance
+              let balanceAvailableToAllocate = BigInt(0);
+              if (resourceLock.withdrawalStatus === 0) {
+                if (allocatedBalance < allocatableBalance) {
+                  balanceAvailableToAllocate =
+                    allocatableBalance - allocatedBalance;
+                }
+              }
+
+              return {
+                chainId: lock.chainId,
+                lockId: lock.resourceLock.lockId,
+                allocatableBalance: allocatableBalance.toString(),
+                allocatedBalance: allocatedBalance.toString(),
+                balanceAvailableToAllocate:
+                  balanceAvailableToAllocate.toString(),
+                withdrawalStatus: resourceLock.withdrawalStatus,
+              };
+            })
+          )
+        ).filter(
+          (balance): balance is NonNullable<typeof balance> => balance !== null
         );
 
         // Filter out any null results and return
         return {
-          balances: balances.filter(
-            (b): b is NonNullable<typeof b> => b !== null
-          ),
+          balances,
         };
       } catch (error) {
         console.error('Error fetching balances:', error);
