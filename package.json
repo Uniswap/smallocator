@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "author": "0age",
   "description": "A simple server-based allocator for The Compact using Typescript & Node.js",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "packageManager": "pnpm@9.14.4",
