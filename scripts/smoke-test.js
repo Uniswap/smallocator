@@ -13,7 +13,6 @@ function runWithTimeout(command, args, timeoutMs) {
     // Set timeout to kill the process
     const timeout = setTimeout(() => {
       killed = true;
-      // Send SIGTERM to the entire process group
       try {
         process.kill('-SIGTERM');
       } catch (e) {
@@ -34,36 +33,35 @@ function runWithTimeout(command, args, timeoutMs) {
       }
     });
 
-    // Store the process in case we need to kill it from outside
     return process;
   });
 }
 
+// Kill processes by command pattern
+async function killProcesses(pattern) {
+  try {
+    await new Promise((resolve) => {
+      const kill = spawn('pkill', ['-f', pattern], {
+        stdio: 'inherit',
+        shell: true
+      });
+      kill.on('exit', () => resolve());
+    });
+    // Wait a bit for processes to die
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  } catch (e) {
+    // Ignore errors from pkill
+  }
+}
+
 async function main() {
-  let devProcess = null;
   try {
     // Test development mode
     console.log('Testing development mode (pnpm dev)...');
     await runWithTimeout('pnpm', ['dev'], 5000);
     
-    // Kill any lingering processes on port 3000
-    try {
-      await new Promise((resolve, reject) => {
-        const kill = spawn('pkill', ['-f', 'tsx watch src/index.ts'], {
-          stdio: 'inherit',
-          shell: true
-        });
-        kill.on('exit', (code) => {
-          // pkill returns 1 if no processes were killed, which is fine
-          resolve();
-        });
-      });
-    } catch (e) {
-      // Ignore errors from pkill
-    }
-
-    // Wait a bit for the port to be freed
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Kill the development server
+    await killProcesses('tsx watch');
     
     // Test production mode
     console.log('Testing production mode (pnpm start)...');
@@ -84,18 +82,9 @@ async function main() {
     console.error('❌ Smoke tests failed:', error.message);
     process.exit(1);
   } finally {
-    // Cleanup: ensure all child processes are killed
-    try {
-      await new Promise((resolve) => {
-        const kill = spawn('pkill', ['-f', '(tsx watch|node dist/index.js)'], {
-          stdio: 'inherit',
-          shell: true
-        });
-        kill.on('exit', () => resolve());
-      });
-    } catch (e) {
-      // Ignore cleanup errors
-    }
+    // Cleanup: kill both dev and prod servers
+    await killProcesses('tsx watch');
+    await killProcesses('node dist/index.js');
   }
 }
 
