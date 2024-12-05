@@ -4,7 +4,7 @@ describe('Chain Configuration', () => {
   it('should return correct finalization threshold for known chains', () => {
     expect(getFinalizationThreshold('1')).toBe(25); // Ethereum Mainnet
     expect(getFinalizationThreshold('10')).toBe(2); // Optimism
-    expect(getFinalizationThreshold('8453')).toBe(4); // Base
+    expect(getFinalizationThreshold('8453')).toBe(2); // Base
   });
 
   it('should return default finalization threshold for unknown chains', () => {

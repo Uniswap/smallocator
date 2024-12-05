@@ -18,7 +18,7 @@ export const chainConfig: ChainConfig = {
     // Optimism
     '10': 2,
     // Base
-    '8453': 4,
+    '8453': 2,
   },
 };
 

@@ -21,7 +21,11 @@ const config: JestConfigWithTsJest = {
     '/node_modules/',
     '<rootDir>/src/__tests__/setup.ts',
     '<rootDir>/src/__tests__/utils/'
-  ]
+  ],
+  // Display test execution in more detail
+  verbose: true,
+  // Fail fast if a test fails
+  bail: 1
 };
 
 export default config;
