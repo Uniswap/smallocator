@@ -2,7 +2,8 @@ import { GraphQLClient } from 'graphql-request';
 import { getFinalizationThreshold } from './chain-config';
 
 // GraphQL endpoint from the architecture document
-const INDEXER_ENDPOINT = 'https://the-compact-indexer-2.ponder-dev.com/';
+const INDEXER_ENDPOINT =
+  process.env.GRAPHQL_ENDPOINT || 'http://localhost:4000/graphql';
 
 // Create a singleton GraphQL client
 export const graphqlClient = new GraphQLClient(INDEXER_ENDPOINT);
@@ -37,6 +38,20 @@ export interface AccountResponse {
     claims: {
       items: Array<{
         claimHash: string;
+      }>;
+    };
+  };
+}
+
+export interface AllResourceLocksResponse {
+  account: {
+    resourceLocks: {
+      items: Array<{
+        chainId: string;
+        resourceLock: {
+          lockId: string;
+          allocatorAddress: string;
+        };
       }>;
     };
   };
@@ -131,27 +146,92 @@ export type CompactDetailsBaseVariables = Omit<
 >;
 
 // Function to fetch compact details
-export async function getCompactDetails(
-  variables: CompactDetailsBaseVariables
-): Promise<AllocatorResponse & AccountDeltasResponse & AccountResponse> {
-  try {
-    const { finalizationTimestamp, thresholdTimestamp } =
-      calculateQueryTimestamps(variables.chainId);
+export async function getCompactDetails({
+  allocator,
+  sponsor,
+  lockId,
+  chainId,
+}: {
+  allocator: string;
+  sponsor: string;
+  lockId: string;
+  chainId: string;
+}): Promise<AllocatorResponse & AccountDeltasResponse & AccountResponse> {
+  const { finalizationTimestamp } = calculateQueryTimestamps(chainId);
 
-    const fullVariables = {
-      ...variables,
-      finalizationTimestamp: finalizationTimestamp.toString(),
-      thresholdTimestamp: thresholdTimestamp.toString(),
-    };
+  return graphqlClient.request(
+    `
+    query GetCompactDetails(
+      $allocator: String!
+      $sponsor: String!
+      $lockId: String!
+      $chainId: String!
+      $finalizationTimestamp: Int!
+    ) {
+      allocator(address: $allocator) {
+        supportedChains {
+          items {
+            allocatorId
+          }
+        }
+      }
+      accountDeltas: account(address: $sponsor) {
+        items: deltas(
+          filter: {
+            chainId: { eq: $chainId }
+            lockId: { eq: $lockId }
+            timestamp: { gt: $finalizationTimestamp }
+          }
+        ) {
+          delta
+        }
+      }
+      account(address: $sponsor) {
+        resourceLocks {
+          items {
+            withdrawalStatus
+            balance
+          }
+        }
+        claims {
+          items {
+            claimHash
+          }
+        }
+      }
+    }
+  `,
+    {
+      allocator,
+      sponsor,
+      lockId,
+      chainId,
+      finalizationTimestamp,
+    }
+  );
+}
 
-    const response = await graphqlClient.request<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    >(GET_COMPACT_DETAILS, fullVariables);
-
-    return response;
-  } catch (error) {
-    throw error;
-  }
+export async function getAllResourceLocks(
+  sponsor: string
+): Promise<AllResourceLocksResponse> {
+  return graphqlClient.request(
+    `
+    query GetAllResourceLocks($sponsor: String!) {
+      account(address: $sponsor) {
+        resourceLocks {
+          items {
+            chainId
+            resourceLock {
+              lockId
+              allocatorAddress
+            }
+          }
+        }
+      }
+    }
+    `,
+    { sponsor }
+  );
 }
 
 export interface ProcessedCompactDetails {

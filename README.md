@@ -160,10 +160,13 @@ All compact operations require a valid session ID in the `x-session-id` header.
    ```
 
 4. **Get Resource Lock Balance**
+
    ```http
    GET /balance/:chainId/:lockId
    ```
+
    Returns balance information for a specific resource lock. Example response:
+
    ```json
    {
      "allocatableBalance": "1000000000000000000",
@@ -172,10 +175,33 @@ All compact operations require a valid session ID in the `x-session-id` header.
      "withdrawalStatus": 0
    }
    ```
+
    The `balanceAvailableToAllocate` will be:
+
    - `"0"` if `withdrawalStatus` is non-zero
    - `"0"` if `allocatedBalance` >= `allocatableBalance`
    - `allocatableBalance - allocatedBalance` otherwise
+
+5. **Get All Resource Lock Balances**
+   ```http
+   GET /balances
+   ```
+   Returns balance information for all resource locks managed by this allocator. Example response:
+   ```json
+   {
+     "balances": [
+       {
+         "chainId": "1",
+         "lockId": "0x1234567890123456789012345678901234567890123456789012345678901234",
+         "allocatableBalance": "1000000000000000000",
+         "allocatedBalance": "500000000000000000",
+         "balanceAvailableToAllocate": "500000000000000000",
+         "withdrawalStatus": 0
+       }
+     ]
+   }
+   ```
+   Each balance entry follows the same rules as the single balance endpoint.
 
 ## API Endpoints
 

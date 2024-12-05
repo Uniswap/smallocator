@@ -13,7 +13,9 @@ import {
   AllocatorResponse,
   AccountDeltasResponse,
   AccountResponse,
+  AllResourceLocksResponse,
 } from '../graphql';
+import { RequestDocument, Variables, RequestOptions } from 'graphql-request';
 
 describe('API Routes', () => {
   let server: FastifyInstance;
@@ -26,7 +28,13 @@ describe('API Routes', () => {
     originalRequest = graphqlClient.request;
 
     // Mock GraphQL response
-    graphqlClient.request = async (): Promise<
+    graphqlClient.request = async <
+      V extends Variables = Variables,
+      T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+    >(
+      _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+      ..._variablesAndRequestHeaders: unknown[]
+    ): Promise<
       AllocatorResponse & AccountDeltasResponse & AccountResponse
     > => ({
       allocator: {
@@ -234,7 +242,13 @@ describe('API Routes', () => {
         const originalRequest = graphqlClient.request;
 
         // Mock GraphQL response
-        graphqlClient.request = async (): Promise<
+        graphqlClient.request = async <
+          V extends Variables = Variables,
+          T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+        >(
+          _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+          ..._variablesAndRequestHeaders: unknown[]
+        ): Promise<
           AllocatorResponse & AccountDeltasResponse & AccountResponse
         > => ({
           allocator: {
@@ -416,12 +430,18 @@ describe('API Routes', () => {
         const originalRequest = graphqlClient.request;
 
         // Mock GraphQL response with no resource lock
-        graphqlClient.request = async (): Promise<
+        graphqlClient.request = async <
+          V extends Variables = Variables,
+          T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+        >(
+          _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+          ..._variablesAndRequestHeaders: unknown[]
+        ): Promise<
           AllocatorResponse & AccountDeltasResponse & AccountResponse
         > => ({
           allocator: {
             supportedChains: {
-              items: [{ allocatorId: '1' }],
+              items: [],
             },
           },
           accountDeltas: {
@@ -458,7 +478,13 @@ describe('API Routes', () => {
         const originalRequest = graphqlClient.request;
 
         // Mock GraphQL response with withdrawal status = 1
-        graphqlClient.request = async (): Promise<
+        graphqlClient.request = async <
+          V extends Variables = Variables,
+          T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+        >(
+          _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+          ..._variablesAndRequestHeaders: unknown[]
+        ): Promise<
           AllocatorResponse & AccountDeltasResponse & AccountResponse
         > => ({
           allocator: {
@@ -500,6 +526,157 @@ describe('API Routes', () => {
           const result = JSON.parse(response.payload);
           expect(result.balanceAvailableToAllocate).toBe('0');
           expect(result.withdrawalStatus).toBe(1);
+        } finally {
+          // Restore original function
+          graphqlClient.request = originalRequest;
+        }
+      });
+    });
+
+    describe('GET /balances', () => {
+      it('should return balances for all resource locks', async () => {
+        // Store original function
+        const originalRequest = graphqlClient.request;
+
+        // Mock GraphQL response for getAllResourceLocks
+        let requestCount = 0;
+        graphqlClient.request = async <
+          V extends Variables = Variables,
+          T =
+            | AllResourceLocksResponse
+            | (AllocatorResponse & AccountDeltasResponse & AccountResponse),
+        >(
+          _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+          ..._variablesAndRequestHeaders: unknown[]
+        ): Promise<
+          | AllResourceLocksResponse
+          | (AllocatorResponse & AccountDeltasResponse & AccountResponse)
+        > => {
+          requestCount++;
+          if (requestCount === 1) {
+            // First request - getAllResourceLocks
+            return {
+              account: {
+                resourceLocks: {
+                  items: [
+                    {
+                      chainId: '1',
+                      resourceLock: {
+                        lockId: '0x1234',
+                        allocatorAddress: process.env.ALLOCATOR_ADDRESS!, // Add non-null assertion
+                      },
+                    },
+                    {
+                      chainId: '2',
+                      resourceLock: {
+                        lockId: '0x5678',
+                        allocatorAddress: 'different_address',
+                      },
+                    },
+                  ],
+                },
+              },
+            };
+          } else {
+            // Subsequent requests - getCompactDetails
+            return {
+              allocator: {
+                supportedChains: {
+                  items: [{ allocatorId: '1' }],
+                },
+              },
+              accountDeltas: {
+                items: [],
+              },
+              account: {
+                resourceLocks: {
+                  items: [
+                    {
+                      withdrawalStatus: 0,
+                      balance: '1000000000000000000000',
+                    },
+                  ],
+                },
+                claims: {
+                  items: [],
+                },
+              },
+            };
+          }
+        };
+
+        try {
+          const response = await server.inject({
+            method: 'GET',
+            url: '/balances',
+            headers: {
+              'x-session-id': sessionId,
+            },
+          });
+
+          expect(response.statusCode).toBe(200);
+          const body = JSON.parse(response.payload);
+
+          expect(body).toHaveProperty('balances');
+          expect(Array.isArray(body.balances)).toBe(true);
+          expect(body.balances.length).toBe(1); // Only our allocator's locks
+
+          const balance = body.balances[0];
+          expect(balance).toHaveProperty('chainId', '1');
+          expect(balance).toHaveProperty('lockId', '0x1234');
+          expect(balance).toHaveProperty('allocatableBalance');
+          expect(balance).toHaveProperty('allocatedBalance');
+          expect(balance).toHaveProperty('balanceAvailableToAllocate');
+          expect(balance).toHaveProperty('withdrawalStatus', 0);
+        } finally {
+          // Restore original function
+          graphqlClient.request = originalRequest;
+        }
+      });
+
+      it('should return 401 without session', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/balances',
+        });
+
+        expect(response.statusCode).toBe(401);
+      });
+
+      it('should handle case when no resource locks exist', async () => {
+        // Store original function
+        const originalRequest = graphqlClient.request;
+
+        // Mock GraphQL response with no locks
+        graphqlClient.request = async <
+          V extends Variables = Variables,
+          T = AllResourceLocksResponse,
+        >(
+          _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+          ..._variablesAndRequestHeaders: unknown[]
+        ): Promise<AllResourceLocksResponse> => ({
+          account: {
+            resourceLocks: {
+              items: [],
+            },
+          },
+        });
+
+        try {
+          const response = await server.inject({
+            method: 'GET',
+            url: '/balances',
+            headers: {
+              'x-session-id': sessionId,
+            },
+          });
+
+          expect(response.statusCode).toBe(200);
+          const body = JSON.parse(response.payload);
+
+          expect(body).toHaveProperty('balances');
+          expect(Array.isArray(body.balances)).toBe(true);
+          expect(body.balances.length).toBe(0);
         } finally {
           // Restore original function
           graphqlClient.request = originalRequest;
