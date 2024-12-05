@@ -122,6 +122,29 @@ async function killProcessOnPort(port) {
 // Get port from environment variable or use default
 const PORT = process.env.SMOKE_TEST_PORT || 3000;
 
+// Helper to cleanup servers
+async function cleanup(devServer, prodServer) {
+  log('\nStarting cleanup process...');
+  // Cleanup: ensure all servers are stopped gracefully
+  if (devServer) {
+    log('Stopping development server...');
+    devServer.kill('SIGTERM');
+    log('Waiting for development server cleanup...');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
+    log('Development server cleanup complete');
+  }
+  if (prodServer) {
+    log('Stopping production server...');
+    prodServer.kill('SIGTERM');
+    log('Waiting for production server cleanup...');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
+    log('Production server cleanup complete');
+  }
+  log('Running final port cleanup...');
+  await killProcessOnPort(PORT); // Final cleanup
+  log('Cleanup process complete');
+}
+
 async function main() {
   let devServer = null;
   let prodServer = null;
@@ -157,30 +180,12 @@ async function main() {
     log('✓ Production server started successfully');
     
     log('\n✅ All smoke tests passed!');
+    await cleanup(devServer, prodServer);
     process.exit(0);
   } catch (error) {
     log('\n❌ Smoke tests failed:', error.message);
+    await cleanup(devServer, prodServer);
     process.exit(1);
-  } finally {
-    log('\nStarting cleanup process...');
-    // Cleanup: ensure all servers are stopped gracefully
-    if (devServer) {
-      log('Stopping development server...');
-      devServer.kill('SIGTERM');
-      log('Waiting for development server cleanup...');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
-      log('Development server cleanup complete');
-    }
-    if (prodServer) {
-      log('Stopping production server...');
-      prodServer.kill('SIGTERM');
-      log('Waiting for production server cleanup...');
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
-      log('Production server cleanup complete');
-    }
-    log('Running final port cleanup...');
-    await killProcessOnPort(PORT); // Final cleanup
-    log('Cleanup process complete');
   }
 }
 
