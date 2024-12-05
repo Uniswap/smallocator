@@ -1,24 +1,33 @@
 import { spawn } from 'child_process';
 
-// Utility to run a command and wait for a specific time
-function runWithTimeout(command, args, timeoutMs) {
+// Utility to run a command and wait for server to start
+function waitForServer(command, args, timeoutMs) {
   return new Promise((resolve, reject) => {
     const process = spawn(command, args, {
-      stdio: 'inherit',
+      stdio: ['inherit', 'pipe', 'inherit'],
       shell: true
     });
 
-    let killed = false;
+    let serverStarted = false;
+    let output = '';
 
-    // Set timeout to kill the process
-    const timeout = setTimeout(() => {
-      killed = true;
-      try {
-        process.kill('-SIGTERM');
-      } catch (e) {
-        // Ignore errors if process is already dead
+    process.stdout.on('data', (data) => {
+      const chunk = data.toString();
+      output += chunk;
+      
+      // Check if server has started
+      if (chunk.includes('Server listening')) {
+        serverStarted = true;
+        resolve();
       }
-      resolve(); // Process started successfully if it ran for the timeout duration
+    });
+
+    // Set timeout
+    const timeout = setTimeout(() => {
+      if (!serverStarted) {
+        process.kill('SIGTERM');
+        reject(new Error('Server failed to start within timeout'));
+      }
     }, timeoutMs);
 
     process.on('error', (error) => {
@@ -27,9 +36,9 @@ function runWithTimeout(command, args, timeoutMs) {
     });
 
     process.on('exit', (code) => {
-      if (!killed && code !== 0) {
-        clearTimeout(timeout);
-        reject(new Error(`Process exited with code ${code}`));
+      clearTimeout(timeout);
+      if (!serverStarted) {
+        reject(new Error(`Process exited with code ${code}\nOutput: ${output}`));
       }
     });
 
@@ -37,35 +46,52 @@ function runWithTimeout(command, args, timeoutMs) {
   });
 }
 
-// Kill processes by command pattern
-async function killProcesses(pattern) {
+// Kill process using port
+async function killProcessOnPort(port) {
   try {
-    await new Promise((resolve) => {
-      const kill = spawn('pkill', ['-f', pattern], {
-        stdio: 'inherit',
-        shell: true
+    // Find process using port
+    const findProcess = spawn('lsof', ['-t', `-i:${port}`], { shell: true });
+    const pid = await new Promise((resolve) => {
+      let output = '';
+      findProcess.stdout?.on('data', (data) => {
+        output += data;
       });
-      kill.on('exit', () => resolve());
+      findProcess.on('close', () => {
+        resolve(output.trim());
+      });
     });
-    // Wait a bit for processes to die
-    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    if (pid) {
+      // Kill the process
+      await new Promise((resolve) => {
+        const kill = spawn('kill', ['-9', pid], { stdio: 'inherit', shell: true });
+        kill.on('exit', () => resolve());
+      });
+      // Wait a bit for the process to die
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   } catch (e) {
-    // Ignore errors from pkill
+    // Ignore errors from kill commands
   }
 }
 
 async function main() {
   try {
+    // Ensure port is free before starting
+    await killProcessOnPort(3000);
+
     // Test development mode
     console.log('Testing development mode (pnpm dev)...');
-    await runWithTimeout('pnpm', ['dev'], 5000);
+    await waitForServer('pnpm', ['dev'], 10000);
+    console.log('✓ Development server started successfully');
     
     // Kill the development server
-    await killProcesses('tsx watch');
+    await killProcessOnPort(3000);
     
     // Test production mode
-    console.log('Testing production mode (pnpm start)...');
+    console.log('\nTesting production mode (pnpm start)...');
     // First build
+    console.log('Building...');
     const buildProcess = spawn('pnpm', ['build'], { stdio: 'inherit', shell: true });
     await new Promise((resolve, reject) => {
       buildProcess.on('exit', (code) => {
@@ -74,17 +100,17 @@ async function main() {
       });
     });
     
-    await runWithTimeout('pnpm', ['start'], 5000);
+    await waitForServer('pnpm', ['start'], 10000);
+    console.log('✓ Production server started successfully');
     
-    console.log('✅ Smoke tests passed!');
+    console.log('\n✅ All smoke tests passed!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Smoke tests failed:', error.message);
+    console.error('\n❌ Smoke tests failed:', error.message);
     process.exit(1);
   } finally {
-    // Cleanup: kill both dev and prod servers
-    await killProcesses('tsx watch');
-    await killProcesses('node dist/index.js');
+    // Cleanup: ensure port 3000 is free
+    await killProcessOnPort(3000);
   }
 }
 
