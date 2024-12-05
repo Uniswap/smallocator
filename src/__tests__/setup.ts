@@ -1,4 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
+import { initializeDatabase, dropTables } from '../schema';
 
 // Set up test environment variables before any tests run
 process.env.SKIP_SIGNING_VERIFICATION = 'true';
@@ -29,94 +30,20 @@ class DatabaseManager {
     if (!this.db) {
       this.db = new PGlite('memory://');
       await this.db.ready;
-
-      // Wrap table creation in a transaction
-      await this.db.query('BEGIN');
-      try {
-        // Create sessions table
-        await this.db.query(`
-          CREATE TABLE IF NOT EXISTS sessions (
-            id TEXT PRIMARY KEY,
-            address TEXT NOT NULL,
-            nonce TEXT NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            domain TEXT NOT NULL
-          )
-        `);
-
-        // Create nonces table
-        await this.db.query(`
-          CREATE TABLE IF NOT EXISTS nonces (
-            id TEXT PRIMARY KEY,
-            chain_id TEXT NOT NULL,
-            nonce TEXT NOT NULL,
-            consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(chain_id, nonce)
-          )
-        `);
-
-        // Create compacts table
-        await this.db.query(`
-          CREATE TABLE IF NOT EXISTS compacts (
-            id TEXT PRIMARY KEY,
-            chain_id TEXT NOT NULL,
-            claim_hash TEXT NOT NULL,
-            arbiter TEXT NOT NULL,
-            sponsor TEXT NOT NULL,
-            nonce TEXT NOT NULL,
-            expires BIGINT NOT NULL,
-            compact_id TEXT NOT NULL,
-            amount TEXT NOT NULL,
-            witness_type_string TEXT,
-            witness_hash TEXT,
-            signature TEXT NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(chain_id, claim_hash)
-          )
-        `);
-
-        // Create indexes
-        await this.db.query(
-          'CREATE INDEX IF NOT EXISTS idx_sessions_address ON sessions(address)'
-        );
-        await this.db.query(
-          'CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)'
-        );
-        await this.db.query(
-          'CREATE INDEX IF NOT EXISTS idx_compacts_sponsor ON compacts(sponsor)'
-        );
-        await this.db.query(
-          'CREATE INDEX IF NOT EXISTS idx_compacts_chain_claim ON compacts(chain_id, claim_hash)'
-        );
-        await this.db.query(
-          'CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)'
-        );
-
-        await this.db.query('COMMIT');
-      } catch (error) {
-        await this.db.query('ROLLBACK');
-        throw error;
-      }
+      await initializeDatabase(this.db);
     }
-    return;
   }
 
   async getDb(): Promise<PGlite> {
     if (!this.db) {
-      return this.initialize().then(() => this.db as PGlite);
+      await this.initialize();
     }
     return this.db as PGlite;
   }
 
   async cleanup(): Promise<void> {
     if (this.db) {
-      // Drop all tables
-      await this.db.query('DROP TABLE IF EXISTS sessions CASCADE');
-      await this.db.query('DROP TABLE IF EXISTS nonces CASCADE');
-      await this.db.query('DROP TABLE IF EXISTS compacts CASCADE');
-
-      // Reset the database connection
+      await dropTables(this.db);
       this.db = null;
     }
   }
