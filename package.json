@@ -6,9 +6,9 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --detectOpenHandles",
     "test:related": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --bail --findRelatedTests src/__tests__/*.test.ts",
     "lint": "eslint .",
