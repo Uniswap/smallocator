@@ -15,7 +15,26 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
 
 ## API Usage
 
+### Health Check
+
+```http
+GET /health
+```
+
+Example response:
+
+```json
+{
+  "status": "healthy",
+  "allocatorAddress": "0x1234567890123456789012345678901234567890",
+  "signingAddress": "0x9876543210987654321098765432109876543210",
+  "timestamp": "2024-03-07T12:00:00.000Z"
+}
+```
+
 ### Authentication
+
+All authentication endpoints require a valid session ID in the `x-session-id` header.
 
 1. **Get Session Payload**
 
@@ -42,10 +61,13 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
    ```
 
 2. **Create Session**
+
    ```http
    POST /session
    ```
+
    Submit the signed payload to create a session. Example request:
+
    ```json
    {
      "signature": "0x1234...7890",
@@ -63,7 +85,44 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
      }
    }
    ```
+
    Returns a session ID for subsequent requests.
+
+3. **Get Session**
+
+   ```http
+   GET /session
+   ```
+
+   Requires a valid session ID in the `x-session-id` header.
+
+   Example response:
+
+   ```json
+   {
+     "session": {
+       "id": "550e8400-e29b-41d4-a716-446655440000",
+       "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+       "expiresAt": "2024-03-07T13:30:00Z"
+     }
+   }
+   ```
+
+4. **Delete Session**
+
+   ```http
+   DELETE /session
+   ```
+
+   Requires a valid session ID in the `x-session-id` header.
+
+   Example response:
+
+   ```json
+   {
+     "success": true
+   }
+   ```
 
 ### Compact Operations
 
@@ -201,49 +260,6 @@ All compact operations require a valid session ID in the `x-session-id` header.
    }
    ```
    Each balance entry follows the same rules as the single balance endpoint.
-
-## API Endpoints
-
-1. **Health Check**
-
-   ```http
-   GET /health
-   ```
-
-   Example response:
-
-   ```json
-   {
-     "status": "healthy",
-     "allocatorAddress": "0x1234567890123456789012345678901234567890",
-     "signingAddress": "0x9876543210987654321098765432109876543210",
-     "timestamp": "2024-03-07T12:00:00.000Z"
-   }
-   ```
-
-2. **Get Session Payload**
-
-   ```http
-   GET /session/:chainId/:address
-   ```
-
-   Returns an EIP-4361 payload for signing. The chainId parameter specifies which blockchain network to authenticate for. Example response:
-
-   ```json
-   {
-     "payload": {
-       "domain": "localhost:3000",
-       "address": "0x...",
-       "uri": "http://localhost:3000",
-       "statement": "Sign in to Smallocator",
-       "version": "1",
-       "chainId": 10,
-       "nonce": "unique_nonce",
-       "issuedAt": "2024-12-03T12:00:00Z",
-       "expirationTime": "2024-12-03T13:00:00Z"
-     }
-   }
-   ```
 
 ## Development
 
