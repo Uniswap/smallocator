@@ -33,25 +33,46 @@ async function build(): Promise<FastifyInstance> {
   // Initialize database
   await setupDatabase(server);
 
-  // Register routes
+  // API routes should be handled first
   await setupRoutes(server);
+
+  // Handle HEAD requests for root explicitly
+  server.head('/', async (request, reply) => {
+    return reply.code(200).send();
+  });
+
+  // Add hook to prevent non-GET requests to static files
+  server.addHook('onRequest', async (request, reply) => {
+    if (request.url.startsWith('/assets/') && request.method !== 'GET') {
+      return reply.code(405).send({ error: 'Method not allowed' });
+    }
+  });
 
   // Serve static files from frontend/dist
   await server.register(fastifyStatic, {
     root: path.join(process.cwd(), 'frontend/dist'),
     prefix: '/',
+    decorateReply: false,
   });
 
   // Catch-all route to serve index.html for client-side routing
-  server.setNotFoundHandler((request, reply) => {
+  server.setNotFoundHandler(async (request, reply) => {
     if (request.url.startsWith('/api')) {
-      reply.code(404).send({
+      return reply.code(404).send({
         message: 'API route not found',
         error: 'Not Found',
         statusCode: 404,
       });
-    } else {
-      reply.sendFile('index.html');
+    }
+
+    try {
+      await reply.sendFile('index.html');
+    } catch (err) {
+      reply.code(404).send({
+        message: 'File not found',
+        error: err instanceof Error ? err.message : 'Unknown error',
+        statusCode: 404,
+      });
     }
   });
 
