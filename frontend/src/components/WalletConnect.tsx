@@ -1,9 +1,13 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
-export function WalletConnect() {
+interface WalletConnectProps {
+  hasSession: boolean;
+}
+
+export function WalletConnect({ hasSession }: WalletConnectProps) {
   return (
     <div className="flex justify-end mb-4">
-      <ConnectButton />
+      <ConnectButton showBalance={hasSession} />
     </div>
   );
 }

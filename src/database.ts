@@ -1,28 +1,31 @@
 import { FastifyInstance } from 'fastify';
 import { PGlite } from '@electric-sql/pglite';
 import { initializeDatabase } from './schema';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+
+// Get database directory from environment or use default
+const DATA_DIR = join(
+  process.cwd(),
+  process.env.DATABASE_DIR || '.smallocator-data'
+);
+if (!existsSync(DATA_DIR)) {
+  mkdirSync(DATA_DIR, { recursive: true });
+}
 
 export async function setupDatabase(server: FastifyInstance): Promise<void> {
-  const db = new PGlite();
-  await initializeDatabase(db);
+  // Initialize PGlite with the data directory
+  const db = new PGlite(DATA_DIR);
 
-  // Create session_requests table
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS session_requests (
-      id UUID PRIMARY KEY,
-      address TEXT NOT NULL,
-      nonce UUID NOT NULL,
-      domain TEXT NOT NULL,
-      chain_id INTEGER NOT NULL,
-      issued_at TIMESTAMP WITH TIME ZONE NOT NULL,
-      expiration_time TIMESTAMP WITH TIME ZONE NOT NULL,
-      used BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  await initializeDatabase(db);
 
   // Add the database instance to the server
   server.decorate('db', db);
+
+  // Handle cleanup on server close
+  server.addHook('onClose', async () => {
+    await db.close();
+  });
 }
 
 // Add TypeScript declaration

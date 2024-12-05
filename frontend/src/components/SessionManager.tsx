@@ -2,24 +2,86 @@ import { useAccount, useSignMessage, useChainId } from 'wagmi';
 import { useState, useCallback, useEffect } from 'react';
 
 interface SessionManagerProps {
-  onSessionCreated: () => void;
+  sessionToken: string | null;
+  onSessionUpdate: (token: string | null) => void;
 }
 
-export function SessionManager({ onSessionCreated }: SessionManagerProps) {
+export function SessionManager({ sessionToken, onSessionUpdate }: SessionManagerProps) {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const chainId = useChainId();
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check for existing session on mount
+  // Check for existing session on mount and when wallet connects
   useEffect(() => {
-    const existingSession = localStorage.getItem('sessionId');
-    if (existingSession) {
-      setSessionToken(existingSession);
-      onSessionCreated();
+    const validateSession = async () => {
+      const existingSession = localStorage.getItem('sessionId');
+      if (!existingSession) {
+        onSessionUpdate(null);
+        return;
+      }
+
+      try {
+        // Verify the session is still valid
+        const response = await fetch('/session', {
+          headers: {
+            'x-session-id': existingSession
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.session?.id === existingSession) {
+            onSessionUpdate(existingSession);
+            return;
+          }
+        }
+        // Session is invalid or expired
+        localStorage.removeItem('sessionId');
+        onSessionUpdate(null);
+      } catch (error) {
+        console.error('Failed to validate session:', error);
+        localStorage.removeItem('sessionId');
+        onSessionUpdate(null);
+      }
+    };
+
+    validateSession();
+  }, [onSessionUpdate]); // Run on mount and when onSessionUpdate changes
+
+  // Re-validate when wallet connects
+  useEffect(() => {
+    if (isConnected) {
+      const validateSession = async () => {
+        const existingSession = localStorage.getItem('sessionId');
+        if (!existingSession) return;
+
+        try {
+          // Verify the session is still valid
+          const response = await fetch('/session', {
+            headers: {
+              'x-session-id': existingSession
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.session?.id === existingSession) {
+              onSessionUpdate(existingSession);
+              return;
+            }
+          }
+          // Session is invalid or expired
+          localStorage.removeItem('sessionId');
+          onSessionUpdate(null);
+        } catch (error) {
+          console.error('Failed to validate session:', error);
+          localStorage.removeItem('sessionId');
+          onSessionUpdate(null);
+        }
+      };
+
+      validateSession();
     }
-  }, [onSessionCreated]);
+  }, [isConnected, onSessionUpdate]);
 
   const createSession = useCallback(async () => {
     if (!address || !chainId || isLoading) {
@@ -75,8 +137,7 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
         const data = await response.json();
         const sessionId = data.session.id;
         localStorage.setItem('sessionId', sessionId);
-        setSessionToken(sessionId);
-        onSessionCreated();
+        onSessionUpdate(sessionId);
       } else {
         const errorText = await response.text();
         console.error('Failed to create session:', errorText);
@@ -86,7 +147,32 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [address, chainId, signMessageAsync, onSessionCreated]);
+  }, [address, chainId, signMessageAsync, onSessionUpdate, isLoading]);
+
+  const signOut = useCallback(async () => {
+    if (!sessionToken || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/session', {
+        method: 'DELETE',
+        headers: {
+          'x-session-id': sessionToken
+        }
+      });
+
+      if (response.ok) {
+        localStorage.removeItem('sessionId');
+        onSessionUpdate(null);
+      } else {
+        console.error('Failed to sign out:', await response.text());
+      }
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sessionToken, onSessionUpdate, isLoading]);
 
   if (!isConnected) {
     return (
@@ -97,7 +183,21 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
   }
 
   if (sessionToken) {
-    return null;
+    return (
+      <div className="text-center">
+        <button
+          onClick={signOut}
+          disabled={isLoading}
+          className={`px-4 py-2 rounded-lg font-medium ${
+            isLoading
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-red-600 text-white hover:bg-red-700'
+          }`}
+        >
+          {isLoading ? 'Signing out...' : 'Sign out'}
+        </button>
+      </div>
+    );
   }
 
   const canLogin = isConnected && address && chainId && !isLoading;

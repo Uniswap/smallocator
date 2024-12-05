@@ -20,7 +20,7 @@ const config = getDefaultConfig({
 });
 
 function App() {
-  const [hasSession, setHasSession] = useState(false);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   
   const queryClient = useMemo(() => new QueryClient({
     defaultOptions: {
@@ -39,12 +39,15 @@ function App() {
             <header className="mb-8">
               <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Smallocator</h1>
-                <WalletConnect />
+                <WalletConnect hasSession={!!sessionToken} />
               </div>
             </header>
             <main>
-              <SessionManager onSessionCreated={() => setHasSession(true)} />
-              {hasSession && (
+              <SessionManager 
+                sessionToken={sessionToken}
+                onSessionUpdate={setSessionToken}
+              />
+              {sessionToken && (
                 <div className="mt-8">
                   <BalanceDisplay />
                 </div>

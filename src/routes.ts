@@ -237,6 +237,55 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
     }
   );
 
+  // Get session status
+  server.get(
+    '/session',
+    async (
+      request: FastifyRequest<{ Headers: { 'x-session-id'?: string } }>,
+      reply: FastifyReply
+    ): Promise<
+      | { session: { id: string; address: string; expiresAt: string } }
+      | { error: string }
+    > => {
+      try {
+        const sessionId = request.headers['x-session-id'];
+        if (!sessionId || Array.isArray(sessionId)) {
+          return reply.code(401).send({ error: 'Session ID required' });
+        }
+
+        // Query the session
+        const result = await server.db.query<{
+          id: string;
+          address: string;
+          expires_at: string;
+        }>(
+          'SELECT id, address, expires_at FROM sessions WHERE id = $1 AND expires_at > CURRENT_TIMESTAMP',
+          [sessionId]
+        );
+
+        if (!result.rows || result.rows.length === 0) {
+          return reply
+            .code(404)
+            .send({ error: 'Session not found or expired' });
+        }
+
+        const session = result.rows[0];
+        return {
+          session: {
+            id: session.id,
+            address: session.address,
+            expiresAt: session.expires_at,
+          },
+        };
+      } catch (error) {
+        server.log.error('Failed to get session:', error);
+        return reply.code(500).send({
+          error: 'Failed to get session status',
+        });
+      }
+    }
+  );
+
   // Verify session
   server.get(
     '/session/verify',
@@ -268,6 +317,37 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         return {
           error: err instanceof Error ? err.message : 'Invalid session',
         };
+      }
+    }
+  );
+
+  // Delete session (sign out)
+  server.delete(
+    '/session',
+    {
+      preHandler: authenticateRequest,
+    },
+    async (
+      request: FastifyRequest,
+      reply: FastifyReply
+    ): Promise<{ success: true } | { error: string }> => {
+      try {
+        const sessionId = request.headers['x-session-id'];
+        if (!sessionId || Array.isArray(sessionId)) {
+          return reply.code(401).send({ error: 'Session ID required' });
+        }
+
+        // Delete the session
+        await server.db.query('DELETE FROM sessions WHERE id = $1', [
+          sessionId,
+        ]);
+
+        return { success: true };
+      } catch (error) {
+        server.log.error('Failed to delete session:', error);
+        return reply.code(500).send({
+          error: 'Failed to delete session',
+        });
       }
     }
   );

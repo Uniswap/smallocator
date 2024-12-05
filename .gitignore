@@ -6,3 +6,6 @@ dist/
 coverage/
 .pnpm-store/
 jest.config.js
+# Database
+.smallocator-data/
+
