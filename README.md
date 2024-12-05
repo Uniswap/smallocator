@@ -273,8 +273,8 @@ pnpm test
 
 
 ### Usage ###
-# Run in development mode with hot reload
-pnpm dev
+# Run both frontend and backend in development mode with hot reload
+pnpm dev:all
 
 # Run tests
 pnpm test
@@ -288,8 +288,8 @@ pnpm lint
 # Format code
 pnpm format
 
-# Build for production
-pnpm build
+# Build frontend and backend for production
+pnpm build:all
 
 # Start production server
 pnpm start
