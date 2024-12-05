@@ -11,6 +11,19 @@ export const schemas = {
       domain TEXT NOT NULL
     )
   `,
+  session_requests: `
+    CREATE TABLE IF NOT EXISTS session_requests (
+      id TEXT PRIMARY KEY,
+      address TEXT NOT NULL,
+      nonce TEXT NOT NULL,
+      domain TEXT NOT NULL,
+      chain_id INTEGER NOT NULL,
+      issued_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      expiration_time TIMESTAMP WITH TIME ZONE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      used BOOLEAN DEFAULT FALSE
+    )
+  `,
   nonces: `
     CREATE TABLE IF NOT EXISTS nonces (
       id TEXT PRIMARY KEY,
@@ -51,6 +64,10 @@ export const indexes = {
   ],
   nonces: [
     'CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)',
+  ],
+  session_requests: [
+    'CREATE INDEX IF NOT EXISTS idx_session_requests_address ON session_requests(address)',
+    'CREATE INDEX IF NOT EXISTS idx_session_requests_expiration_time ON session_requests(expiration_time)',
   ],
 };
 

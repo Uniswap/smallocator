@@ -117,13 +117,25 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
 
   // Get session payload
   server.get(
-    '/session/:address',
+    '/session/:chainId/:address',
     async (
-      request: FastifyRequest<{ Params: { address: string } }>,
+      request: FastifyRequest<{
+        Params: {
+          address: string;
+          chainId: string;
+        };
+      }>,
       reply: FastifyReply
     ): Promise<{ session: SessionPayload } | { error: string }> => {
       try {
-        const { address } = request.params as { address: string };
+        const { address, chainId } = request.params;
+        const chainIdNum = parseInt(chainId, 10);
+
+        if (isNaN(chainIdNum)) {
+          return reply.code(400).send({
+            error: 'Invalid chain ID format',
+          });
+        }
 
         let normalizedAddress: string;
         try {
@@ -134,37 +146,55 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           });
         }
 
-        const nonce = Date.now().toString();
-        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        const nonce = randomUUID();
+        if (!process.env.BASE_URL) {
+          throw new Error('BASE_URL environment variable must be set');
+        }
+        const baseUrl = process.env.BASE_URL;
+        const domain = new URL(baseUrl).host;
+        const issuedAt = new Date();
+        const expirationTime = new Date(issuedAt.getTime() + 30 * 60 * 1000); // 30 minutes
+
         const payload = {
-          domain: new URL(baseUrl).host,
+          domain,
           address: normalizedAddress,
           uri: baseUrl,
           statement: 'Sign in to Smallocator',
           version: '1',
-          chainId: 1,
+          chainId: chainIdNum,
           nonce,
-          issuedAt: new Date().toISOString(),
-          expirationTime: new Date(Date.now() + 3600000).toISOString(),
-          resources: [`${baseUrl}/resources`],
+          issuedAt: issuedAt.toISOString(),
+          expirationTime: expirationTime.toISOString(),
         };
 
-        // Store nonce
+        // Store session request
+        const requestId = randomUUID();
         await server.db.query(
-          'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
-          [randomUUID(), '1', nonce]
+          `INSERT INTO session_requests (
+            id, address, nonce, domain, chain_id, issued_at, expiration_time
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            requestId,
+            normalizedAddress,
+            nonce,
+            domain,
+            chainIdNum,
+            issuedAt.toISOString(),
+            expirationTime.toISOString(),
+          ]
         );
 
         return reply.code(200).send({ session: payload });
       } catch (error) {
-        return reply.code(400).send({
-          error: error instanceof Error ? error.message : 'Invalid address',
+        server.log.error('Failed to create session request:', error);
+        return reply.code(500).send({
+          error: 'Failed to create session request',
         });
       }
     }
   );
 
-  // Create session
+  // Create new session
   server.post<{
     Body: {
       signature: string;
@@ -183,35 +213,21 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
     > => {
       try {
         const { signature, payload } = request.body;
-        server.log.info(
-          {
-            payload,
-            signatureStart: signature.slice(0, 10),
-          },
-          'Creating session with payload'
-        );
 
+        // Validate and create session
         const session = await validateAndCreateSession(
           server,
           signature,
           payload
         );
-        return { session };
-      } catch (err) {
-        server.log.error(
-          {
-            error: err instanceof Error ? err.message : 'Unknown error',
-            stack: err instanceof Error ? err.stack : undefined,
-            payload: request.body.payload,
-            signatureStart: request.body.signature.slice(0, 10),
-          },
-          'Session creation failed'
-        );
 
-        reply.code(400);
-        return {
-          error: err instanceof Error ? err.message : 'Session creation failed',
-        };
+        return reply.code(200).send({ session });
+      } catch (error) {
+        server.log.error('Session creation failed:', error);
+        return reply.code(400).send({
+          error:
+            error instanceof Error ? error.message : 'Invalid session request',
+        });
       }
     }
   );
@@ -430,7 +446,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
             sponsor,
             chainId,
             lockId,
-            response.account.claims.items.map((item) => item.claimHash)
+            response.account.claims.items.map((claim) => claim.claimHash)
           );
 
           // Calculate balance available to allocate

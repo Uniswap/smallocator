@@ -2,9 +2,9 @@ import {
   createTestServer,
   getFreshValidPayload,
   cleanupTestServer,
+  generateSignature,
 } from './utils/test-server';
 import type { FastifyInstance } from 'fastify';
-import { generateSignature } from '../crypto';
 
 describe('Session Management', () => {
   let server: FastifyInstance;
@@ -22,7 +22,26 @@ describe('Session Management', () => {
 
   describe('Session Creation', () => {
     it('should create a new session with valid payload', async () => {
-      const payload = getFreshValidPayload();
+      // First get a session request
+      const address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+      const sessionResponse = await server.inject({
+        method: 'GET',
+        url: `/session/1/${address}`,
+      });
+
+      expect(sessionResponse.statusCode).toBe(200);
+      const sessionRequest = JSON.parse(sessionResponse.payload);
+
+      // Normalize timestamps to match database precision
+      const payload = {
+        ...sessionRequest.session,
+        issuedAt: new Date(sessionRequest.session.issuedAt).toISOString(),
+        expirationTime: new Date(
+          sessionRequest.session.expirationTime
+        ).toISOString(),
+      };
+
+      // Then create the session
       const signature = await generateSignature(payload);
       const response = await server.inject({
         method: 'POST',
@@ -42,12 +61,35 @@ describe('Session Management', () => {
     });
 
     it('should reject invalid signature', async () => {
+      const payload = getFreshValidPayload();
       const response = await server.inject({
         method: 'POST',
         url: '/session',
         payload: {
-          payload: getFreshValidPayload(),
+          payload,
           signature: 'invalid-signature',
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const result = JSON.parse(response.payload);
+      expect(result).toHaveProperty('error');
+    });
+
+    it('should reject when message format does not match payload', async () => {
+      const payload = getFreshValidPayload();
+      const invalidPayload = {
+        ...payload,
+        statement: 'Invalid statement',
+      };
+      const signature = await generateSignature(invalidPayload);
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/session',
+        payload: {
+          payload,
+          signature,
         },
       });
 
@@ -61,7 +103,26 @@ describe('Session Management', () => {
     let sessionId: string;
 
     beforeEach(async () => {
-      const payload = getFreshValidPayload();
+      // First get a session request
+      const address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+      const sessionResponse = await server.inject({
+        method: 'GET',
+        url: `/session/1/${address}`,
+      });
+
+      expect(sessionResponse.statusCode).toBe(200);
+      const sessionRequest = JSON.parse(sessionResponse.payload);
+
+      // Normalize timestamps to match database precision
+      const payload = {
+        ...sessionRequest.session,
+        issuedAt: new Date(sessionRequest.session.issuedAt).toISOString(),
+        expirationTime: new Date(
+          sessionRequest.session.expirationTime
+        ).toISOString(),
+      };
+
+      // Then create the session
       const signature = await generateSignature(payload);
       const response = await server.inject({
         method: 'POST',
@@ -72,24 +133,10 @@ describe('Session Management', () => {
         },
       });
 
-      if (response.statusCode !== 200) {
-        console.error(`Failed to create session: ${response.payload}`);
-      }
       expect(response.statusCode).toBe(200);
-
       const result = JSON.parse(response.payload);
-      if (!result.session) {
-        console.error(`Invalid response format: ${JSON.stringify(result)}`);
-      }
       expect(result).toHaveProperty('session');
-
-      if (!result.session?.id) {
-        console.error(
-          `Session object missing ID: ${JSON.stringify(result.session)}`
-        );
-      }
       expect(result.session).toHaveProperty('id');
-
       sessionId = result.session.id;
     });
 

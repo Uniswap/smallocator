@@ -169,23 +169,28 @@ export function verifySigningAddress(configuredAddress: string): void {
 }
 
 export async function generateSignature(
-  payload: SessionPayload
+  payload: SessionPayload | string
 ): Promise<string> {
-  // Format the message according to EIP-4361
-  const message = [
-    `${payload.domain} wants you to sign in with your Ethereum account:`,
-    payload.address,
-    '',
-    payload.statement,
-    '',
-    `URI: ${payload.uri}`,
-    `Version: ${payload.version}`,
-    `Chain ID: ${payload.chainId}`,
-    `Nonce: ${payload.nonce}`,
-    `Issued At: ${payload.issuedAt}`,
-    `Expiration Time: ${payload.expirationTime}`,
-    payload.resources ? `Resources:\n${payload.resources.join('\n')}` : '',
-  ].join('\n');
+  // If payload is a string, use it directly as the message
+  const message =
+    typeof payload === 'string'
+      ? payload
+      : [
+          `${payload.domain} wants you to sign in with your Ethereum account:`,
+          payload.address,
+          '',
+          payload.statement,
+          '',
+          `URI: ${payload.uri}`,
+          `Version: ${payload.version}`,
+          `Chain ID: ${payload.chainId}`,
+          `Nonce: ${payload.nonce}`,
+          `Issued At: ${payload.issuedAt}`,
+          `Expiration Time: ${payload.expirationTime}`,
+          payload.resources
+            ? `Resources:\n${payload.resources.join('\n')}`
+            : '',
+        ].join('\n');
 
   // Sign the message using the private key directly
   const signature = await signMessage({

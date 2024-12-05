@@ -20,10 +20,10 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
 1. **Get Session Payload**
 
    ```http
-   GET /session/:address
+   GET /session/:chainId/:address
    ```
 
-   Returns an EIP-4361 payload for signing. Example response:
+   Returns an EIP-4361 payload for signing. The chainId parameter specifies which blockchain network to authenticate for. Example response:
 
    ```json
    {
@@ -33,11 +33,10 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
        "uri": "http://localhost:3000",
        "statement": "Sign in to Smallocator",
        "version": "1",
-       "chainId": 1,
+       "chainId": 10,
        "nonce": "unique_nonce",
        "issuedAt": "2024-12-03T12:00:00Z",
-       "expirationTime": "2024-12-03T13:00:00Z",
-       "resources": ["http://localhost:3000/resources"]
+       "expirationTime": "2024-12-03T13:00:00Z"
      }
    }
    ```
@@ -225,10 +224,10 @@ All compact operations require a valid session ID in the `x-session-id` header.
 2. **Get Session Payload**
 
    ```http
-   GET /session/:address
+   GET /session/:chainId/:address
    ```
 
-   Returns an EIP-4361 payload for signing. Example response:
+   Returns an EIP-4361 payload for signing. The chainId parameter specifies which blockchain network to authenticate for. Example response:
 
    ```json
    {
@@ -238,11 +237,10 @@ All compact operations require a valid session ID in the `x-session-id` header.
        "uri": "http://localhost:3000",
        "statement": "Sign in to Smallocator",
        "version": "1",
-       "chainId": 1,
+       "chainId": 10,
        "nonce": "unique_nonce",
        "issuedAt": "2024-12-03T12:00:00Z",
-       "expirationTime": "2024-12-03T13:00:00Z",
-       "resources": ["http://localhost:3000/resources"]
+       "expirationTime": "2024-12-03T13:00:00Z"
      }
    }
    ```

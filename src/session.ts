@@ -15,7 +15,7 @@ export interface SessionPayload {
   nonce: string;
   issuedAt: string;
   expirationTime: string;
-  resources: string[];
+  resources?: string[];
 }
 
 export interface Session {
@@ -38,98 +38,90 @@ export async function validateAndCreateSession(
       throw new Error('Invalid session payload structure');
     }
 
-    // Verify the nonce exists and hasn't been used
-    const nonceIsValid = await verifyNonce(
-      server,
-      payload.domain,
-      payload.nonce,
-      payload.chainId
+    // Get the original session request
+    const requests = await server.db.query<{
+      issued_at: string;
+      expiration_time: string;
+      rows: Array<{
+        issued_at: string;
+        expiration_time: string;
+      }>;
+    }>(
+      `SELECT * FROM session_requests 
+       WHERE nonce = $1 
+       AND domain = $2 
+       AND chain_id = $3 
+       AND address = $4
+       AND used = FALSE
+       AND expiration_time > CURRENT_TIMESTAMP`,
+      [payload.nonce, payload.domain, payload.chainId, payload.address]
     );
-    if (!nonceIsValid) {
-      server.log.error(
-        {
-          domain: payload.domain,
-          nonce: payload.nonce,
-          chainId: payload.chainId,
-        },
-        'Invalid nonce'
-      );
-      throw new Error('Invalid or expired nonce');
+
+    if (!requests.rows || requests.rows.length === 0) {
+      throw new Error('No matching session request found or request expired');
     }
 
-    // Format and verify the signature
+    const request = requests.rows[0];
+
+    // Verify timestamps match
+    const requestIssuedAt = new Date(request.issued_at).toISOString();
+    const requestExpirationTime = new Date(
+      request.expiration_time
+    ).toISOString();
+    const payloadIssuedAt = new Date(payload.issuedAt).toISOString();
+    const payloadExpirationTime = new Date(
+      payload.expirationTime
+    ).toISOString();
+
+    if (
+      requestIssuedAt !== payloadIssuedAt ||
+      requestExpirationTime !== payloadExpirationTime
+    ) {
+      throw new Error('Session request timestamps do not match');
+    }
+
+    // Format message and verify signature
     const message = formatMessage(payload);
-    server.log.info(
-      {
-        formattedMessage: message,
-        address: payload.address,
-        signatureStart: signature.slice(0, 10),
-      },
-      'Verifying signature'
-    );
 
     if (!signature.startsWith('0x')) {
-      server.log.error(
-        { signatureStart: signature.slice(0, 10) },
-        'Invalid signature format'
-      );
       throw new Error('Invalid signature format: must start with 0x');
     }
 
-    // Recover the address from the signature and verify it matches
     try {
-      const recoveredAddress = await verifyMessage({
+      const addressRecovered = await verifyMessage({
         address: getAddress(payload.address),
         message,
         signature: signature as `0x${string}`,
       });
 
-      if (!recoveredAddress) {
-        server.log.error(
-          {
-            expectedAddress: getAddress(payload.address),
-            recoveredAddress,
-            messageLength: message.length,
-            messagePreview: message.slice(0, 100),
-          },
-          'Signature verification failed - no address recovered'
-        );
-        throw new Error(
-          'Signature verification failed: recovered address does not match'
-        );
+      if (!addressRecovered) {
+        throw new Error('Invalid signature');
       }
-
-      server.log.info(
-        {
-          address: payload.address,
-          recoveredAddress,
-        },
-        'Signature verified successfully'
-      );
     } catch (error) {
-      server.log.error(
-        {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          address: payload.address,
-          messageLength: message.length,
-          messagePreview: message.slice(0, 100),
-        },
-        'Signature verification error'
-      );
       throw new Error(
-        `Signature verification failed: ${error instanceof Error ? error.message : String(error)}`
+        `Invalid signature: ${error instanceof Error ? error.message : String(error)}`
       );
     }
 
     // Create session
     const session: Session = {
       id: randomUUID(),
-      address: getAddress(payload.address),
+      address: payload.address,
       expiresAt: payload.expirationTime,
       nonce: payload.nonce,
       domain: payload.domain,
     };
+
+    // Mark session request as used
+    await server.db.query(
+      `UPDATE session_requests 
+       SET used = TRUE 
+       WHERE nonce = $1 
+       AND domain = $2 
+       AND chain_id = $3 
+       AND address = $4`,
+      [payload.nonce, payload.domain, payload.chainId, payload.address]
+    );
 
     // Store session in database
     await server.db.query(
@@ -143,22 +135,9 @@ export async function validateAndCreateSession(
       ]
     );
 
-    // Mark nonce as used
-    await server.db.query(
-      'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
-      [randomUUID(), payload.chainId.toString(), payload.nonce]
-    );
-
     return session;
   } catch (error) {
-    server.log.error(
-      {
-        error: error instanceof Error ? error.message : String(error),
-        payload,
-        signature,
-      },
-      'Session validation failed'
-    );
+    server.log.error('Session validation failed:', error);
     throw error;
   }
 }
@@ -216,8 +195,7 @@ function isValidPayload(payload: SessionPayload): boolean {
       typeof payload.chainId !== 'number' ||
       typeof payload.nonce !== 'string' ||
       typeof payload.issuedAt !== 'string' ||
-      typeof payload.expirationTime !== 'string' ||
-      !Array.isArray(payload.resources)
+      typeof payload.expirationTime !== 'string'
     ) {
       throw new Error('Invalid payload field types');
     }
@@ -285,51 +263,31 @@ function isValidPayload(payload: SessionPayload): boolean {
     }
 
     // Validate resources URIs if present
-    for (const resource of payload.resources) {
-      if (typeof resource !== 'string') {
-        throw new Error('Invalid resource type');
-      }
-      try {
-        new URL(resource);
-      } catch {
-        throw new Error('Invalid resource URI');
+    if (payload.resources) {
+      for (const resource of payload.resources) {
+        if (typeof resource !== 'string') {
+          throw new Error('Invalid resource type');
+        }
+        try {
+          new URL(resource);
+        } catch {
+          throw new Error('Invalid resource URI');
+        }
       }
     }
 
     return true;
   } catch (error) {
     console.error('Payload validation failed:', {
-      error: error instanceof Error ? error.message : String(error),
-      payload: {
-        ...payload,
-        // Exclude sensitive fields if needed
-        signature: undefined,
-      },
-      env: {
-        BASE_URL: process.env.BASE_URL,
-      },
+      error: error instanceof Error ? error.message : 'Unknown error',
+      payload,
     });
-    throw error;
+    return false;
   }
 }
 
-export async function verifyNonce(
-  server: FastifyInstance,
-  domain: string,
-  nonce: string,
-  chainId: number
-): Promise<boolean> {
-  // Check if nonce has been used
-  const result = await server.db.query(
-    'SELECT id FROM nonces WHERE chain_id = $1 AND nonce = $2',
-    [chainId.toString(), nonce]
-  );
-
-  return result.rows.length === 0;
-}
-
 function formatMessage(payload: SessionPayload): string {
-  return [
+  const lines = [
     `${payload.domain} wants you to sign in with your Ethereum account:`,
     payload.address,
     '',
@@ -341,6 +299,12 @@ function formatMessage(payload: SessionPayload): string {
     `Nonce: ${payload.nonce}`,
     `Issued At: ${payload.issuedAt}`,
     `Expiration Time: ${payload.expirationTime}`,
-    payload.resources ? `Resources:\n${payload.resources.join('\n')}` : '',
-  ].join('\n');
+  ];
+
+  if (payload.resources?.length) {
+    lines.push('Resources:');
+    lines.push(...payload.resources.map((r) => `- ${r}`));
+  }
+
+  return lines.join('\n');
 }

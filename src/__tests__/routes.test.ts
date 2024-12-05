@@ -2,12 +2,11 @@ import { FastifyInstance } from 'fastify';
 import {
   createTestServer,
   validPayload,
-  getFreshValidPayload,
   getFreshCompact,
   cleanupTestServer,
   compactToAPI,
+  generateSignature,
 } from './utils/test-server';
-import { generateSignature } from '../crypto';
 import {
   graphqlClient,
   AllocatorResponse,
@@ -110,11 +109,11 @@ describe('API Routes', () => {
     });
   });
 
-  describe('GET /session/:address', () => {
+  describe('GET /session/:chainId/:address', () => {
     it('should return a session payload for valid address', async () => {
       const response = await server.inject({
         method: 'GET',
-        url: '/session/0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        url: '/session/1/0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
       });
 
       expect(response.statusCode).toBe(200);
@@ -129,7 +128,7 @@ describe('API Routes', () => {
     it('should reject invalid ethereum address', async () => {
       const response = await server.inject({
         method: 'GET',
-        url: '/session/invalid-address',
+        url: '/session/1/invalid-address',
       });
 
       expect(response.statusCode).toBe(400);
@@ -138,13 +137,21 @@ describe('API Routes', () => {
 
   describe('POST /session', () => {
     it('should create session with valid signature', async () => {
-      const payload = getFreshValidPayload();
-      const signature = await generateSignature(payload);
+      // First get a session request
+      const sessionResponse = await server.inject({
+        method: 'GET',
+        url: `/session/1/${validPayload.address}`,
+      });
+
+      expect(sessionResponse.statusCode).toBe(200);
+      const sessionRequest = JSON.parse(sessionResponse.payload);
+
+      const signature = await generateSignature(sessionRequest.session);
       const response = await server.inject({
         method: 'POST',
         url: '/session',
         payload: {
-          payload,
+          payload: sessionRequest.session,
           signature,
         },
       });
@@ -158,11 +165,20 @@ describe('API Routes', () => {
     });
 
     it('should reject invalid signature', async () => {
+      // First get a session request
+      const sessionResponse = await server.inject({
+        method: 'GET',
+        url: `/session/1/${validPayload.address}`,
+      });
+
+      expect(sessionResponse.statusCode).toBe(200);
+      const sessionRequest = JSON.parse(sessionResponse.payload);
+
       const response = await server.inject({
         method: 'POST',
         url: '/session',
         payload: {
-          payload: validPayload,
+          payload: sessionRequest.session,
           signature: 'invalid-signature',
         },
       });
@@ -175,8 +191,26 @@ describe('API Routes', () => {
     let sessionId: string;
 
     beforeEach(async () => {
+      // First get a session request
+      const address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+      const sessionResponse = await server.inject({
+        method: 'GET',
+        url: `/session/1/${address}`,
+      });
+
+      expect(sessionResponse.statusCode).toBe(200);
+      const sessionRequest = JSON.parse(sessionResponse.payload);
+
+      // Normalize timestamps to match database precision
+      const payload = {
+        ...sessionRequest.session,
+        issuedAt: new Date(sessionRequest.session.issuedAt).toISOString(),
+        expirationTime: new Date(
+          sessionRequest.session.expirationTime
+        ).toISOString(),
+      };
+
       // Create a valid session to use in tests
-      const payload = getFreshValidPayload();
       const signature = await generateSignature(payload);
       const response = await server.inject({
         method: 'POST',

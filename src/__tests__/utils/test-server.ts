@@ -4,29 +4,65 @@ import cors from '@fastify/cors';
 import { randomUUID } from 'crypto';
 import { setupRoutes } from '../../routes';
 import { dbManager } from '../setup';
+import { signMessage } from 'viem/accounts';
 
 // Helper to generate test data
+const defaultBaseUrl = 'https://smallocator.example';
 export const validPayload = {
-  domain: new URL(process.env.BASE_URL || 'http://localhost:3000').host,
+  domain: new URL(process.env.BASE_URL || defaultBaseUrl).host,
   address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-  uri: process.env.BASE_URL || 'http://localhost:3000',
+  uri: process.env.BASE_URL || defaultBaseUrl,
   statement: 'Sign in to Smallocator',
   version: '1',
   chainId: 1,
-  nonce: randomUUID(), // Use UUID for session nonce
+  nonce: randomUUID(),
   issuedAt: new Date().toISOString(),
-  expirationTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-  resources: [`${process.env.BASE_URL || 'http://localhost:3000'}/resources`],
+  expirationTime: new Date(Date.now() + 3600000).toISOString(),
 };
 
 // Helper to get fresh valid payload with current timestamps
 export function getFreshValidPayload(): typeof validPayload {
+  const now = new Date();
+  const expirationTime = new Date(now.getTime() + 3600000);
   return {
     ...validPayload,
-    nonce: randomUUID(), // Use UUID for session nonce
-    issuedAt: new Date().toISOString(),
-    expirationTime: new Date(Date.now() + 3600000).toISOString(),
+    nonce: randomUUID(),
+    issuedAt: now.toISOString(),
+    expirationTime: expirationTime.toISOString(),
   };
+}
+
+// Helper to format message according to EIP-4361
+export function formatTestMessage(payload: typeof validPayload): string {
+  return [
+    `${payload.domain} wants you to sign in with your Ethereum account:`,
+    payload.address,
+    '',
+    payload.statement,
+    '',
+    `URI: ${payload.uri}`,
+    `Version: ${payload.version}`,
+    `Chain ID: ${payload.chainId}`,
+    `Nonce: ${payload.nonce}`,
+    `Issued At: ${payload.issuedAt}`,
+    `Expiration Time: ${payload.expirationTime}`,
+  ].join('\n');
+}
+
+// Test private key (do not use in production)
+const TEST_PRIVATE_KEY =
+  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+
+// Helper to generate signature
+export async function generateSignature(
+  payload: typeof validPayload
+): Promise<string> {
+  const message = formatTestMessage(payload);
+  const signature = await signMessage({
+    message,
+    privateKey: TEST_PRIVATE_KEY as `0x${string}`,
+  });
+  return signature;
 }
 
 // Create a test server instance
@@ -48,11 +84,26 @@ export async function createTestServer(): Promise<FastifyInstance> {
           'BASE_URL',
         ],
         properties: {
-          SIGNING_ADDRESS: { type: 'string' },
-          ALLOCATOR_ADDRESS: { type: 'string' },
-          PRIVATE_KEY: { type: 'string' },
-          DOMAIN: { type: 'string', default: 'smallocator.example' },
-          BASE_URL: { type: 'string', default: 'https://smallocator.example' },
+          SIGNING_ADDRESS: {
+            type: 'string',
+            default: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', // Address corresponding to TEST_PRIVATE_KEY
+          },
+          ALLOCATOR_ADDRESS: {
+            type: 'string',
+            default: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          },
+          PRIVATE_KEY: {
+            type: 'string',
+            default: TEST_PRIVATE_KEY,
+          },
+          DOMAIN: {
+            type: 'string',
+            default: 'smallocator.example',
+          },
+          BASE_URL: {
+            type: 'string',
+            default: 'https://smallocator.example',
+          },
         },
       },
       dotenv: false,
@@ -86,17 +137,34 @@ export async function createTestSession(
   server: FastifyInstance,
   address: string = validPayload.address
 ): Promise<string> {
+  // First create a session request
+  const payload = getFreshValidPayload();
+  const sessionResponse = await server.inject({
+    method: 'GET',
+    url: `/session/1/${address}`,
+  });
+
+  if (sessionResponse.statusCode !== 200) {
+    throw new Error(
+      `Failed to create session request: ${sessionResponse.payload}`
+    );
+  }
+
+  const sessionRequest = JSON.parse(sessionResponse.payload);
+
+  // Then create the session
+  const signature = await generateSignature(payload);
   const response = await server.inject({
     method: 'POST',
     url: '/session',
     payload: {
-      ...validPayload,
-      address,
+      payload: sessionRequest.session,
+      signature,
     },
   });
 
   if (response.statusCode !== 200) {
-    throw new Error(`Failed to create test session: ${response.payload}`);
+    throw new Error(`Failed to create session: ${response.payload}`);
   }
 
   const result = JSON.parse(response.payload);

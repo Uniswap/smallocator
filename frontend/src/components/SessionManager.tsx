@@ -14,34 +14,36 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
   const createSession = async () => {
     if (!address || !chainId) return;
 
-    const nonce = crypto.randomUUID();
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
-    const domain = new URL(baseUrl).host;
-    const resources = [`${baseUrl}/resources`];
-    
-    // Create timestamps once to ensure consistency
-    const issuedAt = new Date().toISOString();
-    const expirationTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-    
     try {
+      // First, get the payload from server
+      const payloadResponse = await fetch(`/session/${address}`);
+      if (!payloadResponse.ok) {
+        throw new Error('Failed to get session payload');
+      }
+      
+      const { payload } = await payloadResponse.json();
+      
+      // Format the message according to EIP-4361
+      const message = [
+        `${payload.domain} wants you to sign in with your Ethereum account:`,
+        payload.address,
+        '',
+        payload.statement,
+        '',
+        `URI: ${payload.uri}`,
+        `Version: ${payload.version}`,
+        `Chain ID: ${payload.chainId}`,
+        `Nonce: ${payload.nonce}`,
+        `Issued At: ${payload.issuedAt}`,
+        `Expiration Time: ${payload.expirationTime}`,
+      ].join('\n');
+
+      // Get signature from wallet
       const signature = await signMessageAsync({
-        message: [
-          `${domain} wants you to sign in with your Ethereum account:`,
-          address,
-          '',
-          'Sign in to Smallocator',
-          '',
-          `URI: ${baseUrl}`,
-          `Version: 1`,
-          `Chain ID: ${chainId}`,
-          `Nonce: ${nonce}`,
-          `Issued At: ${issuedAt}`,
-          `Expiration Time: ${expirationTime}`,
-          'Resources:',
-          ...resources,
-        ].join('\n'),
+        message,
       });
 
+      // Submit signature and payload to create session
       const response = await fetch('/session', {
         method: 'POST',
         headers: {
@@ -49,18 +51,7 @@ export function SessionManager({ onSessionCreated }: SessionManagerProps) {
         },
         body: JSON.stringify({
           signature,
-          payload: {
-            domain,
-            address,
-            uri: baseUrl,
-            statement: 'Sign in to Smallocator',
-            version: '1',
-            chainId,
-            nonce,
-            issuedAt,
-            expirationTime,
-            resources,
-          },
+          payload,
         }),
       });
       
