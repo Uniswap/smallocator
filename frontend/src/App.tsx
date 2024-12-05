@@ -2,6 +2,7 @@ import { getDefaultConfig, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { mainnet } from 'viem/chains';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http } from 'wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
 import { useState } from 'react';
 
@@ -13,6 +14,9 @@ const config = getDefaultConfig({
   appName: 'Smallocator',
   projectId: 'YOUR_PROJECT_ID', // Get from WalletConnect Cloud
   chains: [mainnet],
+  transports: {
+    [mainnet.id]: http(),
+  },
 });
 
 const queryClient = new QueryClient();

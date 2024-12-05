@@ -2,6 +2,9 @@ import { FastifyInstance } from 'fastify';
 import { getAddress, verifyMessage } from 'viem/utils';
 import { randomUUID } from 'crypto';
 
+// Import the FastifyInstance augmentation
+import './database';
+
 export interface SessionPayload {
   domain: string;
   address: string;
@@ -38,7 +41,8 @@ export async function validateAndCreateSession(
     const nonceIsValid = await verifyNonce(
       server,
       payload.domain,
-      payload.nonce
+      payload.nonce,
+      payload.chainId
     );
     if (!nonceIsValid) {
       throw new Error('Invalid or expired nonce');
@@ -85,7 +89,7 @@ export async function validateAndCreateSession(
     // Mark nonce as used
     await server.db.query(
       'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
-      [randomUUID(), '1', payload.nonce] // Using chain_id 1 for session nonces
+      [randomUUID(), payload.chainId.toString(), payload.nonce]
     );
 
     return session;
@@ -195,7 +199,7 @@ function isValidPayload(payload: SessionPayload): boolean {
     }
 
     // Validate chain ID
-    if (payload.chainId <= 0) {
+    if (payload.chainId < 1) {
       throw new Error('Invalid chain ID');
     }
 
@@ -230,12 +234,13 @@ function isValidPayload(payload: SessionPayload): boolean {
 export async function verifyNonce(
   server: FastifyInstance,
   domain: string,
-  nonce: string
+  nonce: string,
+  chainId: number
 ): Promise<boolean> {
   // Check if nonce has been used
   const result = await server.db.query(
     'SELECT id FROM nonces WHERE chain_id = $1 AND nonce = $2',
-    ['1', nonce] // Using chain_id 1 for session nonces
+    [chainId.toString(), nonce]
   );
 
   return result.rows.length === 0;
