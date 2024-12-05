@@ -1,12 +1,8 @@
 import { spawn } from 'child_process';
-import { appendFileSync } from 'fs';
 
-// Helper to log both to console and file
+// Helper to log
 function log(message) {
-  const timestamp = new Date().toISOString();
-  const logMessage = `${timestamp} ${message}\n`;
   console.log(message);
-  appendFileSync('/tmp/smallocator-smoke-test.log', logMessage);
 }
 
 // Utility to run a command and wait for server to start
