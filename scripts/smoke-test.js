@@ -138,10 +138,16 @@ async function main() {
     console.error('\n❌ Smoke tests failed:', error.message);
     process.exit(1);
   } finally {
-    // Cleanup: ensure all servers are stopped
-    if (devServer) devServer.kill('SIGTERM');
-    if (prodServer) prodServer.kill('SIGTERM');
-    await killProcessOnPort(PORT);
+    // Cleanup: ensure all servers are stopped gracefully
+    if (devServer) {
+      devServer.kill('SIGTERM');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
+    }
+    if (prodServer) {
+      prodServer.kill('SIGTERM');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for cleanup
+    }
+    await killProcessOnPort(PORT); // Final cleanup
   }
 }
 
