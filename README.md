@@ -177,6 +177,50 @@ All compact operations require a valid session ID in the `x-session-id` header.
    - `"0"` if `allocatedBalance` >= `allocatableBalance`
    - `allocatableBalance - allocatedBalance` otherwise
 
+## API Endpoints
+
+1. **Health Check**
+
+   ```http
+   GET /health
+   ```
+
+   Example response:
+
+   ```json
+   {
+     "status": "healthy",
+     "allocatorAddress": "0x1234567890123456789012345678901234567890",
+     "signingAddress": "0x9876543210987654321098765432109876543210",
+     "timestamp": "2024-03-07T12:00:00.000Z"
+   }
+   ```
+
+2. **Get Session Payload**
+
+   ```http
+   GET /session/:address
+   ```
+
+   Returns an EIP-4361 payload for signing. Example response:
+
+   ```json
+   {
+     "payload": {
+       "domain": "localhost:3000",
+       "address": "0x...",
+       "uri": "http://localhost:3000",
+       "statement": "Sign in to Smallocator",
+       "version": "1",
+       "chainId": 1,
+       "nonce": "unique_nonce",
+       "issuedAt": "2024-12-03T12:00:00Z",
+       "expirationTime": "2024-12-03T13:00:00Z",
+       "resources": ["http://localhost:3000/resources"]
+     }
+   }
+   ```
+
 ## Development
 
 ### Prerequisites

@@ -101,6 +101,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       status: string;
       allocatorAddress: string;
       signingAddress: string;
+      timestamp: string;
     }> => {
       if (!process.env.ALLOCATOR_ADDRESS || !process.env.SIGNING_ADDRESS) {
         throw new Error('Required environment variables are not set');
@@ -109,6 +110,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         status: 'healthy',
         allocatorAddress: process.env.ALLOCATOR_ADDRESS,
         signingAddress: process.env.SIGNING_ADDRESS,
+        timestamp: new Date().toISOString(),
       };
     }
   );
