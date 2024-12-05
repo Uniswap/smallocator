@@ -13,6 +13,7 @@
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --detectOpenHandles",
     "test:related": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --bail --findRelatedTests src/__tests__/*.test.ts",
     "smoke-test": "node scripts/smoke-test.js",
+    "smoke-test:precommit": "SMOKE_TEST_PORT=4000 node scripts/smoke-test.js",
     "lint": "eslint .",
     "type-check": "tsc --noEmit -p tsconfig.lint.json",
     "type-check:staged": "tsc --noEmit --skipLibCheck --skipDefaultLibCheck --target ES2022 --module ESNext --moduleResolution bundler --strict --esModuleInterop --forceConsistentCasingInFileNames --baseUrl . --paths viem:['./src/types/viem.d.ts'] --paths webauthn-p256:['./src/types/webauthn-p256.d.ts'] src/types/fastify.d.ts",
@@ -34,7 +35,7 @@
       "eslint --max-warnings 0",
       "tsc --noEmit --skipLibCheck",
       "pnpm test:related",
-      "pnpm smoke-test"
+      "pnpm smoke-test:precommit"
     ],
     "*.{json,md}": [
       "prettier --write",

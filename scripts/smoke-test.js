@@ -75,18 +75,21 @@ async function killProcessOnPort(port) {
   }
 }
 
+// Get port from environment variable or use default
+const PORT = process.env.SMOKE_TEST_PORT || 3000;
+
 async function main() {
   try {
     // Ensure port is free before starting
-    await killProcessOnPort(3000);
+    await killProcessOnPort(PORT);
 
     // Test development mode
-    console.log('Testing development mode (pnpm dev)...');
-    await waitForServer('pnpm', ['dev'], 10000);
+    console.log(`Testing development mode (pnpm dev) on port ${PORT}...`);
+    await waitForServer('PORT=' + PORT + ' pnpm', ['dev'], 10000);
     console.log('✓ Development server started successfully');
     
     // Kill the development server
-    await killProcessOnPort(3000);
+    await killProcessOnPort(PORT);
     
     // Test production mode
     console.log('\nTesting production mode (pnpm start)...');
@@ -100,7 +103,7 @@ async function main() {
       });
     });
     
-    await waitForServer('pnpm', ['start'], 10000);
+    await waitForServer('PORT=' + PORT + ' pnpm', ['start'], 10000);
     console.log('✓ Production server started successfully');
     
     console.log('\n✅ All smoke tests passed!');
@@ -109,8 +112,8 @@ async function main() {
     console.error('\n❌ Smoke tests failed:', error.message);
     process.exit(1);
   } finally {
-    // Cleanup: ensure port 3000 is free
-    await killProcessOnPort(3000);
+    // Cleanup: ensure port is free
+    await killProcessOnPort(PORT);
   }
 }
 
