@@ -7,11 +7,11 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
 ## Features
 
 - 🔐 Secure session-based authentication for sponsors using EIP-4361
-- 📝 EIP-712 Compact message validation and signing on demand from session-gated sponsors
+- ✍️ EIP-712 Compact message validation and signing on demand from session-gated sponsors
 - 🤫 No witness data or signature provided, keeping sponsor intents secret (only the typestring and witness hash is supplied)
 - 📊 GraphQL integration with [The Compact Indexer](https://github.com/Uniswap/the-compact-indexer) for multi-chain indexing
 - 💾 Persistent storage using PGLite to track attested compacts and used nonces
-- ✅ Comprehensive validation pipeline to ensure resource locks never end up in an overallocated state
+- 🔎 Comprehensive validation pipeline to ensure resource locks never end up in an overallocated state
 
 ## Intentionally Minimal Scope
 
@@ -19,7 +19,7 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
  - ❄️ Strict nonce usage: Ensures every attested nonce is unique; no reuse on expirations and no direct onchain nonce consumption
  - 🧭 No `attest()` callbacks for ERC6909 transfers: focused solely on attesting compacts
  - 🪞 No compact qualification: Attests to the exact compact provided to it without adding qualifiers or extra metadata
- - 🔮 No direct on-chain awareness: Relies entirely on indexer and internal attestation state
+ - 📡 No direct on-chain awareness: Relies entirely on indexer and internal attestation state
  - ⏳ Straightforward finalization: Uses a simple, time-based approach per chain for determining transaction finality
 
 ## API Usage
