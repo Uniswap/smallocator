@@ -1,5 +1,6 @@
 import { useAccount, useSignMessage, useChainId } from 'wagmi';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useSessionPoller } from '../hooks/useSessionPoller';
 
 interface SessionManagerProps {
   sessionToken: string | null;
@@ -11,73 +12,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
   const { signMessageAsync } = useSignMessage();
   const chainId = useChainId();
   const [isLoading, setIsLoading] = useState(false);
-
-  // Check for existing session on mount and when wallet connects
-  useEffect(() => {
-    const validateSession = async () => {
-      const existingSession = localStorage.getItem('sessionId');
-      if (!existingSession) {
-        onSessionUpdate(null);
-        return;
-      }
-
-      try {
-        const response = await fetch('/session', {
-          headers: {
-            'x-session-id': existingSession
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.session?.id === existingSession) {
-            onSessionUpdate(existingSession);
-            return;
-          }
-        }
-        localStorage.removeItem('sessionId');
-        onSessionUpdate(null);
-      } catch (error) {
-        console.error('Failed to validate session:', error);
-        localStorage.removeItem('sessionId');
-        onSessionUpdate(null);
-      }
-    };
-
-    validateSession();
-  }, [onSessionUpdate]);
-
-  // Re-validate when wallet connects
-  useEffect(() => {
-    if (isConnected) {
-      const validateSession = async () => {
-        const existingSession = localStorage.getItem('sessionId');
-        if (!existingSession) return;
-
-        try {
-          const response = await fetch('/session', {
-            headers: {
-              'x-session-id': existingSession
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.session?.id === existingSession) {
-              onSessionUpdate(existingSession);
-              return;
-            }
-          }
-          localStorage.removeItem('sessionId');
-          onSessionUpdate(null);
-        } catch (error) {
-          console.error('Failed to validate session:', error);
-          localStorage.removeItem('sessionId');
-          onSessionUpdate(null);
-        }
-      };
-
-      validateSession();
-    }
-  }, [isConnected, onSessionUpdate]);
+  const { storeSession, clearSession } = useSessionPoller(onSessionUpdate);
 
   const createSession = useCallback(async () => {
     if (!address || !chainId || isLoading) {
@@ -131,9 +66,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
       
       if (response.ok) {
         const data = await response.json();
-        const sessionId = data.session.id;
-        localStorage.setItem('sessionId', sessionId);
-        onSessionUpdate(sessionId);
+        storeSession(data.session.id);
       } else {
         const errorText = await response.text();
         console.error('Failed to create session:', errorText);
@@ -143,7 +76,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
     } finally {
       setIsLoading(false);
     }
-  }, [address, chainId, signMessageAsync, onSessionUpdate, isLoading]);
+  }, [address, chainId, signMessageAsync, storeSession, isLoading]);
 
   const signOut = useCallback(async () => {
     if (!sessionToken || isLoading) return;
@@ -158,8 +91,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
       });
 
       if (response.ok) {
-        localStorage.removeItem('sessionId');
-        onSessionUpdate(null);
+        clearSession();
       } else {
         console.error('Failed to sign out:', await response.text());
       }
@@ -168,7 +100,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
     } finally {
       setIsLoading(false);
     }
-  }, [sessionToken, onSessionUpdate, isLoading]);
+  }, [sessionToken, clearSession, isLoading]);
 
   // Always render a container, even if not connected
   return (

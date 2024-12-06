@@ -9,7 +9,7 @@ import { useAllocatorAPI } from '../hooks/useAllocatorAPI'
 type TokenType = 'native' | 'erc20'
 
 export function DepositForm() {
-  const { address } = useAccount()
+  const { address, isConnected } = useAccount()
   const { data: ethBalance } = useBalance({ address })
   const [amount, setAmount] = useState('')
   const [tokenType, setTokenType] = useState<TokenType>('native')
@@ -111,6 +111,25 @@ export function DepositForm() {
       return
     }
 
+    if (!address) {
+      showNotification({
+        type: 'error',
+        title: 'Wallet Not Connected',
+        message: 'Please connect your wallet',
+      })
+      return
+    }
+
+    const sessionId = localStorage.getItem(`session-${address}`)
+    if (!sessionId) {
+      showNotification({
+        type: 'error',
+        title: 'Not Signed In',
+        message: 'Please sign in with your Ethereum account',
+      })
+      return
+    }
+
     try {
       setIsLoading(true)
       const parsedAmount = tokenType === 'native' 
@@ -174,7 +193,7 @@ export function DepositForm() {
     }
   }
 
-  if (!address) {
+  if (!isConnected || !address) {
     return null
   }
 
