@@ -61,39 +61,32 @@ const HealthCheck: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Status */}
-      <div className="p-4 bg-gray-800 rounded-lg">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-400">Status</span>
-          <span className={`px-2 py-1 text-xs rounded ${
+    <div className="space-y-2">
+      {/* Allocator Address - Large */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-400">Allocator:</span>
+        <span className="text-lg font-mono text-[#00ff00]">
+          {healthData.allocatorAddress}
+        </span>
+      </div>
+
+      {/* Signer and Status - Smaller */}
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-400">Signer:</span>
+          <span className="font-mono text-[#00ff00]">
+            {healthData.signingAddress}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-400">Status:</span>
+          <span className={`px-2 py-0.5 text-xs rounded ${
             healthData.status === 'healthy' 
               ? 'bg-[#00ff00]/10 text-[#00ff00]' 
               : 'bg-red-500/10 text-red-500'
           }`}>
             {healthData.status.charAt(0).toUpperCase() + healthData.status.slice(1)}
           </span>
-        </div>
-        <div className="mt-1 text-xs text-gray-500">
-          Last Update: {new Date(healthData.timestamp).toLocaleString()}
-        </div>
-      </div>
-
-      {/* Addresses */}
-      <div className="p-4 bg-gray-800 rounded-lg">
-        <div className="space-y-2">
-          <div>
-            <span className="text-sm text-gray-400">Allocator</span>
-            <div className="mt-1 font-mono text-xs text-[#00ff00] break-all">
-              {healthData.allocatorAddress}
-            </div>
-          </div>
-          <div>
-            <span className="text-sm text-gray-400">Signer</span>
-            <div className="mt-1 font-mono text-xs text-[#00ff00] break-all">
-              {healthData.signingAddress}
-            </div>
-          </div>
         </div>
       </div>
     </div>
