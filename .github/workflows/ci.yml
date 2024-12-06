@@ -39,8 +39,11 @@ jobs:
     - name: Install dependencies
       run: pnpm install:all
 
-    - name: Type check
+    - name: Type check backend
       run: pnpm type-check
+
+    - name: Type check frontend
+      run: cd frontend && pnpm tsc --noEmit -p tsconfig.app.json
 
     - name: Build
       run: pnpm build
