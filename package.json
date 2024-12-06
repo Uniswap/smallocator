@@ -42,11 +42,10 @@
       "pnpm test:related",
       "pnpm smoke-test:precommit"
     ],
-    "frontend/src/**/*.ts?(x)": [
+    "frontend/**/*.{ts,tsx,js}": [
       "prettier --write",
-      "cd frontend && eslint --fix",
+      "cd frontend && eslint --fix --max-warnings 0",
       "prettier --check",
-      "cd frontend && eslint --max-warnings 0",
       "cd frontend && tsc --noEmit -p tsconfig.app.json"
     ],
     "*.{json,md}": [

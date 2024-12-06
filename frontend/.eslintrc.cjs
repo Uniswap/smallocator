@@ -17,6 +17,14 @@ module.exports = {
     tsconfigRootDir: __dirname,
     project: ['tsconfig.app.json', 'tsconfig.node.json']
   },
+  overrides: [
+    {
+      files: ['*.js', '*.cjs'],
+      parserOptions: {
+        project: null
+      }
+    }
+  ],
   plugins: [
     'react',
     'react-refresh',
@@ -34,6 +42,7 @@ module.exports = {
     ],
     '@typescript-eslint/no-explicit-any': 'warn',
     'react/react-in-jsx-scope': 'off',
-    'react/prop-types': 'off'
+    'react/prop-types': 'off',
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
   }
 }
