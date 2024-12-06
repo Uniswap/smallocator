@@ -1,62 +1,13 @@
 import { useAccount } from 'wagmi';
-import { useState, useEffect } from 'react';
-
-interface Balance {
-  chainId: string;
-  lockId: string;
-  allocatableBalance: string;
-  allocatedBalance: string;
-  balanceAvailableToAllocate: string;
-  withdrawalStatus: number;
-}
+import { useBalances } from '../hooks/useBalances';
 
 export function BalanceDisplay() {
-  const { address, isConnected } = useAccount();
-  const [balances, setBalances] = useState<Balance[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchBalances() {
-      if (!isConnected || !address) return;
-      
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const sessionId = localStorage.getItem(`session-${address}`);
-        if (!sessionId) {
-          throw new Error('No session ID found');
-        }
-        
-        const response = await fetch('/balances', {
-          headers: {
-            'x-session-id': sessionId
-          }
-        });
-        if (!response.ok) throw new Error('Failed to fetch balances.');
-        
-        const data = await response.json();
-        setBalances(data.balances);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch balances');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchBalances();
-
-    // Set up polling interval
-    const intervalId = setInterval(fetchBalances, 5000);
-
-    // Cleanup on unmount or address change
-    return () => clearInterval(intervalId);
-  }, [isConnected, address]);
+  const { isConnected } = useAccount();
+  const { balances, error, isLoading } = useBalances();
 
   if (!isConnected) return null;
   
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center py-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00ff00]"></div>
