@@ -1,96 +1,105 @@
-import { useState } from 'react'
-import { useAccount, useBalance } from 'wagmi'
-import { formatEther, parseEther, parseUnits } from 'viem'
-import { useCompact } from '../hooks/useCompact'
-import { useNotification } from '../context/NotificationContext'
-import { useERC20 } from '../hooks/useERC20'
-import { useAllocatorAPI } from '../hooks/useAllocatorAPI'
+import { useState } from 'react';
+import { useAccount, useBalance } from 'wagmi';
+import { formatEther, parseEther, parseUnits } from 'viem';
+import { useCompact } from '../hooks/useCompact';
+import { useNotification } from '../hooks/useNotification';
+import { useERC20 } from '../hooks/useERC20';
+import { useAllocatorAPI } from '../hooks/useAllocatorAPI';
 
-type TokenType = 'native' | 'erc20'
+type TokenType = 'native' | 'erc20';
 
 export function DepositForm() {
-  const { address, isConnected } = useAccount()
-  const { data: ethBalance } = useBalance({ address })
-  const [amount, setAmount] = useState('')
-  const [tokenType, setTokenType] = useState<TokenType>('native')
-  const [tokenAddress, setTokenAddress] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [isApproving, setIsApproving] = useState(false)
-  const { deposit } = useCompact()
-  const { showNotification } = useNotification()
-  const { allocatorAddress } = useAllocatorAPI()
-  const { 
-    balance, 
-    allowance, 
-    decimals, 
-    rawBalance, 
-    rawAllowance, 
+  const { address, isConnected } = useAccount();
+  const { data: ethBalance } = useBalance({ address });
+  const [amount, setAmount] = useState('');
+  const [tokenType, setTokenType] = useState<TokenType>('native');
+  const [tokenAddress, setTokenAddress] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const { deposit } = useCompact();
+  const { showNotification } = useNotification();
+  const { allocatorAddress } = useAllocatorAPI();
+  const {
+    balance,
+    allowance,
+    decimals,
+    rawBalance,
+    rawAllowance,
     approve,
     name,
     symbol,
     isValid,
-    isLoading: isLoadingToken
+    isLoading: isLoadingToken,
   } = useERC20(
-    tokenType === 'erc20' && tokenAddress ? tokenAddress as `0x${string}` : undefined
-  )
+    tokenType === 'erc20' && tokenAddress
+      ? (tokenAddress as `0x${string}`)
+      : undefined
+  );
 
   const validateAmount = () => {
-    if (!amount) return null
+    if (!amount) return null;
 
     // Check if amount is zero or negative for both token types
     try {
-      const numAmount = parseFloat(amount)
+      const numAmount = parseFloat(amount);
       if (numAmount <= 0) {
-        return { type: 'error', message: 'Amount must be greater than zero' }
+        return { type: 'error', message: 'Amount must be greater than zero' };
       }
-    } catch (e) {
-      return { type: 'error', message: 'Invalid amount format' }
+    } catch (_e) {
+      return { type: 'error', message: 'Invalid amount format' };
     }
 
     // For ERC20 tokens
     if (tokenType === 'erc20') {
-      if (!tokenAddress || decimals === undefined) return null
-      
+      if (!tokenAddress || decimals === undefined) return null;
+
       // Check decimal places
-      const decimalParts = amount.split('.')
+      const decimalParts = amount.split('.');
       if (decimalParts.length > 1 && decimalParts[1].length > decimals) {
-        return { type: 'error', message: `Invalid amount (greater than ${decimals} decimals)` }
+        return {
+          type: 'error',
+          message: `Invalid amount (greater than ${decimals} decimals)`,
+        };
       }
 
       try {
-        const parsedAmount = parseUnits(amount, decimals)
-        const allowanceBigInt = rawAllowance ? BigInt(rawAllowance.toString()) : BigInt(0)
-        const balanceBigInt = rawBalance ? BigInt(rawBalance.toString()) : BigInt(0)
+        const parsedAmount = parseUnits(amount, decimals);
+        const allowanceBigInt = rawAllowance
+          ? BigInt(rawAllowance.toString())
+          : BigInt(0);
+        const balanceBigInt = rawBalance
+          ? BigInt(rawBalance.toString())
+          : BigInt(0);
 
         if (rawBalance && parsedAmount > balanceBigInt) {
-          return { type: 'error', message: 'Insufficient Balance' }
+          return { type: 'error', message: 'Insufficient Balance' };
         }
         if (parsedAmount > allowanceBigInt) {
-          return { type: 'warning', message: 'Insufficient Allowance' }
+          return { type: 'warning', message: 'Insufficient Allowance' };
         }
-        return null
-      } catch (e) {
-        return { type: 'error', message: 'Invalid amount format' }
+        return null;
+      } catch (_e) {
+        return { type: 'error', message: 'Invalid amount format' };
       }
     }
-    
+
     // For native ETH
     if (tokenType === 'native' && ethBalance) {
       try {
-        const parsedAmount = parseEther(amount)
+        const parsedAmount = parseEther(amount);
         if (parsedAmount > ethBalance.value) {
-          return { type: 'error', message: 'Insufficient ETH Balance' }
+          return { type: 'error', message: 'Insufficient ETH Balance' };
         }
-        return null
-      } catch (e) {
-        return { type: 'error', message: 'Invalid amount format' }
+        return null;
+      } catch (_e) {
+        return { type: 'error', message: 'Invalid amount format' };
       }
     }
-    
-    return null
-  }
 
-  const amountValidation = validateAmount()
+    return null;
+  };
+
+  const amountValidation = validateAmount();
 
   const handleDeposit = async () => {
     if (!amount || isNaN(Number(amount))) {
@@ -98,8 +107,8 @@ export function DepositForm() {
         type: 'error',
         title: 'Invalid Amount',
         message: 'Please enter a valid amount',
-      })
-      return
+      });
+      return;
     }
 
     if (!allocatorAddress) {
@@ -107,8 +116,8 @@ export function DepositForm() {
         type: 'error',
         title: 'No Allocator Available',
         message: 'Unable to get allocator address',
-      })
-      return
+      });
+      return;
     }
 
     if (!address) {
@@ -116,94 +125,97 @@ export function DepositForm() {
         type: 'error',
         title: 'Wallet Not Connected',
         message: 'Please connect your wallet',
-      })
-      return
+      });
+      return;
     }
 
-    const sessionId = localStorage.getItem(`session-${address}`)
+    const sessionId = localStorage.getItem(`session-${address}`);
     if (!sessionId) {
       showNotification({
         type: 'error',
         title: 'Not Signed In',
         message: 'Please sign in with your Ethereum account',
-      })
-      return
+      });
+      return;
     }
 
     try {
-      setIsLoading(true)
-      const parsedAmount = tokenType === 'native' 
-        ? parseEther(amount)
-        : parseUnits(amount, decimals!)
-      
-      const hexAllocatorAddress = allocatorAddress as `0x${string}`
-      
+      setIsLoading(true);
+      const parsedAmount =
+        tokenType === 'native'
+          ? parseEther(amount)
+          : parseUnits(amount, decimals!);
+
+      const hexAllocatorAddress = allocatorAddress as `0x${string}`;
+
       await deposit(
-        tokenType === 'native' 
+        tokenType === 'native'
           ? {
               allocator: hexAllocatorAddress,
               value: parsedAmount,
-              isNative: true
+              isNative: true,
             }
           : {
               token: tokenAddress as `0x${string}`,
               allocator: hexAllocatorAddress,
               amount: parsedAmount,
-              isNative: false
+              isNative: false,
             }
-      )
+      );
 
       showNotification({
         type: 'success',
         title: 'Deposit Submitted',
         message: `Successfully deposited ${amount} ${tokenType === 'native' ? 'ETH' : symbol || 'tokens'}`,
-      })
+      });
 
       // Reset form
-      setAmount('')
+      setAmount('');
       if (tokenType === 'erc20') {
-        setTokenAddress('')
+        setTokenAddress('');
       }
     } catch (error) {
-      console.error('Error depositing:', error)
+      console.error('Error depositing:', error);
       showNotification({
         type: 'error',
         title: 'Deposit Failed',
         message: error instanceof Error ? error.message : 'Failed to deposit',
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleApprove = async () => {
-    if (!tokenAddress) return
-    
+    if (!tokenAddress) return;
+
     try {
-      setIsApproving(true)
-      await approve()
-      
+      setIsApproving(true);
+      await approve();
+
       showNotification({
         type: 'success',
         title: 'Approval Submitted',
-        message: 'Please wait while the approval transaction is being confirmed...',
-      })
+        message:
+          'Please wait while the approval transaction is being confirmed...',
+      });
     } catch (error) {
-      console.error('Error approving:', error)
+      console.error('Error approving:', error);
       showNotification({
         type: 'error',
         title: 'Approval Failed',
-        message: error instanceof Error 
-          ? `Approval failed: ${error.message}`
-          : 'Failed to approve token',
-      })
+        message:
+          error instanceof Error
+            ? `Approval failed: ${error.message}`
+            : 'Failed to approve token',
+      });
     } finally {
-      setIsApproving(false)
+      setIsApproving(false);
     }
-  }
+  };
 
   if (!isConnected || !address) {
-    return null
+    return null;
   }
 
   return (
@@ -245,7 +257,7 @@ export function DepositForm() {
         {/* Amount Input */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-300">
-            Amount {tokenType === 'native' ? 'ETH' : (symbol || 'tokens')}
+            Amount {tokenType === 'native' ? 'ETH' : symbol || 'tokens'}
             {tokenType === 'native' && ethBalance && (
               <span className="float-right text-gray-400">
                 Balance: {formatEther(ethBalance.value)} ETH
@@ -263,17 +275,21 @@ export function DepositForm() {
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.0"
             className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-gray-300 focus:outline-none transition-colors ${
-              amountValidation?.type === 'error' 
-                ? 'border-red-500 focus:border-red-500' 
+              amountValidation?.type === 'error'
+                ? 'border-red-500 focus:border-red-500'
                 : amountValidation?.type === 'warning'
-                ? 'border-yellow-500 focus:border-yellow-500'
-                : 'border-gray-700 focus:border-[#00ff00]'
+                  ? 'border-yellow-500 focus:border-yellow-500'
+                  : 'border-gray-700 focus:border-[#00ff00]'
             }`}
           />
           {amountValidation && (
-            <p className={`mt-1 text-sm ${
-              amountValidation.type === 'error' ? 'text-red-500' : 'text-yellow-500'
-            }`}>
+            <p
+              className={`mt-1 text-sm ${
+                amountValidation.type === 'error'
+                  ? 'text-red-500'
+                  : 'text-yellow-500'
+              }`}
+            >
               {amountValidation.message}
             </p>
           )}
@@ -304,7 +320,9 @@ export function DepositForm() {
             )}
             {isValid && (
               <div className="mt-2 text-sm text-gray-400">
-                <p className="font-medium text-gray-300">{name} ({symbol})</p>
+                <p className="font-medium text-gray-300">
+                  {name} ({symbol})
+                </p>
                 <p>Balance: {balance || '0'}</p>
                 <p>Allowance: {allowance || '0'}</p>
               </div>
@@ -325,10 +343,10 @@ export function DepositForm() {
         <button
           onClick={handleDeposit}
           disabled={
-            isLoading || 
-            !amount || 
-            !allocatorAddress || 
-            amountValidation?.type === 'error' || 
+            isLoading ||
+            !amount ||
+            !allocatorAddress ||
+            amountValidation?.type === 'error' ||
             amountValidation?.type === 'warning' ||
             (tokenType === 'erc20' && (!tokenAddress || !isValid))
           }
@@ -338,5 +356,5 @@ export function DepositForm() {
         </button>
       </div>
     </div>
-  )
+  );
 }

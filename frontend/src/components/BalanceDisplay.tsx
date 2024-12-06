@@ -7,6 +7,35 @@ import { Transfer } from './Transfer';
 import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
 import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 
+interface Token {
+  tokenAddress: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+interface ResourceLock {
+  resetPeriod: number;
+  isMultichain: boolean;
+}
+
+interface Balance {
+  chainId: string;
+  lockId: string;
+  allocatableBalance: string;
+  allocatedBalance: string;
+  balanceAvailableToAllocate: string;
+  withdrawalStatus: number;
+  withdrawableAt: string;
+  balance: string;
+  tokenName: string;
+  token?: Token;
+  resourceLock?: ResourceLock;
+  formattedAllocatableBalance?: string;
+  decimals: number;
+  symbol: string;
+}
+
 // Utility function to format reset period
 const formatResetPeriod = (seconds: number): string => {
   if (seconds < 60) return `${seconds} seconds`;
@@ -23,7 +52,7 @@ export function BalanceDisplay(): JSX.Element | null {
   const [isWithdrawalDialogOpen, setIsWithdrawalDialogOpen] = useState(false);
   const [isExecuteDialogOpen, setIsExecuteDialogOpen] = useState(false);
   const [selectedLockId, setSelectedLockId] = useState<string>('');
-  const [selectedLock, setSelectedLock] = useState<any>(null);
+  const [selectedLock, setSelectedLock] = useState<Balance | null>(null);
 
   if (!isConnected) return null;
 

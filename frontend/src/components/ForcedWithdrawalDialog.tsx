@@ -3,7 +3,7 @@ import { formatUnits, parseUnits, isAddress } from 'viem';
 import { useAccount, useChainId } from 'wagmi';
 import { switchNetwork } from '@wagmi/core';
 import { useCompact } from '../hooks/useCompact';
-import { useNotification } from '../context/NotificationContext';
+import { useNotification } from '../hooks/useNotification';
 import { config } from '../config/wagmi';
 
 interface ForcedWithdrawalDialogProps {

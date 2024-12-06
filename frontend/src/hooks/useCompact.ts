@@ -5,7 +5,7 @@ import {
   COMPACT_ADDRESS,
   isSupportedChain,
 } from '../../src/constants/contracts';
-import { useNotification } from '../context/NotificationContext';
+import { useNotification } from './useNotification';
 import {
   mainnet,
   optimism,
