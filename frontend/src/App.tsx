@@ -9,6 +9,8 @@ import {
   optimismGoerli,
   sepolia,
   goerli,
+  base,
+  baseSepolia,
 } from 'viem/chains';
 import { WagmiProvider, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -26,7 +28,15 @@ import { NotificationProvider } from './context/NotificationProvider';
 // Configure supported chains
 const projectId = 'YOUR_PROJECT_ID'; // Get from WalletConnect Cloud
 
-const chains = [mainnet, optimism, optimismGoerli, sepolia, goerli] as const;
+const chains = [
+  mainnet,
+  optimism,
+  optimismGoerli,
+  sepolia,
+  goerli,
+  base,
+  baseSepolia,
+] as const;
 
 const config = getDefaultConfig({
   appName: 'Smallocator',
