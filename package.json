@@ -33,7 +33,7 @@
     "**/*.{test,spec}.ts": [
       "node scripts/check-test-files.js"
     ],
-    "{src,frontend/src}/**/*.ts?(x)": [
+    "src/**/!(*d).ts": [
       "prettier --write",
       "eslint --fix",
       "prettier --check",
@@ -41,6 +41,13 @@
       "tsc --noEmit --skipLibCheck",
       "pnpm test:related",
       "pnpm smoke-test:precommit"
+    ],
+    "frontend/src/**/*.ts?(x)": [
+      "prettier --write",
+      "eslint --fix",
+      "prettier --check",
+      "eslint --max-warnings 0",
+      "tsc --noEmit --skipLibCheck"
     ],
     "*.{json,md}": [
       "prettier --write",

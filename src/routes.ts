@@ -48,6 +48,15 @@ interface SerializedCompactRecord {
   createdAt: string;
 }
 
+interface Balance {
+  chainId: string;
+  lockId: string;
+  allocatableBalance: string;
+  allocatedBalance: string;
+  balanceAvailableToAllocate: string;
+  withdrawalStatus: number;
+}
+
 // Authentication middleware
 function createAuthMiddleware(server: FastifyInstance) {
   return async function authenticateRequest(
@@ -147,7 +156,9 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           normalizedAddress = getAddress(address);
         } catch (error) {
           return reply.code(400).send({
-            error: `Invalid Ethereum address format: ${error instanceof Error ? error.message : String(error)}`,
+            error: `Invalid Ethereum address format: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           });
         }
 
@@ -359,15 +370,16 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         }
 
         // Filter locks to only include those managed by this allocator
-        const ourLocks = response.account.resourceLocks.items.filter(
-          (item) => {
-            try {
-              return getAddress(item?.resourceLock?.allocatorAddress) === getAddress(process.env.ALLOCATOR_ADDRESS!);
-            } catch {
-              return false;
-            }
+        const ourLocks = response.account.resourceLocks.items.filter((item) => {
+          try {
+            return (
+              getAddress(item?.resourceLock?.allocatorAddress) ===
+              getAddress(process.env.ALLOCATOR_ADDRESS!)
+            );
+          } catch {
+            return false;
           }
-        );
+        });
 
         // Get balance details for each lock
         const balances = (
@@ -427,12 +439,10 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
                 balanceAvailableToAllocate:
                   balanceAvailableToAllocate.toString(),
                 withdrawalStatus: resourceLock.withdrawalStatus,
-              };
+              } as Balance;
             })
           )
-        ).filter(
-          (balance): balance is NonNullable<typeof balance> => balance !== null
-        );
+        ).filter((balance): balance is Balance => balance !== null);
 
         // Filter out any null results and return
         return {
