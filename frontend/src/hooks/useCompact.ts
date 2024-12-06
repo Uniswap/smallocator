@@ -17,6 +17,10 @@ interface TokenDeposit {
 
 type DepositParams = NativeDeposit | TokenDeposit
 
+interface WithdrawalParams {
+  args: readonly [bigint] | readonly [bigint, `0x${string}`, bigint]
+}
+
 export function useCompact() {
   const chainId = useChainId()
   const { writeContract } = useWriteContract()
@@ -56,8 +60,71 @@ export function useCompact() {
     }
   }
 
+  const enableForcedWithdrawal = async (params: WithdrawalParams) => {
+    if (!isSupportedChain(chainId)) {
+      throw new Error('Unsupported chain')
+    }
+
+    try {
+      const hash = await writeContract({
+        address: COMPACT_ADDRESS as `0x${string}`,
+        abi: COMPACT_ABI,
+        functionName: 'enableForcedWithdrawal',
+        args: params.args as [bigint],
+      })
+
+      return hash
+    } catch (error) {
+      console.error('Enable forced withdrawal error:', error)
+      throw error
+    }
+  }
+
+  const disableForcedWithdrawal = async (params: WithdrawalParams) => {
+    if (!isSupportedChain(chainId)) {
+      throw new Error('Unsupported chain')
+    }
+
+    try {
+      const hash = await writeContract({
+        address: COMPACT_ADDRESS as `0x${string}`,
+        abi: COMPACT_ABI,
+        functionName: 'disableForcedWithdrawal',
+        args: params.args as [bigint],
+      })
+
+      return hash
+    } catch (error) {
+      console.error('Disable forced withdrawal error:', error)
+      throw error
+    }
+  }
+
+  const forcedWithdrawal = async (params: WithdrawalParams) => {
+    if (!isSupportedChain(chainId)) {
+      throw new Error('Unsupported chain')
+    }
+
+    try {
+      const hash = await writeContract({
+        address: COMPACT_ADDRESS as `0x${string}`,
+        abi: COMPACT_ABI,
+        functionName: 'forcedWithdrawal',
+        args: params.args as [bigint, `0x${string}`, bigint],
+      })
+
+      return hash
+    } catch (error) {
+      console.error('Forced withdrawal error:', error)
+      throw error
+    }
+  }
+
   return {
     deposit,
+    enableForcedWithdrawal,
+    disableForcedWithdrawal,
+    forcedWithdrawal,
     isSupported: isSupportedChain(chainId),
   }
 }

@@ -1,5 +1,11 @@
-import { useAccount } from 'wagmi';
-import { useBalances } from '../hooks/useBalances';
+import { useState } from 'react'
+import { useAccount } from 'wagmi'
+import { useBalances } from '../hooks/useBalances'
+import { useResourceLocks } from '../hooks/useResourceLocks'
+import { formatUnits } from 'viem'
+import { Transfer } from './Transfer'
+import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog'
+import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog'
 
 // Utility function to format reset period
 const formatResetPeriod = (seconds: number): string => {
@@ -10,12 +16,17 @@ const formatResetPeriod = (seconds: number): string => {
 };
 
 export function BalanceDisplay(): JSX.Element | null {
-  const { isConnected } = useAccount();
-  const { balances, error, isLoading } = useBalances();
+  const { isConnected } = useAccount()
+  const { balances, error, isLoading } = useBalances()
+  const { data: resourceLocksData, isLoading: resourceLocksLoading } = useResourceLocks()
+  const [isWithdrawalDialogOpen, setIsWithdrawalDialogOpen] = useState(false)
+  const [isExecuteDialogOpen, setIsExecuteDialogOpen] = useState(false)
+  const [selectedLockId, setSelectedLockId] = useState<string>('')
+  const [selectedLock, setSelectedLock] = useState<any>(null)
 
   if (!isConnected) return null;
   
-  if (isLoading) {
+  if (isLoading || resourceLocksLoading) {
     return (
       <div className="flex justify-center items-center py-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00ff00]"></div>
@@ -61,84 +72,150 @@ export function BalanceDisplay(): JSX.Element | null {
       </div>
 
       <div className="space-y-4">
-        {balances.map((balance) => (
-          <div 
-            key={`${balance.chainId}-${balance.lockId}`} 
-            className="p-4 bg-gray-800 rounded-lg"
-          >
-            {/* Header with Chain, Token Info, and Lock ID */}
-            <div className="flex justify-between items-baseline mb-4">
-              <div className="text-sm font-medium text-gray-300">
-                Chain {balance.chainId}
-                {balance.token && (
-                  <span className="ml-2 text-gray-400">
-                    {balance.token.name} ({balance.token.symbol})
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-400">Lock ID: {balance.lockId}</div>
-            </div>
+        {balances.map((balance) => {
+          // Find matching resource lock from indexer data
+          const resourceLock = resourceLocksData?.resourceLocks.items.find(
+            (item) => item.resourceLock.lockId === balance.lockId
+          )
 
-            {/* Resource Lock Properties */}
-            <div className="flex gap-2 mb-4">
-              {balance.resourceLock?.resetPeriod && balance.resourceLock.resetPeriod > 0 && (
-                <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                  Reset Period: {formatResetPeriod(balance.resourceLock.resetPeriod)}
-                </span>
-              )}
-              {balance.resourceLock?.isMultichain && (
-                <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                  Multichain
-                </span>
-              )}
-              <span className={`px-2 py-1 text-xs rounded ${
-                balance.withdrawalStatus === 0
-                  ? 'bg-[#00ff00]/10 text-[#00ff00]'
-                  : 'bg-orange-500/10 text-orange-500'
-              }`}>
-                {balance.withdrawalStatus === 0 ? 'Active' : 'Withdrawal Pending'}
-              </span>
-            </div>
-
-            {/* Balances Grid */}
-            <div className="grid grid-cols-12 gap-4">
-              {/* Left side - Compact display of allocatable and allocated */}
-              <div className="col-span-7 grid grid-cols-2 gap-4 pr-4 border-r border-gray-700">
-                <div>
-                  <div className="text-xs text-gray-400">Allocatable</div>
-                  <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                    {balance.formattedAllocatableBalance || balance.allocatableBalance}
-                    {balance.token?.symbol && (
-                      <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs text-gray-400">Allocated</div>
-                  <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                    {balance.formattedAllocatedBalance || balance.allocatedBalance}
-                    {balance.token?.symbol && (
-                      <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right side - Emphasized available to allocate */}
-              <div className="col-span-5 flex flex-col justify-center">
-                <div className="text-xs text-gray-400">Available to Allocate</div>
-                <div className="mt-1 text-lg font-bold text-[#00ff00] font-mono">
-                  {balance.formattedAvailableBalance || balance.balanceAvailableToAllocate}
-                  {balance.token?.symbol && (
-                    <span className="ml-1 text-gray-400 text-sm">{balance.token.symbol}</span>
+          return (
+            <div 
+              key={`${balance.chainId}-${balance.lockId}`} 
+              className="p-4 bg-gray-800 rounded-lg"
+            >
+              {/* Header with Chain, Token Info, and Lock ID */}
+              <div className="flex justify-between items-baseline mb-4">
+                <div className="text-sm font-medium text-gray-300">
+                  Chain {balance.chainId}
+                  {balance.token && (
+                    <span className="ml-2 text-gray-400">
+                      {balance.token.name} ({balance.token.symbol})
+                    </span>
                   )}
                 </div>
+                <div className="text-xs text-gray-400">Lock ID: {balance.lockId}</div>
               </div>
+
+              {/* Resource Lock Properties */}
+              <div className="flex gap-2 mb-4">
+                {balance.resourceLock?.resetPeriod && balance.resourceLock.resetPeriod > 0 && (
+                  <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
+                    Reset Period: {formatResetPeriod(balance.resourceLock.resetPeriod)}
+                  </span>
+                )}
+                {balance.resourceLock?.isMultichain && (
+                  <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
+                    Multichain
+                  </span>
+                )}
+                <span className={`px-2 py-1 text-xs rounded ${
+                  balance.withdrawalStatus === 0
+                    ? 'bg-[#00ff00]/10 text-[#00ff00]'
+                    : 'bg-orange-500/10 text-orange-500'
+                }`}>
+                  {balance.withdrawalStatus === 0 ? 'Active' : 'Withdrawal Pending'}
+                </span>
+              </div>
+
+              {/* Balances Grid */}
+              <div className="grid grid-cols-12 gap-4">
+                {/* Left side - Current, Allocatable, and Allocated */}
+                <div className="col-span-8 grid grid-cols-3 gap-4 pr-4 border-r border-gray-700">
+                  <div>
+                    <div className="text-xs text-gray-400">Current</div>
+                    <div className="mt-1 text-sm text-[#00ff00] font-mono">
+                      {resourceLock && formatUnits(BigInt(resourceLock.balance), resourceLock.resourceLock.token.decimals)}
+                      {balance.token?.symbol && (
+                        <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-gray-400">Allocatable</div>
+                    <div className="mt-1 text-sm text-[#00ff00] font-mono">
+                      {balance.formattedAllocatableBalance || balance.allocatableBalance}
+                      {balance.token?.symbol && (
+                        <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-gray-400">Allocated</div>
+                    <div className="mt-1 text-sm text-[#00ff00] font-mono">
+                      {balance.formattedAllocatedBalance || balance.allocatedBalance}
+                      {balance.token?.symbol && (
+                        <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side - Emphasized available to allocate */}
+                <div className="col-span-4 flex flex-col justify-center">
+                  <div className="text-xs text-gray-400">Available to Allocate</div>
+                  <div className="mt-1 text-lg font-bold text-[#00ff00] font-mono">
+                    {balance.formattedAvailableBalance || balance.balanceAvailableToAllocate}
+                    {balance.token?.symbol && (
+                      <span className="ml-1 text-gray-400 text-sm">{balance.token.symbol}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Transfer and Withdrawal Actions */}
+              {resourceLock && (
+                <div className="mt-4 border-t border-gray-700 pt-4">
+                  <Transfer
+                    allocatorAddress={resourceLock.resourceLock.allocator.account}
+                    chainId={balance.chainId}
+                    resourceLockBalance={resourceLock.balance}
+                    lockId={BigInt(balance.lockId)}
+                    decimals={resourceLock.resourceLock.token.decimals}
+                    tokenName={{
+                      resourceLockName: resourceLock.resourceLock.token.name,
+                      resourceLockSymbol: resourceLock.resourceLock.token.symbol,
+                      tokenName: balance.token?.name || ''
+                    }}
+                    tokenSymbol={balance.token?.symbol || ''}
+                    resetPeriod={balance.resourceLock?.resetPeriod || 0}
+                    withdrawalStatus={balance.withdrawalStatus}
+                    withdrawableAt={balance.withdrawableAt || '0'}
+                    onForceWithdraw={() => {
+                      setSelectedLockId(balance.lockId)
+                      setIsWithdrawalDialogOpen(true)
+                    }}
+                    onDisableForceWithdraw={() => {
+                      setSelectedLockId(balance.lockId)
+                      setSelectedLock(null)
+                    }}
+                  />
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
+
+      {/* Withdrawal Dialogs */}
+      <InitiateForcedWithdrawalDialog
+        isOpen={isWithdrawalDialogOpen}
+        onClose={() => setIsWithdrawalDialogOpen(false)}
+        lockId={selectedLockId}
+        resetPeriod={parseInt(balances.find(b => b.lockId === selectedLockId)?.resourceLock?.resetPeriod?.toString() || "0")}
+      />
+
+      <ForcedWithdrawalDialog
+        isOpen={isExecuteDialogOpen}
+        onClose={() => setIsExecuteDialogOpen(false)}
+        lockId={selectedLockId}
+        maxAmount={selectedLock?.balance || '0'}
+        decimals={selectedLock?.decimals || 18}
+        symbol={selectedLock?.symbol || ''}
+        tokenName={selectedLock?.tokenName || ''}
+        chainId={parseInt(selectedLock?.chainId || '1')}
+      />
     </div>
   );
 }

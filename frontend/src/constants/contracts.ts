@@ -1,4 +1,4 @@
-import { mainnet, optimism, optimismGoerli, sepolia, goerli } from 'viem/chains'
+import { mainnet, optimism, optimismGoerli, sepolia, goerli, base, baseSepolia } from 'viem/chains'
 
 // The Compact is deployed at the same address on all networks
 export const COMPACT_ADDRESS = '0x00000000000018df021ff2467df97ff846e09f48' as const
@@ -35,6 +35,18 @@ export const SUPPORTED_CHAINS = {
     compactAddress: COMPACT_ADDRESS as `0x${string}`,
     blockExplorer: 'https://goerli.etherscan.io',
   },
+  [base.id]: {
+    name: 'Base',
+    rpcUrl: 'https://base-mainnet.g.alchemy.com/v2/',
+    compactAddress: COMPACT_ADDRESS as `0x${string}`,
+    blockExplorer: 'https://basescan.org',
+  },
+  [baseSepolia.id]: {
+    name: 'Base Sepolia',
+    rpcUrl: 'https://base-sepolia.g.alchemy.com/v2/',
+    compactAddress: COMPACT_ADDRESS as `0x${string}`,
+    blockExplorer: 'https://sepolia.basescan.org',
+  },
 } as const
 
 export const COMPACT_ABI = [
@@ -56,6 +68,43 @@ export const COMPACT_ABI = [
     name: 'deposit',
     outputs: [],
     stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Forced withdrawal functions
+  {
+    inputs: [{ name: 'id', type: 'uint256' }],
+    name: 'enableForcedWithdrawal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'id', type: 'uint256' }],
+    name: 'disableForcedWithdrawal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: 'id', type: 'uint256' },
+      { name: 'recipient', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'forcedWithdrawal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Nonce consumption check
+  {
+    inputs: [
+      { name: 'nonce', type: 'uint256' },
+      { name: 'allocator', type: 'address' },
+    ],
+    name: 'hasConsumedAllocatorNonce',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
     type: 'function',
   },
 ] as const

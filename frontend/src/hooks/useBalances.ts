@@ -22,6 +22,7 @@ interface Balance {
   allocatedBalance: string
   balanceAvailableToAllocate: string
   withdrawalStatus: number
+  withdrawableAt: string
   // Token details from indexer
   token?: Token
   // Resource lock details from indexer
