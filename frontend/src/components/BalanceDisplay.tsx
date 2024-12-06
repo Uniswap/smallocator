@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useBalances } from '../hooks/useBalances';
 import { useResourceLocks } from '../hooks/useResourceLocks';
@@ -15,6 +15,24 @@ interface SelectedLockData {
   tokenName: string;
   decimals: number;
   symbol: string;
+}
+
+// Helper function to format time remaining
+function formatTimeRemaining(expiryTimestamp: number): string {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = expiryTimestamp - now;
+
+  if (diff <= 0) return 'Ready';
+
+  const days = Math.floor(diff / (24 * 60 * 60));
+  const hours = Math.floor((diff % (24 * 60 * 60)) / (60 * 60));
+  const minutes = Math.floor((diff % (60 * 60)) / 60);
+  const seconds = diff % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
 }
 
 // Utility function to format reset period
@@ -36,6 +54,15 @@ export function BalanceDisplay(): JSX.Element | null {
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
   );
+  const [, setUpdateTrigger] = useState(0);
+
+  // Update countdown every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setUpdateTrigger((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (!isConnected) return null;
 
@@ -105,6 +132,7 @@ export function BalanceDisplay(): JSX.Element | null {
           const withdrawableAt = parseInt(balance.withdrawableAt || '0');
           const canExecuteWithdrawal =
             balance.withdrawalStatus === 2 && withdrawableAt <= now;
+          const withdrawalTimeRemaining = formatTimeRemaining(withdrawableAt);
 
           return (
             <div
@@ -149,7 +177,9 @@ export function BalanceDisplay(): JSX.Element | null {
                 >
                   {balance.withdrawalStatus === 0
                     ? 'Active'
-                    : 'Withdrawal Pending'}
+                    : withdrawableAt <= now
+                      ? 'Withdrawal Ready'
+                      : `Withdrawal Pending (${withdrawalTimeRemaining})`}
                 </span>
               </div>
 

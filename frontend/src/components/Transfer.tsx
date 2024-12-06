@@ -92,7 +92,7 @@ export function Transfer({
         {withdrawalStatus !== 0 && (
           <button
             onClick={() => handleAction('disable')}
-            className="mt-2 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors"
+            className="mt-2 py-2 px-4 bg-[#3B82F6] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
           >
             Disable Force Withdraw
           </button>

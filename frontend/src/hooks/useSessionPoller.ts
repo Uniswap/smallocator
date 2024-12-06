@@ -44,11 +44,15 @@ export function useSessionPoller(
           },
         });
 
-        if (!response.ok) {
-          throw new Error('Session invalid');
-        }
-
         const data: SessionResponse = await response.json();
+
+        // Check for invalid session error
+        if (data.error === 'Invalid session' || !response.ok) {
+          // Clear the session and update state
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
+        }
 
         // Verify session belongs to current address
         if (data.session?.address.toLowerCase() !== address.toLowerCase()) {
@@ -60,7 +64,7 @@ export function useSessionPoller(
         if (expiryTime < Date.now()) {
           throw new Error('Session expired');
         }
-      } catch {
+      } catch (error) {
         // On any error, clear the session
         localStorage.removeItem(`session-${address}`);
         onSessionUpdate(null);
