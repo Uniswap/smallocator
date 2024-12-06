@@ -48,8 +48,11 @@ jobs:
     - name: Check formatting
       run: pnpm prettier --check "src/**/!(*d).ts"
 
-    - name: Lint
-      run: pnpm eslint . --max-warnings 0
+    - name: Lint backend
+      run: pnpm eslint src/ --max-warnings 0
+
+    - name: Lint frontend
+      run: cd frontend && pnpm eslint . --max-warnings 0
 
     - name: Verify no tests were removed
       run: pnpm check-test-files
