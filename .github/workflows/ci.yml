@@ -24,14 +24,15 @@ jobs:
         version: 9.14.4
 
     - name: Get pnpm store directory
+      id: pnpm-store-path
       shell: bash
       run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
     - uses: actions/cache@v3
       name: Setup pnpm cache
       with:
-        path: ${{ env.STORE_PATH }}
+        path: ${{ steps.pnpm-store-path.outputs.STORE_PATH }}
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
@@ -68,8 +69,6 @@ jobs:
         PRIVATE_KEY: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
         DOMAIN: 'smallocator.example'
         BASE_URL: 'https://smallocator.example'
-        DATABASE_URL: 'sqlite::memory:'
-        SKIP_SIGNING_VERIFICATION: 'true'
         NODE_ENV: 'test'
       run: |
         mkdir -p test-data
@@ -83,7 +82,5 @@ jobs:
         PRIVATE_KEY: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
         DOMAIN: 'smallocator.example'
         BASE_URL: 'https://smallocator.example'
-        DATABASE_URL: 'sqlite::memory:'
-        SKIP_SIGNING_VERIFICATION: 'true'
         NODE_ENV: 'test'
       run: pnpm smoke-test
