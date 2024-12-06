@@ -15,8 +15,8 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
 
 ## Intentionally Minimal Scope
 
- - 🌱 Single-resource-lock, single-chain compacts only: No `BatchCompact` or `MultichainCompact` attestations
- - 🔢 Strict nonce usage: Ensures every attested nonce is unique; no reuse on expirations and no direct onchain nonce consumption
+ - ☝️ Single-resource-lock, single-chain compacts only: No `BatchCompact` or `MultichainCompact` attestations
+ - ❄️ Strict nonce usage: Ensures every attested nonce is unique; no reuse on expirations and no direct onchain nonce consumption
  - 🧭 No `attest()` callbacks for ERC6909 transfers: focused solely on attesting compacts
  - 🪞 No compact qualification: Attests to the exact compact provided to it without adding qualifiers or extra metadata
  - 🔮 No direct on-chain awareness: Relies entirely on indexer and internal attestation state
