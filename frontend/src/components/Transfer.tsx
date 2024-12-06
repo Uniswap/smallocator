@@ -1,70 +1,51 @@
-import { useState } from 'react'
-import { useAccount, useChainId } from 'wagmi'
-import { switchNetwork } from '@wagmi/core'
-import { parseUnits, formatUnits, isAddress } from 'viem'
-import { useNotification } from '../context/NotificationContext'
-import { config } from '../config/wagmi'
+import { useAccount, useChainId } from 'wagmi';
+import { switchNetwork } from '@wagmi/core';
+import { useNotification } from '../context/NotificationContext';
+import { config } from '../config/wagmi';
 
 interface TransferProps {
-  allocatorAddress: string
-  chainId: string
-  resourceLockBalance: string
-  lockId: bigint
-  decimals: number
-  tokenName: {
-    resourceLockName: string
-    resourceLockSymbol: string
-    tokenName: string
-  }
-  tokenSymbol: string
-  resetPeriod: number
-  withdrawalStatus: number
-  withdrawableAt: string
-  onForceWithdraw: () => void
-  onDisableForceWithdraw: () => void
+  chainId: string;
+  withdrawalStatus: number;
+  onForceWithdraw: () => void;
+  onDisableForceWithdraw: () => void;
 }
 
 export function Transfer({
-  allocatorAddress,
   chainId: targetChainId,
-  resourceLockBalance,
-  lockId,
-  decimals,
-  tokenName,
-  tokenSymbol,
-  resetPeriod,
   withdrawalStatus,
-  withdrawableAt,
   onForceWithdraw,
-  onDisableForceWithdraw
+  onDisableForceWithdraw,
 }: TransferProps) {
-  const { address } = useAccount()
-  const currentChainId = useChainId()
-  const [isOpen, setIsOpen] = useState(false)
-  const [isWithdrawal, setIsWithdrawal] = useState(false)
-  const { showNotification } = useNotification()
+  const { address } = useAccount();
+  const currentChainId = useChainId();
+  const { showNotification } = useNotification();
 
-  const handleAction = async (action: 'transfer' | 'withdraw' | 'force' | 'disable') => {
+  const handleAction = async (
+    action: 'transfer' | 'withdraw' | 'force' | 'disable'
+  ) => {
     // Check if we need to switch networks
-    const targetChainIdNumber = parseInt(targetChainId)
+    const targetChainIdNumber = parseInt(targetChainId);
     if (targetChainIdNumber !== currentChainId) {
       try {
         showNotification({
           type: 'success',
           title: 'Switching Network',
-          message: `Switching to chain ID ${targetChainIdNumber}...`
-        })
+          message: `Switching to chain ID ${targetChainIdNumber}...`,
+        });
 
-        await switchNetwork(config, { chainId: targetChainIdNumber })
+        await switchNetwork(config, { chainId: targetChainIdNumber });
         // Wait a bit for the network switch to complete
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (switchError) {
         showNotification({
           type: 'error',
           title: 'Network Switch Failed',
-          message: switchError instanceof Error ? switchError.message : 'Failed to switch network'
-        })
-        return
+          message:
+            switchError instanceof Error
+              ? switchError.message
+              : 'Failed to switch network',
+        });
+        return;
       }
     }
 
@@ -73,20 +54,17 @@ export function Transfer({
       showNotification({
         type: 'error',
         title: 'Error',
-        message: 'Please connect your wallet first'
-      })
-      return
+        message: 'Please connect your wallet first',
+      });
+      return;
     }
 
     if (action === 'force') {
-      onForceWithdraw()
+      onForceWithdraw();
     } else if (action === 'disable') {
-      onDisableForceWithdraw()
-    } else {
-      setIsWithdrawal(action === 'withdraw')
-      setIsOpen(true)
+      onDisableForceWithdraw();
     }
-  }
+  };
 
   return (
     <div className="inline-block">
@@ -103,22 +81,23 @@ export function Transfer({
         >
           Withdraw
         </button>
-        {withdrawalStatus === 0 ? (
+        {withdrawalStatus === 1 && (
           <button
             onClick={() => handleAction('force')}
-            className="mt-2 py-2 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+            className="mt-2 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors"
           >
-            Initiate Forced Withdrawal
+            Force Withdraw
           </button>
-        ) : (
+        )}
+        {withdrawalStatus === 2 && (
           <button
             onClick={() => handleAction('disable')}
-            className="mt-2 py-2 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+            className="mt-2 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors"
           >
-            Disable Forced Withdrawal
+            Disable Force Withdraw
           </button>
         )}
       </div>
     </div>
-  )
+  );
 }

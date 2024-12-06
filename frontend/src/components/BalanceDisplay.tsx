@@ -1,11 +1,11 @@
-import { useState } from 'react'
-import { useAccount } from 'wagmi'
-import { useBalances } from '../hooks/useBalances'
-import { useResourceLocks } from '../hooks/useResourceLocks'
-import { formatUnits } from 'viem'
-import { Transfer } from './Transfer'
-import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog'
-import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog'
+import { useState } from 'react';
+import { useAccount } from 'wagmi';
+import { useBalances } from '../hooks/useBalances';
+import { useResourceLocks } from '../hooks/useResourceLocks';
+import { formatUnits } from 'viem';
+import { Transfer } from './Transfer';
+import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
+import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 
 // Utility function to format reset period
 const formatResetPeriod = (seconds: number): string => {
@@ -16,16 +16,17 @@ const formatResetPeriod = (seconds: number): string => {
 };
 
 export function BalanceDisplay(): JSX.Element | null {
-  const { isConnected } = useAccount()
-  const { balances, error, isLoading } = useBalances()
-  const { data: resourceLocksData, isLoading: resourceLocksLoading } = useResourceLocks()
-  const [isWithdrawalDialogOpen, setIsWithdrawalDialogOpen] = useState(false)
-  const [isExecuteDialogOpen, setIsExecuteDialogOpen] = useState(false)
-  const [selectedLockId, setSelectedLockId] = useState<string>('')
-  const [selectedLock, setSelectedLock] = useState<any>(null)
+  const { isConnected } = useAccount();
+  const { balances, error, isLoading } = useBalances();
+  const { data: resourceLocksData, isLoading: resourceLocksLoading } =
+    useResourceLocks();
+  const [isWithdrawalDialogOpen, setIsWithdrawalDialogOpen] = useState(false);
+  const [isExecuteDialogOpen, setIsExecuteDialogOpen] = useState(false);
+  const [selectedLockId, setSelectedLockId] = useState<string>('');
+  const [selectedLock, setSelectedLock] = useState<any>(null);
 
   if (!isConnected) return null;
-  
+
   if (isLoading || resourceLocksLoading) {
     return (
       <div className="flex justify-center items-center py-4">
@@ -39,12 +40,22 @@ export function BalanceDisplay(): JSX.Element | null {
       <div className="p-4 bg-red-900/20 border border-red-700/30 rounded-lg">
         <div className="flex items-start">
           <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+            <svg
+              className="h-5 w-5 text-red-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                clipRule="evenodd"
+              />
             </svg>
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-400">Error Loading Balances</h3>
+            <h3 className="text-sm font-medium text-red-400">
+              Error Loading Balances
+            </h3>
             <div className="mt-2 text-sm text-red-400/80">
               <p>{error}</p>
             </div>
@@ -76,11 +87,11 @@ export function BalanceDisplay(): JSX.Element | null {
           // Find matching resource lock from indexer data
           const resourceLock = resourceLocksData?.resourceLocks.items.find(
             (item) => item.resourceLock.lockId === balance.lockId
-          )
+          );
 
           return (
-            <div 
-              key={`${balance.chainId}-${balance.lockId}`} 
+            <div
+              key={`${balance.chainId}-${balance.lockId}`}
               className="p-4 bg-gray-800 rounded-lg"
             >
               {/* Header with Chain, Token Info, and Lock ID */}
@@ -93,27 +104,35 @@ export function BalanceDisplay(): JSX.Element | null {
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-gray-400">Lock ID: {balance.lockId}</div>
+                <div className="text-xs text-gray-400">
+                  Lock ID: {balance.lockId}
+                </div>
               </div>
 
               {/* Resource Lock Properties */}
               <div className="flex gap-2 mb-4">
-                {balance.resourceLock?.resetPeriod && balance.resourceLock.resetPeriod > 0 && (
-                  <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                    Reset Period: {formatResetPeriod(balance.resourceLock.resetPeriod)}
-                  </span>
-                )}
+                {balance.resourceLock?.resetPeriod &&
+                  balance.resourceLock.resetPeriod > 0 && (
+                    <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
+                      Reset Period:{' '}
+                      {formatResetPeriod(balance.resourceLock.resetPeriod)}
+                    </span>
+                  )}
                 {balance.resourceLock?.isMultichain && (
                   <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
                     Multichain
                   </span>
                 )}
-                <span className={`px-2 py-1 text-xs rounded ${
-                  balance.withdrawalStatus === 0
-                    ? 'bg-[#00ff00]/10 text-[#00ff00]'
-                    : 'bg-orange-500/10 text-orange-500'
-                }`}>
-                  {balance.withdrawalStatus === 0 ? 'Active' : 'Withdrawal Pending'}
+                <span
+                  className={`px-2 py-1 text-xs rounded ${
+                    balance.withdrawalStatus === 0
+                      ? 'bg-[#00ff00]/10 text-[#00ff00]'
+                      : 'bg-orange-500/10 text-orange-500'
+                  }`}
+                >
+                  {balance.withdrawalStatus === 0
+                    ? 'Active'
+                    : 'Withdrawal Pending'}
                 </span>
               </div>
 
@@ -124,9 +143,15 @@ export function BalanceDisplay(): JSX.Element | null {
                   <div>
                     <div className="text-xs text-gray-400">Current</div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                      {resourceLock && formatUnits(BigInt(resourceLock.balance), resourceLock.resourceLock.token.decimals)}
+                      {resourceLock &&
+                        formatUnits(
+                          BigInt(resourceLock.balance),
+                          resourceLock.resourceLock.token.decimals
+                        )}
                       {balance.token?.symbol && (
-                        <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                        <span className="ml-1 text-gray-400">
+                          {balance.token.symbol}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -134,9 +159,12 @@ export function BalanceDisplay(): JSX.Element | null {
                   <div>
                     <div className="text-xs text-gray-400">Allocatable</div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                      {balance.formattedAllocatableBalance || balance.allocatableBalance}
+                      {balance.formattedAllocatableBalance ||
+                        balance.allocatableBalance}
                       {balance.token?.symbol && (
-                        <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                        <span className="ml-1 text-gray-400">
+                          {balance.token.symbol}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -144,9 +172,12 @@ export function BalanceDisplay(): JSX.Element | null {
                   <div>
                     <div className="text-xs text-gray-400">Allocated</div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                      {balance.formattedAllocatedBalance || balance.allocatedBalance}
+                      {balance.formattedAllocatedBalance ||
+                        balance.allocatedBalance}
                       {balance.token?.symbol && (
-                        <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                        <span className="ml-1 text-gray-400">
+                          {balance.token.symbol}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -154,11 +185,16 @@ export function BalanceDisplay(): JSX.Element | null {
 
                 {/* Right side - Emphasized available to allocate */}
                 <div className="col-span-4 flex flex-col justify-center">
-                  <div className="text-xs text-gray-400">Available to Allocate</div>
+                  <div className="text-xs text-gray-400">
+                    Available to Allocate
+                  </div>
                   <div className="mt-1 text-lg font-bold text-[#00ff00] font-mono">
-                    {balance.formattedAvailableBalance || balance.balanceAvailableToAllocate}
+                    {balance.formattedAvailableBalance ||
+                      balance.balanceAvailableToAllocate}
                     {balance.token?.symbol && (
-                      <span className="ml-1 text-gray-400 text-sm">{balance.token.symbol}</span>
+                      <span className="ml-1 text-gray-400 text-sm">
+                        {balance.token.symbol}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -168,33 +204,21 @@ export function BalanceDisplay(): JSX.Element | null {
               {resourceLock && (
                 <div className="mt-4 border-t border-gray-700 pt-4">
                   <Transfer
-                    allocatorAddress={resourceLock.resourceLock.allocator.account}
                     chainId={balance.chainId}
-                    resourceLockBalance={resourceLock.balance}
-                    lockId={BigInt(balance.lockId)}
-                    decimals={resourceLock.resourceLock.token.decimals}
-                    tokenName={{
-                      resourceLockName: resourceLock.resourceLock.token.name,
-                      resourceLockSymbol: resourceLock.resourceLock.token.symbol,
-                      tokenName: balance.token?.name || ''
-                    }}
-                    tokenSymbol={balance.token?.symbol || ''}
-                    resetPeriod={balance.resourceLock?.resetPeriod || 0}
                     withdrawalStatus={balance.withdrawalStatus}
-                    withdrawableAt={balance.withdrawableAt || '0'}
                     onForceWithdraw={() => {
-                      setSelectedLockId(balance.lockId)
-                      setIsWithdrawalDialogOpen(true)
+                      setSelectedLockId(balance.lockId);
+                      setIsWithdrawalDialogOpen(true);
                     }}
                     onDisableForceWithdraw={() => {
-                      setSelectedLockId(balance.lockId)
-                      setSelectedLock(null)
+                      setSelectedLockId(balance.lockId);
+                      setSelectedLock(null);
                     }}
                   />
                 </div>
               )}
             </div>
-          )
+          );
         })}
       </div>
 
@@ -203,7 +227,11 @@ export function BalanceDisplay(): JSX.Element | null {
         isOpen={isWithdrawalDialogOpen}
         onClose={() => setIsWithdrawalDialogOpen(false)}
         lockId={selectedLockId}
-        resetPeriod={parseInt(balances.find(b => b.lockId === selectedLockId)?.resourceLock?.resetPeriod?.toString() || "0")}
+        resetPeriod={parseInt(
+          balances
+            .find((b) => b.lockId === selectedLockId)
+            ?.resourceLock?.resetPeriod?.toString() || '0'
+        )}
       />
 
       <ForcedWithdrawalDialog
