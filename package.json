@@ -33,7 +33,7 @@
     "**/*.{test,spec}.ts": [
       "node scripts/check-test-files.js"
     ],
-    "src/**/*.ts": [
+    "{src,frontend/src}/**/*.ts?(x)": [
       "prettier --write",
       "eslint --fix",
       "prettier --check",

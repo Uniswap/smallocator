@@ -158,19 +158,17 @@ export async function getCompactDetails({
   lockId: string;
   chainId: string;
 }): Promise<AllocatorResponse & AccountDeltasResponse & AccountResponse> {
-  const { finalizationTimestamp, thresholdTimestamp } = calculateQueryTimestamps(chainId);
+  const { finalizationTimestamp, thresholdTimestamp } =
+    calculateQueryTimestamps(chainId);
 
-  return graphqlClient.request(
-    GET_COMPACT_DETAILS,
-    {
-      allocator: allocator.toLowerCase(),
-      sponsor: sponsor.toLowerCase(),
-      lockId,
-      chainId,
-      finalizationTimestamp: finalizationTimestamp.toString(),
-      thresholdTimestamp: thresholdTimestamp.toString(),
-    }
-  );
+  return graphqlClient.request(GET_COMPACT_DETAILS, {
+    allocator: allocator.toLowerCase(),
+    sponsor: sponsor.toLowerCase(),
+    lockId,
+    chainId,
+    finalizationTimestamp: finalizationTimestamp.toString(),
+    thresholdTimestamp: thresholdTimestamp.toString(),
+  });
 }
 
 export async function getAllResourceLocks(
