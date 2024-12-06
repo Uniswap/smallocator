@@ -10,6 +10,8 @@ import { WalletConnect } from './components/WalletConnect';
 import { SessionManager } from './components/SessionManager';
 import { BalanceDisplay } from './components/BalanceDisplay';
 import HealthCheck from './components/HealthCheck';
+import { DepositForm } from './components/DepositForm';
+import { NotificationProvider } from './context/NotificationContext';
 
 const config = getDefaultConfig({
   appName: 'Smallocator',
@@ -22,9 +24,8 @@ const config = getDefaultConfig({
 
 const customTheme = darkTheme({
   accentColor: '#00ff00',
-  accentColorForeground: '#0a0a0a',
-  borderRadius: 'small',
-  fontStack: 'system',
+  accentColorForeground: '#000000',
+  borderRadius: 'medium',
   overlayBlur: 'small',
 });
 
@@ -44,53 +45,73 @@ function App() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={customTheme}>
-          <div className="min-h-screen w-full">
-            <header className="mb-8 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold font-monaco">
-                  <span className="underlined-text">
-                    <span className="text-white">Sm</span><span className="text-[#00ff00]">all</span>
-                  </span><span className="text-[#00ff00]">ocator</span><span className="text-white"> 🤏</span>
-                </h1>
-                <div className="flex items-center gap-4">
-                  <a
-                    href="https://github.com/Uniswap/smallocator"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-[#00ff00] transition-colors"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="24"
-                      height="24"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+          <NotificationProvider>
+            <div className="min-h-screen bg-[#0a0a0a]">
+              <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a] border-b border-gray-800">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                  <h1 className="text-3xl font-black font-monaco">
+                    <span className="text-white">Sm</span>
+                    <span className="text-[#00ff00]">all</span>
+                    <span className="text-[#00ff00]">ocator</span>
+                    <span className="text-white"> 🤏</span>
+                  </h1>
+                  <div className="flex items-center gap-4">
+                    <a
+                      href="https://github.com/Uniswap/smallocator"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-400 hover:text-[#00ff00] transition-colors"
                     >
-                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                    </svg>
-                  </a>
-                  <div className="flex items-center space-x-4">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                      </svg>
+                    </a>
                     <WalletConnect hasSession={!!sessionToken} />
+                    <SessionManager 
+                      sessionToken={sessionToken}
+                      onSessionUpdate={setSessionToken}
+                    />
                   </div>
                 </div>
-              </div>
-            </header>
-            <main className="flex flex-col justify-center items-center w-full px-4 sm:px-6 lg:px-8">
-              <SessionManager 
-                sessionToken={sessionToken}
-                onSessionUpdate={setSessionToken}
-              />
-              {sessionToken && (
-                <div className="mt-8">
-                  <BalanceDisplay />
+              </header>
+
+              <main className="pt-24 pb-8">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="space-y-6">
+                    {/* Health Check Status */}
+                    <div className="mx-auto p-6 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
+                      <div className="border-b border-gray-800 pb-4 mb-6">
+                        <h2 className="text-xl font-semibold text-gray-100">System Status</h2>
+                        <p className="mt-1 text-sm text-gray-400">
+                          Current health and configuration of the Smallocator system.
+                        </p>
+                      </div>
+                      <HealthCheck />
+                    </div>
+
+                    {/* Deposit Form */}
+                    {sessionToken && <DepositForm />}
+
+                    {/* Balance Display */}
+                    {sessionToken && (
+                      <div className="mx-auto p-6 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
+                        <BalanceDisplay />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-              <HealthCheck />
-            </main>
-          </div>
+              </main>
+            </div>
+          </NotificationProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

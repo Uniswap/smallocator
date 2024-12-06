@@ -9,6 +9,7 @@ interface HealthStatus {
 
 const HealthCheck: React.FC = () => {
   const [healthData, setHealthData] = useState<HealthStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHealthData = async () => {
@@ -17,8 +18,10 @@ const HealthCheck: React.FC = () => {
         if (!response.ok) throw new Error('Failed to fetch health status.');
         const data: HealthStatus = await response.json();
         setHealthData(data);
+        setError(null);
       } catch (error) {
         console.error('Error fetching health status:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch health status');
       }
     };
 
@@ -29,18 +32,70 @@ const HealthCheck: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  return (
-    <div>
-      {healthData ? (
-        <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#1a1a2e', borderRadius: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9em', color: '#ffffff' }}>
-          {healthData.status !== 'healthy' && <span>Status: {healthData.status}</span>}
-          <span style={{ margin: '0 10px' }}>Allocator: {healthData.allocatorAddress}</span>
-          <span style={{ margin: '0 10px' }}>Signer: {healthData.signingAddress}</span>
-          <span style={{ margin: '0 10px' }}>Health Check: {new Date(healthData.timestamp).toLocaleString()}</span>
+  if (error) {
+    return (
+      <div className="p-4 bg-red-900/20 border border-red-700/30 rounded-lg">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-400">System Error</h3>
+            <div className="mt-2 text-sm text-red-400/80">
+              <p>{error}</p>
+            </div>
+          </div>
         </div>
-      ) : (
-        <p>Loading...</p>
-      )}
+      </div>
+    );
+  }
+
+  if (!healthData) {
+    return (
+      <div className="flex justify-center items-center py-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00ff00]"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Status */}
+      <div className="p-4 bg-gray-800 rounded-lg">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-400">Status</span>
+          <span className={`px-2 py-1 text-xs rounded ${
+            healthData.status === 'healthy' 
+              ? 'bg-[#00ff00]/10 text-[#00ff00]' 
+              : 'bg-red-500/10 text-red-500'
+          }`}>
+            {healthData.status.charAt(0).toUpperCase() + healthData.status.slice(1)}
+          </span>
+        </div>
+        <div className="mt-1 text-xs text-gray-500">
+          Last Update: {new Date(healthData.timestamp).toLocaleString()}
+        </div>
+      </div>
+
+      {/* Addresses */}
+      <div className="p-4 bg-gray-800 rounded-lg">
+        <div className="space-y-2">
+          <div>
+            <span className="text-sm text-gray-400">Allocator</span>
+            <div className="mt-1 font-mono text-xs text-[#00ff00] break-all">
+              {healthData.allocatorAddress}
+            </div>
+          </div>
+          <div>
+            <span className="text-sm text-gray-400">Signer</span>
+            <div className="mt-1 font-mono text-xs text-[#00ff00] break-all">
+              {healthData.signingAddress}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

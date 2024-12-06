@@ -22,7 +22,6 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
       }
 
       try {
-        // Verify the session is still valid
         const response = await fetch('/session', {
           headers: {
             'x-session-id': existingSession
@@ -35,7 +34,6 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
             return;
           }
         }
-        // Session is invalid or expired
         localStorage.removeItem('sessionId');
         onSessionUpdate(null);
       } catch (error) {
@@ -46,7 +44,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
     };
 
     validateSession();
-  }, [onSessionUpdate]); // Run on mount and when onSessionUpdate changes
+  }, [onSessionUpdate]);
 
   // Re-validate when wallet connects
   useEffect(() => {
@@ -56,7 +54,6 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
         if (!existingSession) return;
 
         try {
-          // Verify the session is still valid
           const response = await fetch('/session', {
             headers: {
               'x-session-id': existingSession
@@ -69,7 +66,6 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
               return;
             }
           }
-          // Session is invalid or expired
           localStorage.removeItem('sessionId');
           onSessionUpdate(null);
         } catch (error) {
@@ -128,7 +124,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
           signature,
           payload: {
             ...session,
-            chainId: parseInt(session.chainId.toString(), 10), // Ensure chainId is a number
+            chainId: parseInt(session.chainId.toString(), 10),
           },
         }),
       });
@@ -174,47 +170,36 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
     }
   }, [sessionToken, onSessionUpdate, isLoading]);
 
-  if (!isConnected) {
-    return (
-      <div className="text-center">
-        <p className="text-gray-600">Please connect your wallet to continue.</p>
-      </div>
-    );
-  }
-
-  if (sessionToken) {
-    return (
-      <div className="text-center">
-        <button
-          onClick={signOut}
-          disabled={isLoading}
-          className={`px-4 py-2 rounded-lg font-medium ${
-            isLoading
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-red-600 text-white hover:bg-red-700'
-          }`}
-        >
-          {isLoading ? 'Signing out...' : 'Sign out'}
-        </button>
-      </div>
-    );
-  }
-
-  const canLogin = isConnected && address && chainId && !isLoading;
-
+  // Always render a container, even if not connected
   return (
-    <div className="text-center">
-      <button
-        onClick={createSession}
-        disabled={!canLogin}
-        className={`px-4 py-2 rounded-lg font-medium ${
-          canLogin
-            ? 'bg-blue-600 text-white hover:bg-blue-700'
-            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-        }`}
-      >
-        {isLoading ? 'Signing in...' : 'Sign in with Ethereum'}
-      </button>
+    <div className="flex items-center">
+      {isConnected && (
+        sessionToken ? (
+          <button
+            onClick={signOut}
+            disabled={isLoading}
+            className={`py-2 px-4 rounded-lg font-medium transition-colors ${
+              isLoading
+                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            {isLoading ? 'Signing out...' : 'Sign out'}
+          </button>
+        ) : (
+          <button
+            onClick={createSession}
+            disabled={!address || !chainId || isLoading}
+            className={`py-2 px-4 rounded-lg font-medium transition-colors ${
+              !address || !chainId || isLoading
+                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                : 'bg-[#00ff00] text-gray-900 hover:bg-[#00dd00]'
+            }`}
+          >
+            {isLoading ? 'Signing in...' : 'Sign in'}
+          </button>
+        )
+      )}
     </div>
   );
 }
