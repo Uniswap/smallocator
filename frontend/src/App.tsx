@@ -1,8 +1,7 @@
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
-import { mainnet } from 'viem/chains';
-import { WagmiProvider } from 'wagmi';
+import { mainnet, optimism, optimismGoerli, sepolia, goerli } from 'viem/chains';
+import { WagmiProvider, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { http } from 'wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
 import { useState, useMemo } from 'react';
 
@@ -13,13 +12,19 @@ import HealthCheck from './components/HealthCheck';
 import { DepositForm } from './components/DepositForm';
 import { NotificationProvider } from './context/NotificationContext';
 
+// Configure supported chains
+const projectId = 'YOUR_PROJECT_ID'; // Get from WalletConnect Cloud
+
+const chains = [mainnet, optimism, optimismGoerli, sepolia, goerli] as const;
+
 const config = getDefaultConfig({
   appName: 'Smallocator',
-  projectId: 'YOUR_PROJECT_ID', // Get from WalletConnect Cloud
-  chains: [mainnet],
-  transports: {
-    [mainnet.id]: http(),
-  },
+  projectId,
+  chains,
+  transports: Object.fromEntries(
+    chains.map((chain) => [chain.id, http()])
+  ),
+  ssr: true,
 });
 
 const customTheme = darkTheme({
