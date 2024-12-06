@@ -52,8 +52,8 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={customTheme}>
           <NotificationProvider>
-            <div className="min-h-screen bg-[#0a0a0a] overflow-y-auto">
-              <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a] border-b border-gray-800">
+            <div className="h-screen flex flex-col bg-[#0a0a0a]">
+              <header className="flex-none bg-[#0a0a0a] border-b border-gray-800">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                   <h1 className="text-3xl font-black font-monaco">
                     <span className="text-white">Sm</span>
@@ -90,8 +90,8 @@ function App() {
                 </div>
               </header>
 
-              <main className="pt-20 pb-6 min-h-screen">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+              <main className="flex-1 overflow-y-auto">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                   <div className="space-y-6">
                     {/* Health Check Status */}
                     <div className="mx-auto p-4 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
