@@ -44,7 +44,7 @@
     ],
     "frontend/**/*.{ts,tsx,js}": [
       "prettier --write",
-      "cd frontend && eslint --fix --max-warnings 0",
+      "cd frontend && eslint . --fix --max-warnings 0",
       "prettier --check",
       "cd frontend && tsc --noEmit -p tsconfig.app.json"
     ],
