@@ -1,5 +1,4 @@
 import { useWriteContract, useChainId } from 'wagmi'
-import { parseEther, parseUnits } from 'viem'
 import { COMPACT_ABI, COMPACT_ADDRESS, isSupportedChain } from '../../src/constants/contracts'
 import { useNotification } from '../context/NotificationContext'
 

@@ -18,7 +18,7 @@ export function DepositForm() {
   const [isApproving, setIsApproving] = useState(false)
   const { deposit } = useCompact()
   const { showNotification } = useNotification()
-  const { allocatorAddress, isLoading: isLoadingAllocator, error: allocatorError } = useAllocatorAPI()
+  const { allocatorAddress } = useAllocatorAPI()
   const { 
     balance, 
     allowance, 
@@ -136,13 +136,22 @@ export function DepositForm() {
         ? parseEther(amount)
         : parseUnits(amount, decimals!)
       
-      const hash = await deposit({
-        args: tokenType === 'native' 
-          ? [allocatorAddress] 
-          : [tokenAddress, allocatorAddress, parsedAmount],
-        value: tokenType === 'native' ? parsedAmount : 0n,
-        isNative: tokenType === 'native'
-      })
+      const hexAllocatorAddress = allocatorAddress as `0x${string}`
+      
+      await deposit(
+        tokenType === 'native' 
+          ? {
+              allocator: hexAllocatorAddress,
+              value: parsedAmount,
+              isNative: true
+            }
+          : {
+              token: tokenAddress as `0x${string}`,
+              allocator: hexAllocatorAddress,
+              amount: parsedAmount,
+              isNative: false
+            }
+      )
 
       showNotification({
         type: 'success',
@@ -172,7 +181,7 @@ export function DepositForm() {
     
     try {
       setIsApproving(true)
-      const hash = await approve()
+      await approve()
       
       showNotification({
         type: 'success',
