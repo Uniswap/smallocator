@@ -148,7 +148,10 @@ if (isMainModule) {
     try {
       const server = await build();
       server.log.level = 'info'; // Temporarily increase log level for startup
-      await server.listen({ port: 3000, host: '0.0.0.0' });
+      await server.listen({
+        port: parseInt(process.env.PORT || '3000'),
+        host: '0.0.0.0',
+      });
       server.log.level = 'error'; // Reset back to error-only after startup
     } catch (err) {
       console.error('Error starting server:', err);

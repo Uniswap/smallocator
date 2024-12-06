@@ -19,9 +19,9 @@ export const config = {
         type: 'string',
         default: '*',
       },
-      DATABASE_URL: {
+      DATABASE_DIR: {
         type: 'string',
-        default: 'sqlite://smallocator.db',
+        default: '.smallocator-data',
       },
       INDEXER_URL: {
         type: 'string',
