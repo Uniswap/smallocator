@@ -7,31 +7,12 @@ import { Transfer } from './Transfer';
 import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
 import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 
-interface Token {
-  tokenAddress: string;
-  name: string;
-  symbol: string;
-  decimals: number;
-}
-
-interface ResourceLock {
-  resetPeriod: number;
-  isMultichain: boolean;
-}
-
-interface Balance {
+// Interface for the selected lock data needed by ForcedWithdrawalDialog
+interface SelectedLockData {
   chainId: string;
   lockId: string;
-  allocatableBalance: string;
-  allocatedBalance: string;
-  balanceAvailableToAllocate: string;
-  withdrawalStatus: number;
-  withdrawableAt: string;
   balance: string;
   tokenName: string;
-  token?: Token;
-  resourceLock?: ResourceLock;
-  formattedAllocatableBalance?: string;
   decimals: number;
   symbol: string;
 }
@@ -52,7 +33,9 @@ export function BalanceDisplay(): JSX.Element | null {
   const [isWithdrawalDialogOpen, setIsWithdrawalDialogOpen] = useState(false);
   const [isExecuteDialogOpen, setIsExecuteDialogOpen] = useState(false);
   const [selectedLockId, setSelectedLockId] = useState<string>('');
-  const [selectedLock, setSelectedLock] = useState<Balance | null>(null);
+  const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
+    null
+  );
 
   if (!isConnected) return null;
 
@@ -117,6 +100,11 @@ export function BalanceDisplay(): JSX.Element | null {
           const resourceLock = resourceLocksData?.resourceLocks.items.find(
             (item) => item.resourceLock.lockId === balance.lockId
           );
+
+          const now = Math.floor(Date.now() / 1000);
+          const withdrawableAt = parseInt(balance.withdrawableAt || '0');
+          const canExecuteWithdrawal =
+            balance.withdrawalStatus === 2 && withdrawableAt <= now;
 
           return (
             <div
@@ -232,18 +220,39 @@ export function BalanceDisplay(): JSX.Element | null {
               {/* Transfer and Withdrawal Actions */}
               {resourceLock && (
                 <div className="mt-4 border-t border-gray-700 pt-4">
-                  <Transfer
-                    chainId={balance.chainId}
-                    withdrawalStatus={balance.withdrawalStatus}
-                    onForceWithdraw={() => {
-                      setSelectedLockId(balance.lockId);
-                      setIsWithdrawalDialogOpen(true);
-                    }}
-                    onDisableForceWithdraw={() => {
-                      setSelectedLockId(balance.lockId);
-                      setSelectedLock(null);
-                    }}
-                  />
+                  <div className="flex gap-2">
+                    <Transfer
+                      chainId={balance.chainId}
+                      withdrawalStatus={balance.withdrawalStatus}
+                      onForceWithdraw={() => {
+                        setSelectedLockId(balance.lockId);
+                        setIsWithdrawalDialogOpen(true);
+                      }}
+                      onDisableForceWithdraw={() => {
+                        setSelectedLockId(balance.lockId);
+                        setSelectedLock(null);
+                      }}
+                    />
+                    {canExecuteWithdrawal && (
+                      <button
+                        onClick={() => {
+                          setSelectedLockId(balance.lockId);
+                          setSelectedLock({
+                            chainId: balance.chainId,
+                            lockId: balance.lockId,
+                            balance: resourceLock?.balance || '0',
+                            tokenName: balance.token?.name || 'Token',
+                            decimals: balance.token?.decimals || 18,
+                            symbol: balance.token?.symbol || '',
+                          });
+                          setIsExecuteDialogOpen(true);
+                        }}
+                        className="mt-2 py-2 px-4 bg-[#DC2626] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
+                      >
+                        Execute Withdrawal
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

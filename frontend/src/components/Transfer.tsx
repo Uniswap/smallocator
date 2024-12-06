@@ -81,15 +81,15 @@ export function Transfer({
         >
           Withdraw
         </button>
-        {withdrawalStatus === 1 && (
+        {withdrawalStatus === 0 && (
           <button
             onClick={() => handleAction('force')}
-            className="mt-2 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors"
+            className="mt-2 py-2 px-4 bg-[#DC2626] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
           >
-            Force Withdraw
+            Initiate Forced Withdrawal
           </button>
         )}
-        {withdrawalStatus === 2 && (
+        {withdrawalStatus !== 0 && (
           <button
             onClick={() => handleAction('disable')}
             className="mt-2 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors"
