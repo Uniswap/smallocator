@@ -1,5 +1,15 @@
-import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
-import { mainnet, optimism, optimismGoerli, sepolia, goerli } from 'viem/chains';
+import {
+  getDefaultConfig,
+  RainbowKitProvider,
+  darkTheme,
+} from '@rainbow-me/rainbowkit';
+import {
+  mainnet,
+  optimism,
+  optimismGoerli,
+  sepolia,
+  goerli,
+} from 'viem/chains';
 import { WagmiProvider, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@rainbow-me/rainbowkit/styles.css';
@@ -11,7 +21,7 @@ import { BalanceDisplay } from './components/BalanceDisplay';
 import { CreateAllocation } from './components/CreateAllocation';
 import HealthCheck from './components/HealthCheck';
 import { DepositForm } from './components/DepositForm';
-import { NotificationProvider } from './context/NotificationContext';
+import { NotificationProvider } from './context/NotificationProvider';
 
 // Configure supported chains
 const projectId = 'YOUR_PROJECT_ID'; // Get from WalletConnect Cloud
@@ -22,9 +32,7 @@ const config = getDefaultConfig({
   appName: 'Smallocator',
   projectId,
   chains,
-  transports: Object.fromEntries(
-    chains.map((chain) => [chain.id, http()])
-  ),
+  transports: Object.fromEntries(chains.map((chain) => [chain.id, http()])),
   ssr: true,
 });
 
@@ -37,15 +45,19 @@ const customTheme = darkTheme({
 
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
-  
-  const queryClient = useMemo(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
-      },
-    },
-  }), []);
+
+  const queryClient = useMemo(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: Infinity,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+    []
+  );
 
   return (
     <WagmiProvider config={config}>
@@ -82,7 +94,7 @@ function App() {
                       </svg>
                     </a>
                     <WalletConnect hasSession={!!sessionToken} />
-                    <SessionManager 
+                    <SessionManager
                       sessionToken={sessionToken}
                       onSessionUpdate={setSessionToken}
                     />
@@ -109,7 +121,9 @@ function App() {
                     )}
 
                     {/* Create Allocation Form */}
-                    {sessionToken && <CreateAllocation sessionToken={sessionToken} />}
+                    {sessionToken && (
+                      <CreateAllocation sessionToken={sessionToken} />
+                    )}
                   </div>
                 </div>
               </main>

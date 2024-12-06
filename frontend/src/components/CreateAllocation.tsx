@@ -177,7 +177,7 @@ export function CreateAllocation({ sessionToken }: CreateAllocationProps) {
         if (amountBigInt > availableBigInt) {
           newErrors.amount = 'Amount exceeds available balance';
         }
-      } catch (_err) {
+      } catch {
         newErrors.amount = 'Invalid amount';
       }
     }

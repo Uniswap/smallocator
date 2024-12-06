@@ -60,7 +60,7 @@ export function useSessionPoller(
         if (expiryTime < Date.now()) {
           throw new Error('Session expired');
         }
-      } catch (_error) {
+      } catch {
         // On any error, clear the session
         localStorage.removeItem(`session-${address}`);
         onSessionUpdate(null);

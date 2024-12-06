@@ -45,7 +45,7 @@ export function DepositForm() {
       if (numAmount <= 0) {
         return { type: 'error', message: 'Amount must be greater than zero' };
       }
-    } catch (_e) {
+    } catch {
       return { type: 'error', message: 'Invalid amount format' };
     }
 
@@ -78,7 +78,7 @@ export function DepositForm() {
           return { type: 'warning', message: 'Insufficient Allowance' };
         }
         return null;
-      } catch (_e) {
+      } catch {
         return { type: 'error', message: 'Invalid amount format' };
       }
     }
@@ -91,7 +91,7 @@ export function DepositForm() {
           return { type: 'error', message: 'Insufficient ETH Balance' };
         }
         return null;
-      } catch (_e) {
+      } catch {
         return { type: 'error', message: 'Invalid amount format' };
       }
     }
