@@ -158,56 +158,17 @@ export async function getCompactDetails({
   lockId: string;
   chainId: string;
 }): Promise<AllocatorResponse & AccountDeltasResponse & AccountResponse> {
-  const { finalizationTimestamp } = calculateQueryTimestamps(chainId);
+  const { finalizationTimestamp, thresholdTimestamp } = calculateQueryTimestamps(chainId);
 
   return graphqlClient.request(
-    `
-    query GetCompactDetails(
-      $allocator: String!
-      $sponsor: String!
-      $lockId: String!
-      $chainId: String!
-      $finalizationTimestamp: Int!
-    ) {
-      allocator(address: $allocator) {
-        supportedChains {
-          items {
-            allocatorId
-          }
-        }
-      }
-      accountDeltas: account(address: $sponsor) {
-        items: deltas(
-          filter: {
-            chainId: { eq: $chainId }
-            lockId: { eq: $lockId }
-            timestamp: { gt: $finalizationTimestamp }
-          }
-        ) {
-          delta
-        }
-      }
-      account(address: $sponsor) {
-        resourceLocks {
-          items {
-            withdrawalStatus
-            balance
-          }
-        }
-        claims {
-          items {
-            claimHash
-          }
-        }
-      }
-    }
-  `,
+    GET_COMPACT_DETAILS,
     {
-      allocator,
-      sponsor,
+      allocator: allocator.toLowerCase(),
+      sponsor: sponsor.toLowerCase(),
       lockId,
       chainId,
-      finalizationTimestamp,
+      finalizationTimestamp: finalizationTimestamp.toString(),
+      thresholdTimestamp: thresholdTimestamp.toString(),
     }
   );
 }
@@ -231,7 +192,7 @@ export async function getAllResourceLocks(
       }
     }
     `,
-    { sponsor }
+    { sponsor: sponsor.toLowerCase() }
   );
 }
 

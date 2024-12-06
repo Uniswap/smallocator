@@ -360,9 +360,13 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
 
         // Filter locks to only include those managed by this allocator
         const ourLocks = response.account.resourceLocks.items.filter(
-          (item) =>
-            item?.resourceLock?.allocatorAddress?.toLowerCase() ===
-            process.env.ALLOCATOR_ADDRESS!.toLowerCase()
+          (item) => {
+            try {
+              return getAddress(item?.resourceLock?.allocatorAddress) === getAddress(process.env.ALLOCATOR_ADDRESS!);
+            } catch {
+              return false;
+            }
+          }
         );
 
         // Get balance details for each lock
