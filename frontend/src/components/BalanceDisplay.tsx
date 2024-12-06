@@ -1,7 +1,15 @@
 import { useAccount } from 'wagmi';
 import { useBalances } from '../hooks/useBalances';
 
-export function BalanceDisplay() {
+// Utility function to format reset period
+const formatResetPeriod = (seconds: number): string => {
+  if (seconds < 60) return `${seconds} seconds`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours`;
+  return `${Math.floor(seconds / 86400)} days`;
+};
+
+export function BalanceDisplay(): JSX.Element | null {
   const { isConnected } = useAccount();
   const { balances, error, isLoading } = useBalances();
 
@@ -58,43 +66,73 @@ export function BalanceDisplay() {
             key={`${balance.chainId}-${balance.lockId}`} 
             className="p-4 bg-gray-800 rounded-lg"
           >
+            {/* Header with Chain, Token Info, and Lock ID */}
             <div className="flex justify-between items-baseline mb-4">
-              <div className="text-sm font-medium text-gray-300">Chain {balance.chainId}</div>
+              <div className="text-sm font-medium text-gray-300">
+                Chain {balance.chainId}
+                {balance.token && (
+                  <span className="ml-2 text-gray-400">
+                    {balance.token.name} ({balance.token.symbol})
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-gray-400">Lock ID: {balance.lockId}</div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-gray-400">Allocatable Balance</div>
-                <div className="mt-1 text-[#00ff00] font-mono">
-                  {balance.allocatableBalance}
+            {/* Resource Lock Properties */}
+            <div className="flex gap-2 mb-4">
+              {balance.resourceLock?.resetPeriod && balance.resourceLock.resetPeriod > 0 && (
+                <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
+                  Reset Period: {formatResetPeriod(balance.resourceLock.resetPeriod)}
+                </span>
+              )}
+              {balance.resourceLock?.isMultichain && (
+                <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
+                  Multichain
+                </span>
+              )}
+              <span className={`px-2 py-1 text-xs rounded ${
+                balance.withdrawalStatus === 0
+                  ? 'bg-[#00ff00]/10 text-[#00ff00]'
+                  : 'bg-orange-500/10 text-orange-500'
+              }`}>
+                {balance.withdrawalStatus === 0 ? 'Active' : 'Withdrawal Pending'}
+              </span>
+            </div>
+
+            {/* Balances Grid */}
+            <div className="grid grid-cols-12 gap-4">
+              {/* Left side - Compact display of allocatable and allocated */}
+              <div className="col-span-7 grid grid-cols-2 gap-4 pr-4 border-r border-gray-700">
+                <div>
+                  <div className="text-xs text-gray-400">Allocatable</div>
+                  <div className="mt-1 text-sm text-[#00ff00] font-mono">
+                    {balance.formattedAllocatableBalance || balance.allocatableBalance}
+                    {balance.token?.symbol && (
+                      <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-400">Allocated</div>
+                  <div className="mt-1 text-sm text-[#00ff00] font-mono">
+                    {balance.formattedAllocatedBalance || balance.allocatedBalance}
+                    {balance.token?.symbol && (
+                      <span className="ml-1 text-gray-400">{balance.token.symbol}</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <div className="text-xs text-gray-400">Allocated Balance</div>
-                <div className="mt-1 text-[#00ff00] font-mono">
-                  {balance.allocatedBalance}
-                </div>
-              </div>
-
-              <div>
+              {/* Right side - Emphasized available to allocate */}
+              <div className="col-span-5 flex flex-col justify-center">
                 <div className="text-xs text-gray-400">Available to Allocate</div>
-                <div className="mt-1 text-[#00ff00] font-mono">
-                  {balance.balanceAvailableToAllocate}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs text-gray-400">Withdrawal Status</div>
-                <div className="mt-1">
-                  <span className={`px-2 py-1 text-xs rounded ${
-                    balance.withdrawalStatus === 0
-                      ? 'bg-[#00ff00]/10 text-[#00ff00]'
-                      : 'bg-orange-500/10 text-orange-500'
-                  }`}>
-                    {balance.withdrawalStatus === 0 ? 'Active' : 'Withdrawal Pending'}
-                  </span>
+                <div className="mt-1 text-lg font-bold text-[#00ff00] font-mono">
+                  {balance.formattedAvailableBalance || balance.balanceAvailableToAllocate}
+                  {balance.token?.symbol && (
+                    <span className="ml-1 text-gray-400 text-sm">{balance.token.symbol}</span>
+                  )}
                 </div>
               </div>
             </div>
