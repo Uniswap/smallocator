@@ -169,7 +169,9 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         const baseUrl = process.env.BASE_URL;
         const domain = new URL(baseUrl).host;
         const issuedAt = new Date();
-        const expirationTime = new Date(issuedAt.getTime() + 30 * 60 * 1000); // 30 minutes
+        const expirationTime = new Date(
+          issuedAt.getTime() + 7 * 24 * 60 * 60 * 1000
+        ); // 1 week
 
         const payload = {
           domain,

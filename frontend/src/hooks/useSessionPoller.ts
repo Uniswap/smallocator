@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAccount } from 'wagmi';
 
-const POLLING_INTERVAL = 5000; // 5 seconds
+const POLLING_INTERVAL = 60000; // 60 seconds
 
 interface SessionResponse {
   session?: {
