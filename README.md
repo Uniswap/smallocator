@@ -1,4 +1,4 @@
-# $$\mathbf{Sm\color{green}{allocator}}$$
+# $$\mathbf{Sm\color{green}{allocator}}$$ 🤏
 
 A minimalistic server-based allocator for [The Compact](https://github.com/Uniswap/the-compact). Smallocator provides an API for sponsors to request resource lock allocations across multiple blockchains, with support for EIP-4361 session authentication and signing EIP-712 `Compact` messages.
 
