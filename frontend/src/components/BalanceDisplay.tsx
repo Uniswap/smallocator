@@ -6,6 +6,8 @@ import { formatUnits } from 'viem';
 import { Transfer } from './Transfer';
 import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
 import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
+import { useCompact } from '../hooks/useCompact';
+import { useNotification } from '../hooks/useNotification';
 
 // Interface for the selected lock data needed by ForcedWithdrawalDialog
 interface SelectedLockData {
@@ -48,13 +50,45 @@ export function BalanceDisplay(): JSX.Element | null {
   const { balances, error, isLoading } = useBalances();
   const { data: resourceLocksData, isLoading: resourceLocksLoading } =
     useResourceLocks();
+  const { disableForcedWithdrawal } = useCompact();
+  const { showNotification } = useNotification();
   const [isWithdrawalDialogOpen, setIsWithdrawalDialogOpen] = useState(false);
   const [isExecuteDialogOpen, setIsExecuteDialogOpen] = useState(false);
   const [selectedLockId, setSelectedLockId] = useState<string>('');
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
   );
+  const [isWithdrawalLoading, setIsWithdrawalLoading] = useState(false);
   const [, setUpdateTrigger] = useState(0);
+
+  const handleDisableWithdrawal = async (lockId: string) => {
+    if (!lockId) return;
+
+    try {
+      setIsWithdrawalLoading(true);
+      await disableForcedWithdrawal({
+        args: [BigInt(lockId)],
+      });
+
+      showNotification({
+        type: 'success',
+        title: 'Forced Withdrawal Disabled',
+        message: 'Your forced withdrawal has been disabled',
+      });
+    } catch (error) {
+      console.error('Error disabling forced withdrawal:', error);
+      showNotification({
+        type: 'error',
+        title: 'Error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to disable forced withdrawal',
+      });
+    } finally {
+      setIsWithdrawalLoading(false);
+    }
+  };
 
   // Update countdown every second
   useEffect(() => {
@@ -265,6 +299,7 @@ export function BalanceDisplay(): JSX.Element | null {
                       onDisableForceWithdraw={() => {
                         setSelectedLockId(balance.lockId);
                         setSelectedLock(null);
+                        handleDisableWithdrawal(balance.lockId);
                       }}
                     />
                     {canExecuteWithdrawal && (

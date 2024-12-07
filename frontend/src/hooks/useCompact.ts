@@ -110,7 +110,7 @@ export function useCompact() {
     }
   };
 
-  const enableForcedWithdrawal = async (params: WithdrawalParams) => {
+  const disableForcedWithdrawal = async ({ args }: WithdrawalParams) => {
     if (!isSupportedChain(chainId)) {
       throw new Error('Unsupported chain');
     }
@@ -123,48 +123,36 @@ export function useCompact() {
     try {
       const hash = await writeContract({
         address: COMPACT_ADDRESS as `0x${string}`,
-        abi: [COMPACT_ABI[2]] as const,
-        functionName: 'enableForcedWithdrawal',
-        args: params.args as [bigint],
-        account: address,
-        chain,
-      });
-
-      return hash;
-    } catch (error) {
-      console.error('Enable forced withdrawal error:', error);
-      throw error;
-    }
-  };
-
-  const disableForcedWithdrawal = async (params: WithdrawalParams) => {
-    if (!isSupportedChain(chainId)) {
-      throw new Error('Unsupported chain');
-    }
-
-    const chain = chains[chainId];
-    if (!chain) {
-      throw new Error('Chain configuration not found');
-    }
-
-    try {
-      const hash = await writeContract({
-        address: COMPACT_ADDRESS as `0x${string}`,
-        abi: [COMPACT_ABI[3]] as const,
+        abi: [
+          COMPACT_ABI.find((x) => x.name === 'disableForcedWithdrawal'),
+        ] as const,
         functionName: 'disableForcedWithdrawal',
-        args: params.args as [bigint],
+        args,
         account: address,
         chain,
       });
-
+      showNotification({
+        type: 'success',
+        title: 'Transaction Submitted',
+        message:
+          'Your disable forced withdrawal transaction has been submitted.',
+      });
       return hash;
     } catch (error) {
       console.error('Disable forced withdrawal error:', error);
+      showNotification({
+        type: 'error',
+        title: 'Error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to disable forced withdrawal',
+      });
       throw error;
     }
   };
 
-  const forcedWithdrawal = async (params: WithdrawalParams) => {
+  const forcedWithdrawal = async ({ args }: WithdrawalParams) => {
     if (!isSupportedChain(chainId)) {
       throw new Error('Unsupported chain');
     }
@@ -177,23 +165,34 @@ export function useCompact() {
     try {
       const hash = await writeContract({
         address: COMPACT_ADDRESS as `0x${string}`,
-        abi: [COMPACT_ABI[4]] as const,
+        abi: [COMPACT_ABI.find((x) => x.name === 'forcedWithdrawal')] as const,
         functionName: 'forcedWithdrawal',
-        args: params.args as [bigint, `0x${string}`, bigint],
+        args,
         account: address,
         chain,
       });
-
+      showNotification({
+        type: 'success',
+        title: 'Transaction Submitted',
+        message: 'Your forced withdrawal transaction has been submitted.',
+      });
       return hash;
     } catch (error) {
       console.error('Forced withdrawal error:', error);
+      showNotification({
+        type: 'error',
+        title: 'Error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to execute forced withdrawal',
+      });
       throw error;
     }
   };
 
   return {
     deposit,
-    enableForcedWithdrawal,
     disableForcedWithdrawal,
     forcedWithdrawal,
     isSupported: isSupportedChain(chainId),

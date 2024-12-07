@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { switchNetwork } from '@wagmi/core';
 import { useNotification } from '../hooks/useNotification';
@@ -19,6 +20,7 @@ export function Transfer({
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { showNotification } = useNotification();
+  const [isWithdrawalLoading, setIsWithdrawalLoading] = useState(false);
 
   const handleAction = async (
     action: 'transfer' | 'withdraw' | 'force' | 'disable'
@@ -62,7 +64,9 @@ export function Transfer({
     if (action === 'force') {
       onForceWithdraw();
     } else if (action === 'disable') {
+      setIsWithdrawalLoading(true);
       onDisableForceWithdraw();
+      setIsWithdrawalLoading(false);
     }
   };
 
@@ -92,9 +96,10 @@ export function Transfer({
         {withdrawalStatus !== 0 && (
           <button
             onClick={() => handleAction('disable')}
-            className="mt-2 py-2 px-4 bg-[#3B82F6] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
+            disabled={isWithdrawalLoading}
+            className="mt-2 py-2 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
           >
-            Disable Force Withdraw
+            {isWithdrawalLoading ? 'Disabling...' : 'Disable Forced Withdrawal'}
           </button>
         )}
       </div>
