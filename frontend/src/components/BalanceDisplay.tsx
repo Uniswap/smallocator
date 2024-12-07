@@ -58,14 +58,12 @@ export function BalanceDisplay(): JSX.Element | null {
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
   );
-  const [isWithdrawalLoading, setIsWithdrawalLoading] = useState(false);
   const [, setUpdateTrigger] = useState(0);
 
   const handleDisableWithdrawal = async (lockId: string) => {
     if (!lockId) return;
 
     try {
-      setIsWithdrawalLoading(true);
       await disableForcedWithdrawal({
         args: [BigInt(lockId)],
       });
@@ -85,8 +83,6 @@ export function BalanceDisplay(): JSX.Element | null {
             ? error.message
             : 'Failed to disable forced withdrawal',
       });
-    } finally {
-      setIsWithdrawalLoading(false);
     }
   };
 

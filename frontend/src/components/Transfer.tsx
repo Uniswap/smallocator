@@ -45,7 +45,7 @@ export function Transfer({
           message:
             switchError instanceof Error
               ? switchError.message
-              : 'Failed to switch network',
+              : 'Failed to switch network. Please switch manually.',
         });
         return;
       }
