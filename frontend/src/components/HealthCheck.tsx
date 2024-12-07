@@ -21,12 +21,16 @@ const HealthCheck: React.FC = () => {
         setError(null);
       } catch (error) {
         console.error('Error fetching health status:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch health status');
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch health status'
+        );
       }
     };
 
-    // Fetch health data every 2 seconds
-    const intervalId = setInterval(fetchHealthData, 2000);
+    // Fetch health data every second
+    const intervalId = setInterval(fetchHealthData, 1000);
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
@@ -37,8 +41,16 @@ const HealthCheck: React.FC = () => {
       <div className="p-4 bg-red-900/20 border border-red-700/30 rounded-lg">
         <div className="flex items-start">
           <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+            <svg
+              className="h-5 w-5 text-red-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                clipRule="evenodd"
+              />
             </svg>
           </div>
           <div className="ml-3">
@@ -62,15 +74,30 @@ const HealthCheck: React.FC = () => {
 
   return (
     <div className="space-y-2">
-      {/* Allocator Address - Large */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-400">Allocator:</span>
-        <span className="text-lg font-mono text-[#00ff00]">
-          {healthData.allocatorAddress}
-        </span>
+      {/* Allocator Address and Status */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-400">Allocator:</span>
+          <span className="text-lg font-mono text-[#00ff00]">
+            {healthData.allocatorAddress}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 w-[180px] justify-end">
+          <span className="text-gray-400 text-sm pr-2">Status:</span>
+          <span
+            className={`px-2 py-0.5 text-xs rounded ${
+              healthData.status === 'healthy'
+                ? 'bg-[#00ff00]/10 text-[#00ff00]'
+                : 'bg-red-500/10 text-red-500'
+            }`}
+          >
+            {healthData.status.charAt(0).toUpperCase() +
+              healthData.status.slice(1)}
+          </span>
+        </div>
       </div>
 
-      {/* Signer and Status - Smaller */}
+      {/* Signer and Last Checked */}
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
           <span className="text-gray-400">Signer:</span>
@@ -78,14 +105,15 @@ const HealthCheck: React.FC = () => {
             {healthData.signingAddress}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-400">Status:</span>
-          <span className={`px-2 py-0.5 text-xs rounded ${
-            healthData.status === 'healthy' 
-              ? 'bg-[#00ff00]/10 text-[#00ff00]' 
-              : 'bg-red-500/10 text-red-500'
-          }`}>
-            {healthData.status.charAt(0).toUpperCase() + healthData.status.slice(1)}
+        <div className="flex items-center gap-2 w-[180px] justify-end whitespace-nowrap">
+          <span className="text-gray-400">Last Checked:</span>
+          <span className="font-mono text-[#00ff00]">
+            {new Date(healthData.timestamp).toLocaleTimeString(undefined, {
+              hour12: false,
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })}
           </span>
         </div>
       </div>
