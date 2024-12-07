@@ -28,6 +28,8 @@ const RESOURCE_LOCKS_QUERY = `
             totalSupply
           }
           balance
+          withdrawalStatus
+          withdrawableAt
         }
       }
     }
@@ -56,6 +58,8 @@ interface ResourceLockBalance {
   chainId: string;
   resourceLock: ResourceLock;
   balance: string;
+  withdrawalStatus: number;
+  withdrawableAt: string;
 }
 
 interface ResourceLockConnection {
@@ -87,6 +91,7 @@ export function useResourceLocks(): UseResourceLocksResult {
     },
     {
       enabled: !!address,
+      pollInterval: 1010, // Poll every ~1 second like in the-compact-ui
     }
   );
 

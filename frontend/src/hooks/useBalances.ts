@@ -23,11 +23,8 @@ interface Balance {
   balanceAvailableToAllocate: string;
   withdrawalStatus: number;
   withdrawableAt: string;
-  // Token details from indexer
   token?: Token;
-  // Resource lock details from indexer
   resourceLock?: ResourceLock;
-  // Formatted balances using token decimals
   formattedAllocatableBalance?: string;
   formattedAllocatedBalance?: string;
   formattedAvailableBalance?: string;
@@ -37,16 +34,6 @@ interface UseBalancesResult {
   balances: Balance[];
   error: string | null;
   isLoading: boolean;
-}
-
-interface ResourceLockItem {
-  chainId: string;
-  resourceLock: {
-    lockId: string;
-    token: Token;
-    resetPeriod: number;
-    isMultichain: boolean;
-  };
 }
 
 export function useBalances(): UseBalancesResult {
@@ -89,7 +76,7 @@ export function useBalances(): UseBalancesResult {
         const newBalances = data.balances.map((balance: Balance) => {
           // Find matching resource lock from indexer data
           const resourceLock = resourceLocksData?.resourceLocks.items.find(
-            (item: ResourceLockItem) =>
+            (item) =>
               item.resourceLock.lockId === balance.lockId &&
               item.chainId === balance.chainId
           );
@@ -100,11 +87,25 @@ export function useBalances(): UseBalancesResult {
 
             return {
               ...balance,
-              token,
+              // Keep the allocation data from the server
+              allocatableBalance: balance.allocatableBalance,
+              allocatedBalance: balance.allocatedBalance,
+              balanceAvailableToAllocate: balance.balanceAvailableToAllocate,
+              // Add withdrawal status from the indexer
+              withdrawalStatus: resourceLock.withdrawalStatus,
+              withdrawableAt: resourceLock.withdrawableAt,
+              // Add token and resource lock details
+              token: {
+                tokenAddress: token.tokenAddress,
+                name: token.name,
+                symbol: token.symbol,
+                decimals: decimals,
+              },
               resourceLock: {
                 resetPeriod: resourceLock.resourceLock.resetPeriod,
                 isMultichain: resourceLock.resourceLock.isMultichain,
               },
+              // Format the balances
               formattedAllocatableBalance: formatUnits(
                 BigInt(balance.allocatableBalance),
                 decimals
