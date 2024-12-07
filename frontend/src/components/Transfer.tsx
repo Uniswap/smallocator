@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useNotification } from '../hooks/useNotification';
-import { config } from '../config/wagmi';
 
 interface TransferProps {
   chainId: string;
