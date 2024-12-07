@@ -133,7 +133,8 @@ export function BalanceDisplay(): JSX.Element | null {
           const now = Math.floor(Date.now() / 1000);
           const withdrawableAt = parseInt(balance.withdrawableAt || '0');
           const canExecuteWithdrawal =
-            balance.withdrawalStatus === 2 && withdrawableAt <= now;
+            parseInt(balance.withdrawalStatus.toString()) !== 0 &&
+            withdrawableAt <= now;
           const withdrawalTimeRemaining = formatTimeRemaining(withdrawableAt);
 
           return (
@@ -280,7 +281,7 @@ export function BalanceDisplay(): JSX.Element | null {
                           });
                           setIsExecuteDialogOpen(true);
                         }}
-                        className="mt-2 py-2 px-4 bg-[#DC2626] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
+                        className="mt-2 py-2 px-4 bg-[#F97316] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
                       >
                         Execute Withdrawal
                       </button>
