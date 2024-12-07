@@ -32,8 +32,53 @@ export function useSessionPoller(
       return;
     }
 
-    // Set initial session
-    onSessionUpdate(sessionId);
+    // Immediately validate session on mount
+    const validateSession = async () => {
+      try {
+        const response = await fetch('/session', {
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+
+        // Handle 401 Unauthorized explicitly
+        if (response.status === 401) {
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
+        }
+
+        const data: SessionResponse = await response.json();
+
+        // Check for invalid session error
+        if (data.error === 'Invalid session' || !response.ok) {
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
+        }
+
+        // Verify session belongs to current address
+        if (data.session?.address.toLowerCase() !== address.toLowerCase()) {
+          throw new Error('Session address mismatch');
+        }
+
+        // Check if session has expired
+        const expiryTime = new Date(data.session.expiresAt).getTime();
+        if (expiryTime < Date.now()) {
+          throw new Error('Session expired');
+        }
+
+        // Session is valid, set it
+        onSessionUpdate(sessionId);
+      } catch (error) {
+        // On any error, clear the session
+        localStorage.removeItem(`session-${address}`);
+        onSessionUpdate(null);
+      }
+    };
+
+    // Run initial validation
+    validateSession();
 
     // Start polling
     const intervalId = setInterval(async () => {
@@ -44,11 +89,17 @@ export function useSessionPoller(
           },
         });
 
+        // Handle 401 Unauthorized explicitly
+        if (response.status === 401) {
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
+        }
+
         const data: SessionResponse = await response.json();
 
         // Check for invalid session error
         if (data.error === 'Invalid session' || !response.ok) {
-          // Clear the session and update state
           localStorage.removeItem(`session-${address}`);
           onSessionUpdate(null);
           return;
