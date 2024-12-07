@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAccount, useChainId } from 'wagmi';
-import { switchNetwork } from '@wagmi/core';
 import { useNotification } from '../hooks/useNotification';
 import { config } from '../config/wagmi';
 
@@ -32,21 +31,36 @@ export function Transfer({
         showNotification({
           type: 'success',
           title: 'Switching Network',
-          message: `Switching to chain ID ${targetChainIdNumber}...`,
+          message: `Please confirm the network switch in your wallet...`,
         });
 
-        await switchNetwork(config, { chainId: targetChainIdNumber });
+        // Request network switch through the wallet
+        // @ts-ignore - ethereum is injected by the wallet
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: `0x${targetChainIdNumber.toString(16)}` }],
+        });
+
         // Wait a bit for the network switch to complete
         await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (switchError) {
-        showNotification({
-          type: 'error',
-          title: 'Network Switch Failed',
-          message:
-            switchError instanceof Error
-              ? switchError.message
-              : 'Failed to switch network. Please switch manually.',
-        });
+      } catch (switchError: any) {
+        // This error code indicates that the chain has not been added to MetaMask
+        if (switchError.code === 4902) {
+          showNotification({
+            type: 'error',
+            title: 'Network Not Found',
+            message: 'Please add this network to your wallet first.',
+          });
+        } else {
+          showNotification({
+            type: 'error',
+            title: 'Network Switch Failed',
+            message:
+              switchError instanceof Error
+                ? switchError.message
+                : 'Failed to switch network. Please switch manually.',
+          });
+        }
         return;
       }
     }

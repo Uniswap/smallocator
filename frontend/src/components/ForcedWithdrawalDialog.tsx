@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { formatUnits, parseUnits, isAddress } from 'viem';
 import { useAccount, useChainId } from 'wagmi';
-import { switchNetwork } from '@wagmi/core';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
-import { config } from '../config/wagmi';
 
 interface ForcedWithdrawalDialogProps {
   isOpen: boolean;
@@ -45,22 +43,37 @@ export function ForcedWithdrawalDialog({
           showNotification({
             type: 'success',
             title: 'Switching Network',
-            message: `Switching to chain ID ${targetChainId}...`,
+            message: `Please confirm the network switch in your wallet...`,
           });
 
-          await switchNetwork(config, { chainId: targetChainId });
+          // Request network switch through the wallet
+          // @ts-ignore - ethereum is injected by the wallet
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+          });
+
           // Wait a bit for the network switch to complete
           await new Promise((resolve) => setTimeout(resolve, 1000));
-        } catch (error) {
-          console.error('Error switching network:', error);
-          showNotification({
-            type: 'error',
-            title: 'Network Switch Failed',
-            message:
-              error instanceof Error
-                ? error.message
-                : 'Failed to switch network',
-          });
+        } catch (error: any) {
+          // This error code indicates that the chain has not been added to MetaMask
+          if (error.code === 4902) {
+            showNotification({
+              type: 'error',
+              title: 'Network Not Found',
+              message: 'Please add this network to your wallet first.',
+            });
+          } else {
+            console.error('Error switching network:', error);
+            showNotification({
+              type: 'error',
+              title: 'Network Switch Failed',
+              message:
+                error instanceof Error
+                  ? error.message
+                  : 'Failed to switch network. Please switch manually.',
+            });
+          }
           onClose();
         }
       };
