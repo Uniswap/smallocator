@@ -125,7 +125,9 @@ export function BalanceDisplay(): JSX.Element | null {
         {balances.map((balance) => {
           // Find matching resource lock from indexer data
           const resourceLock = resourceLocksData?.resourceLocks.items.find(
-            (item) => item.resourceLock.lockId === balance.lockId
+            (item) =>
+              item.resourceLock.lockId === balance.lockId &&
+              item.chainId === balance.chainId
           );
 
           const now = Math.floor(Date.now() / 1000);

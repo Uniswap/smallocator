@@ -1,14 +1,12 @@
-import { useAccount } from 'wagmi'
-import { useGraphQLQuery } from './useGraphQL'
+import { useAccount } from 'wagmi';
+import { useGraphQLQuery } from './useGraphQL';
 
 const RESOURCE_LOCKS_QUERY = `
   query GetResourceLocks(
-    $address: String!, 
-    $chainId: BigInt!
+    $address: String!
   ) {
     account(address: $address) {
       resourceLocks(
-        where: {chainId: $chainId}
         orderBy: "balance"
         orderDirection: "DESC"
       ) {
@@ -34,71 +32,67 @@ const RESOURCE_LOCKS_QUERY = `
       }
     }
   }
-`
+`;
 
 interface Token {
-  tokenAddress: string
-  name: string
-  symbol: string
-  decimals: number
+  tokenAddress: string;
+  name: string;
+  symbol: string;
+  decimals: number;
 }
 
 interface ResourceLock {
-  lockId: string
+  lockId: string;
   allocator: {
-    account: string
-  }
-  token: Token
-  resetPeriod: number
-  isMultichain: boolean
-  totalSupply: string
+    account: string;
+  };
+  token: Token;
+  resetPeriod: number;
+  isMultichain: boolean;
+  totalSupply: string;
 }
 
 interface ResourceLockBalance {
-  chainId: string
-  resourceLock: ResourceLock
-  balance: string
+  chainId: string;
+  resourceLock: ResourceLock;
+  balance: string;
 }
 
 interface ResourceLockConnection {
-  items: ResourceLockBalance[]
+  items: ResourceLockBalance[];
 }
 
 interface Account {
-  resourceLocks: ResourceLockConnection
+  resourceLocks: ResourceLockConnection;
 }
 
 interface ResourceLocksResponse {
-  account: Account | null
+  account: Account | null;
 }
 
 interface UseResourceLocksResult {
-  data: Account
-  isLoading: boolean
-  error: Error | null
+  data: Account;
+  isLoading: boolean;
+  error: Error | null;
 }
 
 export function useResourceLocks(): UseResourceLocksResult {
-  const { address, chain } = useAccount()
-
-  // Convert chain ID to numeric string for GraphQL BigInt
-  const chainId = (chain?.id ?? 1).toString()
+  const { address } = useAccount();
 
   const { data, isLoading, error } = useGraphQLQuery<ResourceLocksResponse>(
-    ['resourceLocks', address ?? '', chainId],
+    ['resourceLocks', address ?? ''],
     RESOURCE_LOCKS_QUERY,
-    { 
+    {
       address: address?.toLowerCase() ?? '',
-      chainId: chainId,
     },
     {
       enabled: !!address,
     }
-  )
+  );
 
   return {
     data: data?.account ?? { resourceLocks: { items: [] } },
     isLoading,
     error,
-  }
+  };
 }
