@@ -15,6 +15,14 @@ interface ForcedWithdrawalDialogProps {
   chainId: number;
 }
 
+interface WalletError extends Error {
+  code: number;
+}
+
+interface EthereumProvider {
+  request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
+}
+
 export function ForcedWithdrawalDialog({
   isOpen,
   onClose,
@@ -46,31 +54,34 @@ export function ForcedWithdrawalDialog({
             message: `Please confirm the network switch in your wallet...`,
           });
 
-          // Request network switch through the wallet
-          // @ts-ignore - ethereum is injected by the wallet
-          await window.ethereum.request({
+          const ethereum = window.ethereum as EthereumProvider | undefined;
+          if (!ethereum) {
+            throw new Error('No wallet detected');
+          }
+
+          await ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: `0x${targetChainId.toString(16)}` }],
           });
 
           // Wait a bit for the network switch to complete
           await new Promise((resolve) => setTimeout(resolve, 1000));
-        } catch (error: any) {
+        } catch (switchError) {
           // This error code indicates that the chain has not been added to MetaMask
-          if (error.code === 4902) {
+          if ((switchError as WalletError).code === 4902) {
             showNotification({
               type: 'error',
               title: 'Network Not Found',
               message: 'Please add this network to your wallet first.',
             });
           } else {
-            console.error('Error switching network:', error);
+            console.error('Error switching network:', switchError);
             showNotification({
               type: 'error',
               title: 'Network Switch Failed',
               message:
-                error instanceof Error
-                  ? error.message
+                switchError instanceof Error
+                  ? switchError.message
                   : 'Failed to switch network. Please switch manually.',
             });
           }

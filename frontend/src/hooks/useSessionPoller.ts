@@ -59,18 +59,22 @@ export function useSessionPoller(
 
         // Verify session belongs to current address
         if (data.session?.address.toLowerCase() !== address.toLowerCase()) {
-          throw new Error('Session address mismatch');
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
         }
 
         // Check if session has expired
         const expiryTime = new Date(data.session.expiresAt).getTime();
         if (expiryTime < Date.now()) {
-          throw new Error('Session expired');
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
         }
 
         // Session is valid, set it
         onSessionUpdate(sessionId);
-      } catch (error) {
+      } catch {
         // On any error, clear the session
         localStorage.removeItem(`session-${address}`);
         onSessionUpdate(null);
@@ -107,15 +111,19 @@ export function useSessionPoller(
 
         // Verify session belongs to current address
         if (data.session?.address.toLowerCase() !== address.toLowerCase()) {
-          throw new Error('Session address mismatch');
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
         }
 
         // Check if session has expired
         const expiryTime = new Date(data.session.expiresAt).getTime();
         if (expiryTime < Date.now()) {
-          throw new Error('Session expired');
+          localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
         }
-      } catch (error) {
+      } catch {
         // On any error, clear the session
         localStorage.removeItem(`session-${address}`);
         onSessionUpdate(null);

@@ -9,6 +9,14 @@ interface TransferProps {
   onDisableForceWithdraw: () => void;
 }
 
+interface WalletError extends Error {
+  code: number;
+}
+
+interface EthereumProvider {
+  request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
+}
+
 export function Transfer({
   chainId: targetChainId,
   withdrawalStatus,
@@ -34,17 +42,21 @@ export function Transfer({
         });
 
         // Request network switch through the wallet
-        // @ts-ignore - ethereum is injected by the wallet
-        await window.ethereum.request({
+        const ethereum = window.ethereum as EthereumProvider | undefined;
+        if (!ethereum) {
+          throw new Error('No wallet detected');
+        }
+
+        await ethereum.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: `0x${targetChainIdNumber.toString(16)}` }],
         });
 
         // Wait a bit for the network switch to complete
         await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (switchError: any) {
+      } catch (switchError) {
         // This error code indicates that the chain has not been added to MetaMask
-        if (switchError.code === 4902) {
+        if ((switchError as WalletError).code === 4902) {
           showNotification({
             type: 'error',
             title: 'Network Not Found',
