@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 export interface CompactMessage {
   arbiter: string;
   sponsor: string;
-  nonce: bigint;
+  nonce: bigint | null;
   expires: bigint;
   id: bigint;
   amount: string;
@@ -18,6 +18,38 @@ export interface CompactMessage {
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
+}
+
+export async function generateNonce(
+  sponsor: string,
+  chainId: string,
+  db: PGlite
+): Promise<bigint> {
+  // Get sponsor address without 0x prefix and lowercase
+  const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
+
+  // Get the highest nonce used for this sponsor
+  const result = await db.query<{ nonce: string }>(
+    `SELECT nonce FROM nonces 
+     WHERE chain_id = $1 
+     AND SUBSTRING(nonce FROM 1 FOR 40) = $2
+     ORDER BY nonce::numeric DESC
+     LIMIT 1`,
+    [chainId, sponsorAddress]
+  );
+
+  let lastNonceCounter = BigInt(0);
+  if (result.rows.length > 0) {
+    // Extract the counter part (last 12 bytes) of the last nonce
+    const lastNonce = BigInt(result.rows[0].nonce);
+    lastNonceCounter = lastNonce & ((BigInt(1) << BigInt(96)) - BigInt(1)); // Get last 12 bytes
+  }
+
+  // Create new nonce: sponsor address (20 bytes) + incremented counter (12 bytes)
+  const sponsorPart = BigInt('0x' + sponsorAddress) << BigInt(96);
+  const newNonce = sponsorPart | (lastNonceCounter + BigInt(1));
+
+  return newNonce;
 }
 
 export async function validateCompact(
@@ -40,14 +72,16 @@ export async function validateCompact(
     const result = await validateStructure(compact);
     if (!result.isValid) return result;
 
-    // 3. Nonce Validation
-    const nonceResult = await validateNonce(
-      compact.nonce,
-      compact.sponsor,
-      chainId,
-      db
-    );
-    if (!nonceResult.isValid) return nonceResult;
+    // 3. Nonce Validation (only if nonce is provided)
+    if (compact.nonce !== null) {
+      const nonceResult = await validateNonce(
+        compact.nonce,
+        compact.sponsor,
+        chainId,
+        db
+      );
+      if (!nonceResult.isValid) return nonceResult;
+    }
 
     // 4. Expiration Validation
     const expirationResult = validateExpiration(compact.expires);
@@ -134,11 +168,16 @@ export async function validateNonce(
 ): Promise<ValidationResult> {
   try {
     // Convert nonce to 32-byte hex string (without 0x prefix)
-    const nonceHex = nonce.toString(16).padStart(64, '0');
+    let nonceHex;
+    if (nonce.toString(16).startsWith('0x')) {
+      nonceHex = nonce.toString(16).slice(2).padStart(64, '0');
+    } else {
+      nonceHex = nonce.toString(16).padStart(64, '0');
+    }
 
     // Check that the first 20 bytes of the nonce match the sponsor's address
-    const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2); // Remove 0x prefix
-    const noncePrefix = nonceHex.slice(0, 40); // First 20 bytes = 40 hex chars
+    const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
+    const noncePrefix = nonceHex.slice(0, 40); // first 20 bytes = 42 chars
 
     if (noncePrefix !== sponsorAddress) {
       return {
@@ -338,7 +377,7 @@ export async function storeNonce(
   db: PGlite
 ): Promise<void> {
   await db.query(
-    'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
+    'INSERT INTO nonces (id, chain_id, nonce, consumed_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)',
     [randomUUID(), chainId, nonce.toString()]
   );
 }

@@ -1,7 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import { type Hex } from 'viem';
 import { getAddress } from 'viem/utils';
-import { validateCompact, type CompactMessage, storeNonce } from './validation';
+import {
+  validateCompact,
+  type CompactMessage,
+  storeNonce,
+  generateNonce,
+} from './validation';
 import { generateClaimHash, signCompact } from './crypto';
 import { randomUUID } from 'crypto';
 
@@ -10,17 +15,47 @@ export interface CompactSubmission {
   compact: CompactMessage;
 }
 
-export interface CompactRecord extends CompactSubmission {
+// Separate interface for stored compacts where nonce is always present
+export interface StoredCompactMessage {
+  id: bigint;
+  arbiter: string;
+  sponsor: string;
+  nonce: bigint; // This is non-null
+  expires: bigint;
+  amount: string;
+  witnessTypeString: string | null;
+  witnessHash: string | null;
+}
+
+export interface CompactRecord {
+  chainId: string;
+  compact: StoredCompactMessage;
   hash: string;
   signature: string;
   createdAt: string;
+}
+
+// Helper to convert CompactMessage to StoredCompactMessage
+function toStoredCompact(
+  compact: CompactMessage & { nonce: bigint }
+): StoredCompactMessage {
+  return {
+    id: compact.id,
+    arbiter: compact.arbiter,
+    sponsor: compact.sponsor,
+    nonce: compact.nonce,
+    expires: compact.expires,
+    amount: compact.amount,
+    witnessTypeString: compact.witnessTypeString,
+    witnessHash: compact.witnessHash,
+  };
 }
 
 export async function submitCompact(
   server: FastifyInstance,
   submission: CompactSubmission,
   sponsorAddress: string
-): Promise<{ hash: string; signature: string }> {
+): Promise<{ hash: string; signature: string; nonce: string }> {
   // Validate sponsor matches the session
   if (getAddress(submission.compact.sponsor) !== getAddress(sponsorAddress)) {
     throw new Error('Sponsor address does not match session');
@@ -33,19 +68,27 @@ export async function submitCompact(
       typeof submission.compact.id === 'string'
         ? BigInt(submission.compact.id)
         : submission.compact.id,
-    nonce:
-      typeof submission.compact.nonce === 'string'
-        ? BigInt(submission.compact.nonce)
-        : submission.compact.nonce,
     expires:
       typeof submission.compact.expires === 'string'
         ? BigInt(submission.compact.expires)
         : submission.compact.expires,
   };
 
-  // Validate the compact
+  // Generate nonce if not provided (do this before validation)
+  const nonce =
+    submission.compact.nonce === null
+      ? await generateNonce(sponsorAddress, submission.chainId, server.db)
+      : submission.compact.nonce;
+
+  // Update compact with final nonce
+  const finalCompact = {
+    ...compactForValidation,
+    nonce,
+  };
+
+  // Validate the compact (including nonce validation)
   const validationResult = await validateCompact(
-    compactForValidation,
+    finalCompact,
     submission.chainId,
     server.db
   );
@@ -53,22 +96,31 @@ export async function submitCompact(
     throw new Error(validationResult.error || 'Invalid compact');
   }
 
-  // Store the nonce as used
-  await storeNonce(compactForValidation.nonce, submission.chainId, server.db);
+  // Convert to StoredCompactMessage for crypto operations
+  const storedCompact = toStoredCompact(finalCompact);
 
   // Generate the claim hash
   const hash = await generateClaimHash(
-    compactForValidation,
+    storedCompact,
     BigInt(submission.chainId)
   );
 
   // Sign the compact
   const signature = await signCompact(hash, BigInt(submission.chainId));
 
-  // Store the compact
-  await storeCompact(server, submission, hash, signature);
+  // Store the nonce as used
+  await storeNonce(nonce, submission.chainId, server.db);
 
-  return { hash, signature };
+  // Store the compact
+  await storeCompact(
+    server,
+    storedCompact,
+    submission.chainId,
+    hash,
+    signature
+  );
+
+  return { hash, signature, nonce: nonce.toString() };
 }
 
 export async function getCompactsByAddress(
@@ -180,7 +232,8 @@ export async function getCompactByHash(
 
 async function storeCompact(
   server: FastifyInstance,
-  submission: CompactSubmission,
+  compact: StoredCompactMessage,
+  chainId: string,
   hash: Hex,
   signature: Hex
 ): Promise<void> {
@@ -201,14 +254,14 @@ async function storeCompact(
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)`,
     [
       id,
-      submission.chainId,
+      chainId,
       hash,
-      submission.compact.arbiter,
-      submission.compact.sponsor,
-      submission.compact.nonce.toString(),
-      submission.compact.expires.toString(),
-      submission.compact.id.toString(),
-      submission.compact.amount,
+      compact.arbiter,
+      compact.sponsor,
+      compact.nonce.toString(),
+      compact.expires.toString(),
+      compact.id.toString(),
+      compact.amount,
       signature,
     ]
   );

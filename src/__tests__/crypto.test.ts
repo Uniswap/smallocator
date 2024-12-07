@@ -1,14 +1,14 @@
 import { generateClaimHash } from '../crypto';
-import { type CompactMessage } from '../validation';
+import { type StoredCompactMessage } from '../compact';
 
 // Test suite for cryptographic functions used in the Smallocator
 describe('crypto', () => {
   describe('generateClaimHash', () => {
     it('should generate consistent hash for a compact message', async () => {
-      const testCompact: CompactMessage = {
+      const testCompact: StoredCompactMessage = {
         arbiter: '0x1234567890123456789012345678901234567890',
         sponsor: '0x2345678901234567890123456789012345678901',
-        nonce: 1n,
+        nonce: BigInt(1),
         expires: BigInt(1234567890),
         id: BigInt(1),
         amount: '1000000000000000000',

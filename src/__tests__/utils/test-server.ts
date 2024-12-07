@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { setupRoutes } from '../../routes';
 import { dbManager } from '../setup';
 import { signMessage } from 'viem/accounts';
+import { getAddress } from 'viem/utils';
 
 // Helper to generate test data
 const defaultBaseUrl = 'https://smallocator.example';
@@ -193,10 +194,12 @@ let compactCounter = BigInt(0);
 export function getFreshCompact(): typeof validCompact {
   const counter = compactCounter++;
   // Create nonce as 32-byte hex where first 20 bytes are sponsor address
-  const sponsorAddress = validCompact.sponsor.toLowerCase().replace('0x', '');
+  const sponsorAddress = getAddress(validCompact.sponsor)
+    .toLowerCase()
+    .slice(2);
   const counterHex = counter.toString(16).padStart(24, '0'); // 12 bytes for counter
-  const nonceHex = '0x' + sponsorAddress + counterHex;
-  const nonce = BigInt(nonceHex);
+  const nonceHex = sponsorAddress + counterHex;
+  const nonce = BigInt('0x' + nonceHex);
 
   return {
     ...validCompact,
@@ -207,13 +210,15 @@ export function getFreshCompact(): typeof validCompact {
 
 // Helper to convert BigInt values to strings for API requests
 export function compactToAPI(
-  compact: typeof validCompact
-): Record<string, string | number> {
+  compact: typeof validCompact,
+  options: { nullNonce?: boolean } = {}
+): Record<string, string | number | null> {
+  const nonce = options.nullNonce ? null : compact.nonce;
   return {
     ...compact,
     id: compact.id.toString(),
     expires: compact.expires.toString(),
-    nonce: '0x' + compact.nonce.toString(16).padStart(64, '0'),
+    nonce: nonce === null ? null : '0x' + nonce.toString(16).padStart(64, '0'),
     chainId: compact.chainId.toString(), // Convert chainId to string
   };
 }

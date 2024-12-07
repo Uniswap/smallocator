@@ -11,6 +11,7 @@ import {
   getCompactsByAddress,
   getCompactByHash,
   type CompactSubmission,
+  type StoredCompactMessage,
 } from './compact';
 import { getCompactDetails, getAllResourceLocks } from './graphql';
 import { getAllocatedBalance } from './balance';
@@ -55,6 +56,22 @@ interface Balance {
   allocatedBalance: string;
   balanceAvailableToAllocate: string;
   withdrawalStatus: number;
+}
+
+// Helper function to serialize a stored compact message
+function serializeCompactMessage(
+  compact: StoredCompactMessage
+): SerializedCompactMessage {
+  return {
+    id: compact.id.toString(),
+    arbiter: compact.arbiter,
+    sponsor: compact.sponsor,
+    nonce: compact.nonce.toString(),
+    expires: compact.expires.toString(),
+    amount: compact.amount,
+    witnessTypeString: compact.witnessTypeString,
+    witnessHash: compact.witnessHash,
+  };
 }
 
 // Authentication middleware
@@ -577,12 +594,12 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
       }
 
       try {
-        const result = await submitCompact(
+        // Return the result directly without wrapping it
+        return await submitCompact(
           server,
           request.body as CompactSubmission,
           request.session.address
         );
-        return { result };
       } catch (error) {
         server.log.error('Failed to submit compact:', error);
         if (
@@ -649,13 +666,11 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
 
           // Convert BigInt values to strings for JSON serialization
           const serializedCompact: SerializedCompactRecord = {
-            ...compact,
-            compact: {
-              ...compact.compact,
-              id: compact.compact.id.toString(),
-              nonce: compact.compact.nonce.toString(),
-              expires: compact.compact.expires.toString(),
-            },
+            chainId: compact.chainId,
+            compact: serializeCompactMessage(compact.compact),
+            hash: compact.hash,
+            signature: compact.signature,
+            createdAt: compact.createdAt,
           };
 
           return serializedCompact;

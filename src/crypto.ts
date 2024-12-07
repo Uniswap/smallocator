@@ -8,7 +8,7 @@ import {
   getAddress,
 } from 'viem/utils';
 import { privateKeyToAccount, signMessage } from 'viem/accounts';
-import { type CompactMessage } from './validation';
+import { type StoredCompactMessage } from './compact';
 import { type SessionPayload } from './session';
 
 // EIP-712 domain for The Compact
@@ -49,7 +49,7 @@ if (!privateKey) {
 const account = privateKeyToAccount(privateKey);
 
 export async function generateClaimHash(
-  compact: CompactMessage,
+  compact: StoredCompactMessage,
   chainId: bigint
 ): Promise<Hex> {
   // Normalize addresses
@@ -65,9 +65,9 @@ export async function generateClaimHash(
       message: {
         arbiter: normalizedArbiter,
         sponsor: normalizedSponsor,
-        nonce: BigInt(compact.nonce),
-        expires: BigInt(compact.expires),
-        id: BigInt(compact.id),
+        nonce: compact.nonce,
+        expires: compact.expires,
+        id: compact.id,
         amount: BigInt(compact.amount),
       },
     });
@@ -121,9 +121,9 @@ export async function generateClaimHash(
           typeHash,
           normalizedArbiter,
           normalizedSponsor,
-          BigInt(compact.nonce),
-          BigInt(compact.expires),
-          BigInt(compact.id),
+          compact.nonce,
+          compact.expires,
+          compact.id,
           BigInt(compact.amount),
           compact.witnessHash as Hex,
         ]

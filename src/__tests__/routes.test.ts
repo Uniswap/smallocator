@@ -395,6 +395,45 @@ describe('API Routes', () => {
         }
 
         expect(response.statusCode).toBe(200);
+        const result = JSON.parse(response.payload);
+        expect(result).toHaveProperty('hash');
+        expect(result).toHaveProperty('signature');
+        expect(result).toHaveProperty('nonce');
+        expect(result.nonce).toBe(
+          '0x' + freshCompact.nonce.toString(16).padStart(64, '0')
+        );
+      });
+
+      it('should handle null nonce by generating one', async () => {
+        const freshCompact = getFreshCompact();
+        const compactPayload = {
+          chainId: '1',
+          compact: {
+            ...compactToAPI(freshCompact),
+            nonce: null,
+          },
+        };
+
+        compactPayload.compact.nonce = null;
+
+        const response = await server.inject({
+          method: 'POST',
+          url: '/compact',
+          headers: {
+            'x-session-id': sessionId,
+          },
+          payload: compactPayload,
+        });
+
+        expect(response.statusCode).toBe(200);
+        const result = JSON.parse(response.payload);
+        expect(result).toHaveProperty('hash');
+        expect(result).toHaveProperty('signature');
+        expect(result).toHaveProperty('nonce');
+        // Verify nonce format: first 20 bytes should match sponsor address
+        const nonceHex = BigInt(result.nonce).toString(16).padStart(64, '0');
+        const sponsorHex = freshCompact.sponsor.toLowerCase().slice(2);
+        expect(nonceHex.slice(0, 40)).toBe(sponsorHex);
       });
 
       it('should reject request without session', async () => {
@@ -465,13 +504,14 @@ describe('API Routes', () => {
           });
 
           expect(response.statusCode).toBe(200);
+          const result = JSON.parse(response.payload);
 
           // Verify nonce was stored
-          const result = await server.db.query<{ count: number }>(
+          const dbResult = await server.db.query<{ count: number }>(
             'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND nonce = $2',
-            [chainId, freshCompact.nonce.toString()]
+            [chainId, result.nonce]
           );
-          expect(result.rows[0].count).toBe(1);
+          expect(dbResult.rows[0].count).toBe(1);
         } finally {
           // Restore original function
           graphqlClient.request = originalRequest;
@@ -522,16 +562,13 @@ describe('API Routes', () => {
           payload: compactPayload,
         });
 
-        const submitResponseData = JSON.parse(submitResponse.payload);
-        if (
-          submitResponse.statusCode !== 200 ||
-          !submitResponseData.result?.hash
-        ) {
+        const submitResult = JSON.parse(submitResponse.payload);
+        if (submitResponse.statusCode !== 200 || !submitResult?.hash) {
           console.error('Failed to submit compact:', submitResponse.payload);
           throw new Error('Failed to submit compact');
         }
 
-        const { hash } = submitResponseData.result;
+        const { hash } = submitResult;
 
         const response = await server.inject({
           method: 'GET',
@@ -550,6 +587,11 @@ describe('API Routes', () => {
         }
 
         expect(response.statusCode).toBe(200);
+        const result = JSON.parse(response.payload);
+        expect(result).toHaveProperty('chainId', '1');
+        expect(result).toHaveProperty('hash', hash);
+        expect(result).toHaveProperty('compact');
+        expect(result.compact).toHaveProperty('nonce');
       });
 
       it('should return error for non-existent compact', async () => {
