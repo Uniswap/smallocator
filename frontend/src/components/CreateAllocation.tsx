@@ -298,7 +298,10 @@ export function CreateAllocation({ sessionToken }: CreateAllocationProps) {
           >
             <option value="">Select a resource lock</option>
             {balances.map((balance) => (
-              <option key={balance.lockId} value={balance.lockId}>
+              <option
+                key={`${balance.chainId}-${balance.lockId}`}
+                value={balance.lockId}
+              >
                 {`Lock ${balance.lockId} - Available: ${formatUnits(BigInt(balance.balanceAvailableToAllocate), lockDecimals)}`}
               </option>
             ))}

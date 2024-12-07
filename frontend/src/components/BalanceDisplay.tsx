@@ -252,6 +252,7 @@ export function BalanceDisplay(): JSX.Element | null {
                 <div className="mt-4 border-t border-gray-700 pt-4">
                   <div className="flex gap-2">
                     <Transfer
+                      key={`${balance.chainId}-${balance.lockId}`}
                       chainId={balance.chainId}
                       withdrawalStatus={balance.withdrawalStatus}
                       onForceWithdraw={() => {
