@@ -107,6 +107,98 @@ export const COMPACT_ABI = [
     stateMutability: 'view',
     type: 'function',
   },
+  // Allocated Transfer
+  {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: 'bytes',
+            name: 'allocatorSignature',
+            type: 'bytes',
+          },
+          {
+            internalType: 'uint256',
+            name: 'nonce',
+            type: 'uint256',
+          },
+          {
+            internalType: 'uint256',
+            name: 'expires',
+            type: 'uint256',
+          },
+          {
+            internalType: 'uint256',
+            name: 'id',
+            type: 'uint256',
+          },
+          {
+            internalType: 'uint256',
+            name: 'amount',
+            type: 'uint256',
+          },
+          {
+            internalType: 'address',
+            name: 'recipient',
+            type: 'address',
+          },
+        ],
+        internalType: 'struct BasicTransfer',
+        name: 'transferPayload',
+        type: 'tuple',
+      },
+    ],
+    name: 'allocatedTransfer',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Allocated Withdrawal
+  {
+    inputs: [
+      {
+        components: [
+          {
+            internalType: 'bytes',
+            name: 'allocatorSignature',
+            type: 'bytes',
+          },
+          {
+            internalType: 'uint256',
+            name: 'nonce',
+            type: 'uint256',
+          },
+          {
+            internalType: 'uint256',
+            name: 'expires',
+            type: 'uint256',
+          },
+          {
+            internalType: 'uint256',
+            name: 'id',
+            type: 'uint256',
+          },
+          {
+            internalType: 'uint256',
+            name: 'amount',
+            type: 'uint256',
+          },
+          {
+            internalType: 'address',
+            name: 'recipient',
+            type: 'address',
+          },
+        ],
+        internalType: 'struct BasicTransfer',
+        name: 'transferPayload',
+        type: 'tuple',
+      },
+    ],
+    name: 'allocatedWithdrawal',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
 ] as const
 
 export const ERC20_ABI = [
@@ -173,3 +265,13 @@ export function isSupportedChain(chainId: number): boolean {
 // Type for deposit function arguments
 export type NativeDepositArgs = readonly [`0x${string}`]
 export type TokenDepositArgs = readonly [`0x${string}`, `0x${string}`, bigint]
+
+// Type for transfer payload
+export interface BasicTransfer {
+  allocatorSignature: `0x${string}`;
+  nonce: bigint;
+  expires: bigint;
+  id: bigint;
+  amount: bigint;
+  recipient: `0x${string}`;
+}

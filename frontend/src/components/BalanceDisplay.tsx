@@ -287,6 +287,15 @@ export function BalanceDisplay(): JSX.Element | null {
                     <Transfer
                       key={`${balance.chainId}-${balance.lockId}`}
                       chainId={balance.chainId}
+                      resourceLockBalance={resourceLock.balance}
+                      lockId={BigInt(balance.lockId)}
+                      decimals={resourceLock.resourceLock.token.decimals}
+                      tokenName={{
+                        resourceLockName: resourceLock.resourceLock.token.name,
+                        resourceLockSymbol: resourceLock.resourceLock.token.symbol,
+                        tokenName: balance.token?.name || '',
+                      }}
+                      tokenSymbol={balance.token?.symbol || ''}
                       withdrawalStatus={balance.withdrawalStatus}
                       onForceWithdraw={() => {
                         setSelectedLockId(balance.lockId);
