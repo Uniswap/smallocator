@@ -373,6 +373,37 @@ describe('API Routes', () => {
       sessionId = result.session.id;
     });
 
+    describe('GET /suggested-nonce/:chainId', () => {
+      it('should return a valid nonce for authenticated user', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/suggested-nonce/1',
+          headers: {
+            'x-session-id': sessionId,
+          },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const result = JSON.parse(response.payload);
+        expect(result).toHaveProperty('nonce');
+        expect(result.nonce).toMatch(/^0x[0-9a-f]{64}$/i);
+
+        // Verify nonce format: first 20 bytes should match sponsor address
+        const nonceHex = BigInt(result.nonce).toString(16).padStart(64, '0');
+        const sponsorHex = validPayload.address.toLowerCase().slice(2);
+        expect(nonceHex.slice(0, 40)).toBe(sponsorHex);
+      });
+
+      it('should reject request without session', async () => {
+        const response = await server.inject({
+          method: 'GET',
+          url: '/suggested-nonce/1',
+        });
+
+        expect(response.statusCode).toBe(401);
+      });
+    });
+
     describe('POST /compact', () => {
       it('should submit valid compact', async () => {
         const freshCompact = getFreshCompact();

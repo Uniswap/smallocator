@@ -15,6 +15,7 @@ import {
 } from './compact';
 import { getCompactDetails, getAllResourceLocks } from './graphql';
 import { getAllocatedBalance } from './balance';
+import { generateNonce } from './validation';
 
 // Declare db property on FastifyInstance
 declare module 'fastify' {
@@ -483,6 +484,46 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
   server.register(async function (protectedRoutes) {
     // Add authentication to all routes in this context
     protectedRoutes.addHook('preHandler', authenticateRequest);
+
+    // Get suggested nonce for a chain
+    protectedRoutes.get<{
+      Params: { chainId: string };
+    }>(
+      '/suggested-nonce/:chainId',
+      async (
+        request: FastifyRequest<{
+          Params: { chainId: string };
+        }>,
+        reply: FastifyReply
+      ) => {
+        if (!request.session) {
+          reply.code(401);
+          return { error: 'Unauthorized' };
+        }
+
+        try {
+          const { chainId } = request.params;
+          const sponsor = request.session.address;
+
+          // Generate a nonce for the sponsor
+          const nonce = await generateNonce(sponsor, chainId, server.db);
+
+          // Return the nonce in hex format with 0x prefix
+          return {
+            nonce: '0x' + nonce.toString(16).padStart(64, '0'),
+          };
+        } catch (error) {
+          server.log.error('Failed to generate nonce:', error);
+          reply.code(500);
+          return {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Failed to generate nonce',
+          };
+        }
+      }
+    );
 
     // Get available balance for a specific lock
     protectedRoutes.get<{
