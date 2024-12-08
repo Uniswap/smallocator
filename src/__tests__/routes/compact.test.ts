@@ -162,6 +162,82 @@ describe('Compact Routes', () => {
       );
     });
 
+    // New test for hex inputs
+    it('should submit valid compact with hex inputs', async () => {
+      const freshCompact = getFreshCompact();
+      const hexCompact = {
+        ...compactToAPI(freshCompact),
+        id: '0x' + freshCompact.id.toString(16),
+        expires: '0x' + freshCompact.expires.toString(16),
+        amount: '0x' + BigInt(freshCompact.amount).toString(16),
+        nonce: '0x' + freshCompact.nonce.toString(16),
+      };
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/compact',
+        headers: {
+          'x-session-id': sessionId,
+        },
+        payload: { chainId: '1', compact: hexCompact },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const result = JSON.parse(response.payload);
+      expect(result).toHaveProperty('hash');
+      expect(result).toHaveProperty('signature');
+      expect(result).toHaveProperty('nonce');
+    });
+
+    // New test for mixed decimal and hex inputs
+    it('should submit valid compact with mixed decimal and hex inputs', async () => {
+      const freshCompact = getFreshCompact();
+      const mixedCompact = {
+        ...compactToAPI(freshCompact),
+        id: '0x' + freshCompact.id.toString(16),
+        expires: freshCompact.expires.toString(),
+        amount: '0x' + BigInt(freshCompact.amount).toString(16),
+        nonce: freshCompact.nonce.toString(),
+      };
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/compact',
+        headers: {
+          'x-session-id': sessionId,
+        },
+        payload: { chainId: '1', compact: mixedCompact },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const result = JSON.parse(response.payload);
+      expect(result).toHaveProperty('hash');
+      expect(result).toHaveProperty('signature');
+      expect(result).toHaveProperty('nonce');
+    });
+
+    // New test for invalid hex format
+    it('should reject invalid hex format', async () => {
+      const freshCompact = getFreshCompact();
+      const invalidHexCompact = {
+        ...compactToAPI(freshCompact),
+        id: '0xInvalidHex',
+      };
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/compact',
+        headers: {
+          'x-session-id': sessionId,
+        },
+        payload: { chainId: '1', compact: invalidHexCompact },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const result = JSON.parse(response.payload);
+      expect(result.error).toContain('Failed to convert id');
+    });
+
     it('should handle null nonce by generating one', async () => {
       const freshCompact = getFreshCompact();
       const compactPayload = {

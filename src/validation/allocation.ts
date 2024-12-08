@@ -3,7 +3,7 @@ import { numberToHex } from 'viem/utils';
 import { PGlite } from '@electric-sql/pglite';
 import { getCompactDetails } from '../graphql';
 import { getAllocatedBalance } from '../balance';
-import { ValidationResult, CompactMessage } from './types';
+import { ValidationResult, ValidatedCompactMessage } from './types';
 
 // Helper to convert bigint to 32-byte hex string
 function bigintToHex(value: bigint): string {
@@ -11,7 +11,7 @@ function bigintToHex(value: bigint): string {
 }
 
 export async function validateAllocation(
-  compact: CompactMessage,
+  compact: ValidatedCompactMessage,
   chainId: string,
   db: PGlite
 ): Promise<ValidationResult> {
@@ -69,8 +69,11 @@ export async function validateAllocation(
       response.account.claims.items.map((item) => item.claimHash)
     );
 
+    // Convert amount string to BigInt for comparison
+    const compactAmount = BigInt(compact.amount);
+
     // Verify sufficient balance
-    const totalNeededBalance = allocatedBalance + BigInt(compact.amount);
+    const totalNeededBalance = allocatedBalance + compactAmount;
     if (allocatableBalance < totalNeededBalance) {
       return {
         isValid: false,

@@ -4,12 +4,14 @@ import { getAddress, hexToBytes, toHex, numberToHex } from 'viem/utils';
 import {
   validateCompact,
   type CompactMessage,
+  type ValidatedCompactMessage,
   storeNonce,
   generateNonce,
 } from './validation';
 import { generateClaimHash, signCompact } from './crypto';
 import { randomUUID } from 'crypto';
 import { PGlite } from '@electric-sql/pglite';
+import { toBigInt } from './utils/encoding';
 
 export interface CompactSubmission {
   chainId: string;
@@ -69,9 +71,9 @@ function bytesToAmount(bytes: Uint8Array): string {
   return BigInt(hex).toString();
 }
 
-// Helper to convert CompactMessage to StoredCompactMessage
+// Helper to convert ValidatedCompactMessage to StoredCompactMessage
 function toStoredCompact(
-  compact: CompactMessage & { nonce: bigint }
+  compact: ValidatedCompactMessage & { nonce: bigint }
 ): StoredCompactMessage {
   return {
     id: compact.id,
@@ -105,43 +107,43 @@ export async function submitCompact(
       throw new Error('Sponsor address does not match session');
     }
 
-    // Convert string values to BigInt for validation
-    const compactForValidation = {
-      ...submission.compact,
-      id:
-        typeof submission.compact.id === 'string'
-          ? BigInt(submission.compact.id)
-          : submission.compact.id,
-      expires:
-        typeof submission.compact.expires === 'string'
-          ? BigInt(submission.compact.expires)
-          : submission.compact.expires,
-    };
-
     // Generate nonce if not provided (do this before validation)
-    const nonce =
+    const generatedNonce =
       submission.compact.nonce === null
         ? await generateNonce(sponsorAddress, submission.chainId, server.db)
-        : submission.compact.nonce;
+        : null;
 
     // Update compact with final nonce
-    const finalCompact = {
-      ...compactForValidation,
-      nonce,
+    const compactWithNonce: CompactMessage = {
+      ...submission.compact,
+      nonce: generatedNonce
+        ? generatedNonce.toString()
+        : submission.compact.nonce,
     };
 
     // Validate the compact (including nonce validation)
     const validationResult = await validateCompact(
-      finalCompact,
+      compactWithNonce,
       submission.chainId,
       server.db
     );
-    if (!validationResult.isValid) {
+    if (!validationResult.isValid || !validationResult.validatedCompact) {
       throw new Error(validationResult.error || 'Invalid compact');
     }
 
+    // Get the validated compact with proper types
+    const validatedCompact = validationResult.validatedCompact;
+
+    // Ensure nonce is present for storage
+    if (validatedCompact.nonce === null) {
+      throw new Error('Nonce is required for storage');
+    }
+
     // Convert to StoredCompactMessage for crypto operations
-    const storedCompact = toStoredCompact(finalCompact);
+    const storedCompact = toStoredCompact({
+      ...validatedCompact,
+      nonce: validatedCompact.nonce,
+    });
 
     // Generate the claim hash
     const hash = await generateClaimHash(
@@ -162,12 +164,16 @@ export async function submitCompact(
     );
 
     // Store the nonce as used (within the same transaction)
-    await storeNonce(nonce, submission.chainId, server.db);
+    await storeNonce(storedCompact.nonce, submission.chainId, server.db);
 
     // Commit the transaction
     await server.db.query('COMMIT');
 
-    return { hash, signature, nonce: nonce.toString() };
+    return {
+      hash,
+      signature,
+      nonce: '0x' + storedCompact.nonce.toString(16).padStart(64, '0'),
+    };
   } catch (error) {
     // Rollback on any error
     await server.db.query('ROLLBACK');
