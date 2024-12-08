@@ -456,12 +456,12 @@ export async function validateAllocation(
         ? resourceLockBalance - pendingBalance
         : BigInt(0);
 
-    // Get allocated balance from database
+    // Get allocated balance from database with proper hex formatting
     const allocatedBalance = await getAllocatedBalance(
       db,
-      compact.sponsor,
+      getAddress(compact.sponsor).toLowerCase(),
       chainId,
-      compact.id.toString(),
+      bigintToHex(compact.id),
       response.account.claims.items.map((item) => item.claimHash)
     );
 

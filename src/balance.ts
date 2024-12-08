@@ -1,5 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import { getFinalizationThreshold } from './chain-config.js';
+import { hexToBytes } from 'viem/utils';
 
 interface CompactRow {
   amount: string;
@@ -22,6 +23,13 @@ export async function getAllocatedBalance(
   const currentTimeSeconds = BigInt(Math.floor(Date.now() / 1000));
   const finalizationThreshold = BigInt(getFinalizationThreshold(chainId));
 
+  // Convert inputs to bytea format
+  const sponsorBytes = hexToBytes(sponsor.startsWith('0x') ? sponsor as `0x${string}` : `0x${sponsor}` as `0x${string}`);
+  const lockIdBytes = hexToBytes(lockId.startsWith('0x') ? lockId as `0x${string}` : `0x${lockId}` as `0x${string}`);
+  const processedClaimBytea = processedClaimHashes.map(hash => 
+    hexToBytes(hash.startsWith('0x') ? hash as `0x${string}` : `0x${hash}` as `0x${string}`)
+  );
+
   // Handle empty processed claims list case
   if (processedClaimHashes.length === 0) {
     const query = `
@@ -34,9 +42,9 @@ export async function getAllocatedBalance(
     `;
 
     const result = await db.query<CompactRow>(query, [
-      sponsor,
+      sponsorBytes,
       chainId,
-      lockId,
+      lockIdBytes,
       currentTimeSeconds.toString(),
       finalizationThreshold.toString(),
     ]);
@@ -55,16 +63,16 @@ export async function getAllocatedBalance(
     AND chain_id = $2 
     AND compact_id = $3
     AND $4 < CAST(expires AS BIGINT) + $5
-    AND claim_hash NOT IN (${processedClaimHashes.map((_, i) => `$${i + 6}`).join(',')})
+    AND claim_hash NOT IN (${processedClaimBytea.map((_, i) => `$${i + 6}`).join(',')})
   `;
 
   const params = [
-    sponsor,
+    sponsorBytes,
     chainId,
-    lockId,
+    lockIdBytes,
     currentTimeSeconds.toString(),
     finalizationThreshold.toString(),
-    ...processedClaimHashes,
+    ...processedClaimBytea,
   ];
 
   const result = await db.query<CompactRow>(query, params);
