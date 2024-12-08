@@ -1,6 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { getAddress } from 'viem/utils';
-import { hexToBytes, bytesToHex } from 'viem/utils';
+import { getAddress, hexToBytes } from 'viem/utils';
 import { randomUUID } from 'crypto';
 import {
   validateAndCreateSession,
