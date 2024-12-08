@@ -56,40 +56,40 @@ describe('Balance Functions', () => {
       {
         id: '1',
         chain_id: '10',
-        claim_hash: 'hash1',
-        arbiter: '0x123',
-        sponsor: '0xabc',
+        claim_hash: '0x1000000000000000000000000000000000000000000000000000000000000001',
+        arbiter: '0x1230000000000000000000000000000000000123',
+        sponsor: '0x4560000000000000000000000000000000000456',
         nonce: '1',
         expires: (mockTimestampSec + 3600).toString(), // Expires in 1 hour
-        compact_id: 'lock1',
+        compact_id: '123000',
         amount: '1000',
-        signature: '0xsig1',
+        signature: '0x1234',
       },
       // Not fully expired compact (within finalization threshold)
       {
         id: '2',
         chain_id: '10',
-        claim_hash: 'hash2',
-        arbiter: '0x123',
-        sponsor: '0xabc',
+        claim_hash: '0x2000000000000000000000000000000000000000000000000000000000000002',
+        arbiter: '0x1230000000000000000000000000000000000123',
+        sponsor: '0x4560000000000000000000000000000000000456',
         nonce: '2',
         expires: (mockTimestampSec - 2).toString(), // Expired 2 seconds ago (within 5s threshold)
-        compact_id: 'lock1',
+        compact_id: '123000',
         amount: '2000',
-        signature: '0xsig2',
+        signature: '0x5678',
       },
       // Truly expired compact
       {
         id: '3',
         chain_id: '10',
-        claim_hash: 'hash3',
-        arbiter: '0x123',
-        sponsor: '0xabc',
+        claim_hash: '0x3000000000000000000000000000000000000000000000000000000000000003',
+        arbiter: '0x1230000000000000000000000000000000000123',
+        sponsor: '0x4560000000000000000000000000000000000456',
         nonce: '3',
         expires: (mockTimestampSec - 10).toString(), // Expired 10 seconds ago (beyond 5s threshold)
-        compact_id: 'lock1',
+        compact_id: '123000',
         amount: '3000',
-        signature: '0xsig3',
+        signature: '0x9abc',
       },
     ];
 
@@ -131,7 +131,13 @@ describe('Balance Functions', () => {
   });
 
   it('should calculate allocated balance correctly with no processed claims', async () => {
-    const balance = await getAllocatedBalance(db, '0xabc', '10', 'lock1', []);
+    const balance = await getAllocatedBalance(
+      db,
+      '0x4560000000000000000000000000000000000456',
+      '10',
+      '123000',
+      []
+    );
 
     // Should include both active and not-fully-expired compacts (1000 + 2000)
     expect(balance).toBe(BigInt(3000));
@@ -140,10 +146,10 @@ describe('Balance Functions', () => {
   it('should exclude processed claims from allocated balance', async () => {
     const balance = await getAllocatedBalance(
       db,
-      '0xabc',
+      '0x4560000000000000000000000000000000000456',
       '10',
-      'lock1',
-      ['hash1'] // Processed claim for the active compact
+      '123000',
+      ['0x1000000000000000000000000000000000000000000000000000000000000001'] // Processed claim for the active compact
     );
 
     // Should only include the not-fully-expired compact (2000)
@@ -153,10 +159,13 @@ describe('Balance Functions', () => {
   it('should return zero for all processed or expired claims', async () => {
     const balance = await getAllocatedBalance(
       db,
-      '0xabc',
+      '0x4560000000000000000000000000000000000456',
       '10',
-      'lock1',
-      ['hash1', 'hash2'] // All non-expired compacts processed
+      '123000',
+      [
+        '0x1000000000000000000000000000000000000000000000000000000000000001',
+        '0x2000000000000000000000000000000000000000000000000000000000000002',
+      ] // All non-expired compacts processed
     );
 
     expect(balance).toBe(BigInt(0));
@@ -165,9 +174,9 @@ describe('Balance Functions', () => {
   it('should handle non-existent sponsor', async () => {
     const balance = await getAllocatedBalance(
       db,
-      '0xdef', // Non-existent sponsor
+      '0x7890000000000000000000000000000000000789', // Non-existent sponsor
       '10',
-      'lock1',
+      '123000',
       []
     );
 
@@ -177,9 +186,9 @@ describe('Balance Functions', () => {
   it('should handle non-existent lock ID', async () => {
     const balance = await getAllocatedBalance(
       db,
-      '0xabc',
+      '0x4560000000000000000000000000000000000456',
       '10',
-      'lock2', // Non-existent lock
+      '456000', // Non-existent lock
       []
     );
 
