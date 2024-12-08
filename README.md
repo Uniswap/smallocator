@@ -15,12 +15,12 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
 
 ## Intentionally Minimal Scope
 
- - ☝️ Single-resource-lock, single-chain compacts only: No `BatchCompact` or `MultichainCompact` attestations
- - ❄️ Strict nonce usage: Ensures every attested nonce is unique; no reuse on expirations and no direct onchain nonce consumption
- - 🧭 No `attest()` callbacks for ERC6909 transfers: focused solely on attesting compacts
- - 🪞 No compact qualification: Attests to the exact compact provided to it without adding qualifiers or extra metadata
- - 📡 No direct on-chain awareness: Relies entirely on indexer and internal attestation state
- - ⏳ Straightforward finalization: Uses a simple, time-based approach per chain for determining transaction finality
+- ☝️ Single-resource-lock, single-chain compacts only: No `BatchCompact` or `MultichainCompact` attestations
+- ❄️ Strict nonce usage: Ensures every attested nonce is unique; no reuse on expirations and no direct onchain nonce consumption
+- 🧭 No `attest()` callbacks for ERC6909 transfers: focused solely on attesting compacts
+- 🪞 No compact qualification: Attests to the exact compact provided to it without adding qualifiers or extra metadata
+- 📡 No direct on-chain awareness: Relies entirely on indexer and internal attestation state
+- ⏳ Straightforward finalization: Uses a simple, time-based approach per chain for determining transaction finality
 
 ## API Usage
 
@@ -166,9 +166,12 @@ All compact operations require a valid session ID in the `x-session-id` header.
    ```json
    {
      "hash": "0x1234567890123456789012345678901234567890123456789012345678901234",
-     "signature": "0x1234...7890"
+     "signature": "0x1234...7890",
+     "nonce": "0x70997970C51812dc3A010C7d01b50e0d17dc79C800000000000000000000001"
    }
    ```
+
+Note that `nonce` can be provided as `null` in which case the next available valid nonce will be automatically assigned. `witnessTypeString` and `witnessHash` can also be `null` in which case the attested compact will not incorporate witness data (values must be provided for both or omitted for both to be considered valid).
 
 2. **Get Compacts by Address**
 

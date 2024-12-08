@@ -2,6 +2,7 @@ import {
   validateDomainAndId,
   validateCompact,
   validateAllocation,
+  generateNonce,
 } from '../validation';
 import { getFreshCompact } from './utils/test-server';
 import { PGlite } from '@electric-sql/pglite';
@@ -54,6 +55,79 @@ describe('Validation', () => {
     // Clean up
     await db.query('DROP TABLE IF EXISTS compacts');
     await db.query('DROP TABLE IF EXISTS nonces');
+  });
+
+  describe('generateNonce', () => {
+    beforeEach(async () => {
+      // Clear nonces table before each test
+      await db.query('DELETE FROM nonces');
+    });
+
+    it('should generate a valid initial nonce for a sponsor', async (): Promise<void> => {
+      const sponsor = '0x1234567890123456789012345678901234567890';
+      const chainId = '1';
+
+      const nonce = await generateNonce(sponsor, chainId, db);
+
+      // Convert nonce to hex string without 0x prefix
+      const nonceHex = nonce.toString(16).padStart(64, '0');
+
+      // First 40 chars should be sponsor address without 0x
+      expect(nonceHex.slice(0, 40)).toBe(sponsor.slice(2).toLowerCase());
+
+      // Last 24 chars should be 0 (first nonce fragment)
+      expect(BigInt('0x' + nonceHex.slice(40))).toBe(BigInt(0));
+    });
+
+    it('should increment nonce fragment when previous ones are used', async (): Promise<void> => {
+      const sponsor = '0x1234567890123456789012345678901234567890';
+      const sponsorNoPrefix = sponsor.slice(2).toLowerCase();
+      const chainId = '1';
+
+      // Insert a used nonce with fragment 0
+      await db.query(
+        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
+        ['test-id-1', chainId, sponsorNoPrefix, '0']
+      );
+
+      const nonce = await generateNonce(sponsor, chainId, db);
+      const nonceHex = nonce.toString(16).padStart(64, '0');
+
+      // Check sponsor part
+      expect(nonceHex.slice(0, 40)).toBe(sponsorNoPrefix);
+
+      // Check fragment is incremented
+      expect(BigInt('0x' + nonceHex.slice(40))).toBe(BigInt(1));
+    });
+
+    it('should find first available gap in nonce fragments', async (): Promise<void> => {
+      const sponsor = '0x1234567890123456789012345678901234567890';
+      const sponsorNoPrefix = sponsor.slice(2).toLowerCase();
+      const chainId = '1';
+
+      // Insert nonces with fragments 0 and 2, leaving 1 as a gap
+      await db.query(
+        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4), ($5, $2, $3, $6)',
+        ['test-id-1', chainId, sponsorNoPrefix, '0', 'test-id-2', '2']
+      );
+
+      const nonce = await generateNonce(sponsor, chainId, db);
+      const nonceHex = nonce.toString(16).padStart(64, '0');
+
+      // Check fragment uses the gap
+      expect(BigInt('0x' + nonceHex.slice(40))).toBe(BigInt(1));
+    });
+
+    it('should handle mixed case sponsor addresses', async (): Promise<void> => {
+      const sponsorUpper = '0x0000000000FFe8B47B3e2130213B802212439497';
+      const sponsorLower = sponsorUpper.toLowerCase();
+      const chainId = '1';
+
+      const nonceLower = await generateNonce(sponsorLower, chainId, db);
+      const nonceUpper = await generateNonce(sponsorUpper, chainId, db);
+
+      expect(nonceLower).toBe(nonceUpper);
+    });
   });
 
   describe('validateDomainAndId', () => {

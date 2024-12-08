@@ -28,27 +28,64 @@ export async function generateNonce(
   // Get sponsor address without 0x prefix and lowercase
   const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
 
-  // Get the highest nonce fragment used for this sponsor
-  const result = await db.query<{ nonceFragment: string }>(
-    `SELECT nonceFragment FROM nonces 
-     WHERE chain_id = $1 
-     AND sponsor = $2
-     ORDER BY nonceFragment::numeric DESC
-     LIMIT 1`,
+  // Maximum value for uint96 (2^96 - 1)
+  const MAX_UINT96 = BigInt('0xffffffffffffffffffffffff');
+
+  // Find the first unused nonce fragment for this sponsor
+  const result = await db.query<{ noncefragment: string }>(
+    `WITH numbered_gaps AS (
+        SELECT 
+            nonceFragment::numeric as current_value,
+            LEAD(nonceFragment::numeric) OVER (ORDER BY nonceFragment::numeric) AS next_value
+        FROM nonces
+        WHERE chain_id = $1 
+        AND sponsor = $2
+    ),
+    gaps AS (
+        SELECT 
+            current_value + 1 as missing_value
+        FROM numbered_gaps
+        WHERE next_value - current_value > 1
+        UNION ALL
+        SELECT 0 as missing_value
+        WHERE NOT EXISTS (
+            SELECT 1 
+            FROM nonces 
+            WHERE chain_id = $1 
+            AND sponsor = $2 
+            AND nonceFragment::numeric = 0
+        )
+    )
+    SELECT 
+        CASE 
+            WHEN EXISTS (SELECT 1 FROM gaps) 
+            THEN (SELECT MIN(missing_value) FROM gaps)
+            ELSE COALESCE(
+                (SELECT MAX(nonceFragment::numeric) + 1 
+                 FROM nonces 
+                 WHERE chain_id = $1 
+                 AND sponsor = $2),
+                0
+            )
+        END::text AS noncefragment`,
     [chainId, sponsorAddress]
   );
 
-  let lastNonceCounter = BigInt(0);
-  if (result.rows.length > 0) {
-    // Extract the counter part from the last nonce fragment
-    lastNonceCounter = BigInt(
-      '0x' + result.rows[0].nonceFragment.toLowerCase()
-    );
+  if (!result.rows[0]?.noncefragment) {
+    throw new Error('Failed to generate nonce fragment');
   }
 
-  // Create new nonce: sponsor address (20 bytes) + incremented counter (12 bytes)
+  // Convert the nonce fragment to BigInt
+  const nonceCounter = BigInt(result.rows[0].noncefragment);
+
+  // Check if we've exceeded uint96 max value
+  if (nonceCounter > MAX_UINT96) {
+    throw new Error('Nonce fragment exceeds maximum uint96 value');
+  }
+
+  // Create new nonce: sponsor address (20 bytes) + counter (12 bytes)
   const sponsorPart = BigInt('0x' + sponsorAddress) << BigInt(96);
-  const newNonce = sponsorPart | (lastNonceCounter + BigInt(1));
+  const newNonce = sponsorPart | nonceCounter;
 
   return newNonce;
 }
