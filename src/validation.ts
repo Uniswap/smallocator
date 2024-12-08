@@ -41,25 +41,16 @@ export async function generateNonce(
   chainId: string,
   db: PGlite
 ): Promise<bigint> {
-  const sponsorBytes = Buffer.from(getAddress(sponsor).toLowerCase().slice(2), 'hex');
-  
+  const sponsorBytes = Buffer.from(
+    getAddress(sponsor).toLowerCase().slice(2),
+    'hex'
+  );
+
   const result = await db.query<{ next_nonce: string }>(
     `-- This query finds the first available 12-byte nonce fragment for a given sponsor and chain.
     -- The nonce is represented as two parts:
     --   1. nonce_high (uint64): The upper 8 bytes
     --   2. nonce_low (uint32): The lower 4 bytes
-    -- 
-    -- The query finds the first available fragment by:
-    -- 1. Ordering all existing nonces for this sponsor/chain
-    -- 2. Looking for gaps in the sequence using several strategies:
-    --    a. Checking if (0,0) is unused
-    --    b. Finding gaps between consecutive low values within the same high value
-    --    c. Finding gaps between different high values
-    --    d. Handling the carry case when low value maxes out (2^32 - 1)
-    -- 3. If no gaps are found, using the next value after the highest existing nonce
-    -- 
-    -- The lowest available gap is always chosen to keep the nonce values as small as possible.
-    -- Returns a tuple of (high, low) representing the next available nonce fragment.
     
     WITH numbered_gaps AS (
         SELECT 
@@ -70,33 +61,27 @@ export async function generateNonce(
         FROM nonces 
         WHERE chain_id = $1 
         AND sponsor = $2
-        WINDOW w AS (ORDER BY nonce_high, nonce_low)
+        -- Order by high * 2^32 + low for sequential ordering
+        WINDOW w AS (ORDER BY (nonce_high::numeric * (2^32)::numeric) + nonce_low::numeric)
     ),
     gaps AS (
-        -- Gap within same high value
-        SELECT nonce_high, nonce_low + 1 as gap_low
+        -- Check for gaps in the sequence treating high/low as a single number
+        SELECT 
+            CASE 
+                -- If incrementing low would overflow
+                WHEN nonce_low = 2147483647 THEN nonce_high + 1
+                ELSE nonce_high
+            END as gap_high,
+            CASE 
+                WHEN nonce_low = 2147483647 THEN 0
+                ELSE nonce_low + 1
+            END as gap_low
         FROM numbered_gaps
         WHERE 
-            -- Next value exists and has same high part
-            next_high = nonce_high 
-            -- And there's a gap
-            AND next_low > nonce_low + 1
-        UNION ALL
-        -- Gap between different high values
-        SELECT nonce_high + 1, 0
-        FROM numbered_gaps
-        WHERE 
-            -- Next high value is more than one greater
-            next_high > nonce_high + 1
-            -- Or this is the last value and we can still increment
-            OR (next_high IS NULL AND nonce_low < 2147483647)
-        UNION ALL
-        -- Handle carry case (current low is max int)
-        SELECT nonce_high + 1, 0
-        FROM numbered_gaps
-        WHERE
-            next_high = nonce_high + 1
-            AND nonce_low = 2147483647
+            -- Check if next value (if it exists) is more than current + 1
+            next_high IS NULL 
+            OR (next_high::numeric * (2^32)::numeric) + next_low::numeric > 
+               (nonce_high::numeric * (2^32)::numeric) + nonce_low::numeric + 1
         UNION ALL
         -- Handle case where (0,0) is available
         SELECT 0, 0
@@ -113,9 +98,9 @@ export async function generateNonce(
             -- First available gap if one exists
             (SELECT (gap_high, gap_low)::text 
              FROM (
-                 SELECT nonce_high as gap_high, gap_low 
+                 SELECT gap_high, gap_low 
                  FROM gaps 
-                 ORDER BY gap_high, gap_low 
+                 ORDER BY (gap_high::numeric * (2^32)::numeric) + gap_low::numeric
                  LIMIT 1
              ) g),
             -- Otherwise use next value after highest
@@ -135,23 +120,18 @@ export async function generateNonce(
         ) as next_nonce`,
     [chainId, sponsorBytes]
   );
-  
+
   // Parse the (high, low) tuple from postgres
   const match = result.rows[0].next_nonce.match(/\((\d+),(\d+)\)/);
   if (!match) throw new Error('Invalid nonce format returned');
-  
+
   const [high, low] = [BigInt(match[1]), BigInt(match[2])];
-  
+
   // Combine into final nonce
   const sponsorPart = BigInt('0x' + sponsorBytes.toString('hex')) << BigInt(96);
   const noncePart = (high << BigInt(32)) | low;
-  
-  // Store the new nonce
-  await db.query(
-    'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',
-    [randomUUID(), chainId, sponsorBytes, high.toString(), low.toString()]
-  );
-  
+
+  // Return the final nonce
   return sponsorPart | noncePart;
 }
 

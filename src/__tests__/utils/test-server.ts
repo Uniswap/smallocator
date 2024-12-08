@@ -179,7 +179,9 @@ function padToBytes(hex: string, byteLength: number): string {
 
 // Helper to ensure hex string has 0x prefix
 function ensure0x(hex: string): `0x${string}` {
-  return hex.startsWith('0x') ? (hex as `0x${string}`) : (`0x${hex}` as `0x${string}`);
+  return hex.startsWith('0x')
+    ? (hex as `0x${string}`)
+    : (`0x${hex}` as `0x${string}`);
 }
 
 export const validCompact = {
@@ -224,7 +226,7 @@ export function compactToAPI(
   options: { nullNonce?: boolean } = {}
 ): Record<string, string | number | null> {
   const nonce = options.nullNonce ? null : compact.nonce;
-  
+
   return {
     id: ensure0x(padToBytes(compact.id.toString(16), 32)),
     arbiter: ensure0x(padToBytes(getAddress(compact.arbiter), 20)),
@@ -233,7 +235,9 @@ export function compactToAPI(
     expires: compact.expires.toString(),
     amount: compact.amount, // Keep amount as decimal string
     witnessTypeString: compact.witnessTypeString,
-    witnessHash: compact.witnessHash ? ensure0x(padToBytes(compact.witnessHash, 32)) : null,
+    witnessHash: compact.witnessHash
+      ? ensure0x(padToBytes(compact.witnessHash, 32))
+      : null,
     chainId: compact.chainId.toString(),
   };
 }

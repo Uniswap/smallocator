@@ -535,14 +535,24 @@ describe('Validation', () => {
         [
           '123e4567-e89b-12d3-a456-426614174000',
           chainId,
-          hexToBytes('0x' + '1'.repeat(64) as `0x${string}`), // claim_hash
+          hexToBytes(('0x' + '1'.repeat(64)) as `0x${string}`), // claim_hash
           hexToBytes(compact.arbiter as `0x${string}`), // arbiter
           hexToBytes(compact.sponsor as `0x${string}`), // sponsor
-          hexToBytes(('0x' + compact.nonce.toString(16).padStart(64, '0')) as `0x${string}`), // nonce
+          hexToBytes(
+            ('0x' +
+              compact.nonce.toString(16).padStart(64, '0')) as `0x${string}`
+          ), // nonce
           (mockTimestampSec + 3600).toString(),
-          hexToBytes(('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`), // compact_id
-          hexToBytes(('0x' + BigInt(compact.amount).toString(16).padStart(64, '0')) as `0x${string}`), // amount
-          hexToBytes('0x' + '1'.repeat(130) as `0x${string}`), // signature
+          hexToBytes(
+            ('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`
+          ), // compact_id
+          hexToBytes(
+            ('0x' +
+              BigInt(compact.amount)
+                .toString(16)
+                .padStart(64, '0')) as `0x${string}`
+          ), // amount
+          hexToBytes(('0x' + '1'.repeat(130)) as `0x${string}`), // signature
         ]
       );
 
@@ -593,14 +603,24 @@ describe('Validation', () => {
         [
           '123e4567-e89b-12d3-a456-426614174000',
           chainId,
-          hexToBytes('0x' + '1'.repeat(64) as `0x${string}`), // claim_hash
+          hexToBytes(('0x' + '1'.repeat(64)) as `0x${string}`), // claim_hash
           hexToBytes(compact.arbiter as `0x${string}`), // arbiter
           hexToBytes(compact.sponsor as `0x${string}`), // sponsor
-          hexToBytes(('0x' + compact.nonce.toString(16).padStart(64, '0')) as `0x${string}`), // nonce
+          hexToBytes(
+            ('0x' +
+              compact.nonce.toString(16).padStart(64, '0')) as `0x${string}`
+          ), // nonce
           (mockTimestampSec + 3600).toString(),
-          hexToBytes(('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`), // compact_id
-          hexToBytes(('0x' + BigInt(compact.amount).toString(16).padStart(64, '0')) as `0x${string}`), // amount
-          hexToBytes('0x' + '1'.repeat(130) as `0x${string}`), // signature
+          hexToBytes(
+            ('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`
+          ), // compact_id
+          hexToBytes(
+            ('0x' +
+              BigInt(compact.amount)
+                .toString(16)
+                .padStart(64, '0')) as `0x${string}`
+          ), // amount
+          hexToBytes(('0x' + '1'.repeat(130)) as `0x${string}`), // signature
         ]
       );
 

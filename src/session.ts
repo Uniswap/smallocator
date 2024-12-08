@@ -171,10 +171,10 @@ export async function verifySession(
     throw new Error('Session ID is required');
   }
 
-  const result = await server.db.query<{ address: Uint8Array; expires_at: string }>(
-    'SELECT address, expires_at FROM sessions WHERE id = $1',
-    [sessionId]
-  );
+  const result = await server.db.query<{
+    address: Uint8Array;
+    expires_at: string;
+  }>('SELECT address, expires_at FROM sessions WHERE id = $1', [sessionId]);
 
   if (result.rows.length === 0) {
     throw new Error('Invalid session ID');

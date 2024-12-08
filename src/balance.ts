@@ -46,7 +46,7 @@ export async function getAllocatedBalance(
   const lockIdBytes = toBytea(lockId);
 
   // Convert processed claim hashes to bytea
-  const processedClaimByteas = processedClaimHashes.map(hash => 
+  const processedClaimByteas = processedClaimHashes.map((hash) =>
     hexToBytes(hash as `0x${string}`)
   );
 
