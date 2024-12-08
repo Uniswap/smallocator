@@ -24,6 +24,16 @@ export function toBigInt(
   if (value === null) return null;
 
   try {
+    // Check for negative numbers
+    if (value.includes('-')) {
+      throw new Error(`${fieldName} must be a positive number`);
+    }
+
+    // Check for decimal points
+    if (value.includes('.')) {
+      throw new Error(`${fieldName} must be an integer`);
+    }
+
     // Handle hex strings (with or without 0x prefix)
     if (value.toLowerCase().startsWith('0x')) {
       return BigInt(value);
@@ -38,11 +48,15 @@ export function toBigInt(
       `Invalid ${fieldName} format. Must be decimal or hex string`
     );
   } catch (error) {
-    throw new Error(
-      `Failed to convert ${fieldName}: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+    // If it's our custom error, preserve the message
+    if (error instanceof Error) {
+      throw new Error(
+        error.message.includes('must be')
+          ? error.message
+          : `Failed to convert ${fieldName}: ${error.message}`
+      );
+    }
+    throw new Error(`Failed to convert ${fieldName}: ${String(error)}`);
   }
 }
 

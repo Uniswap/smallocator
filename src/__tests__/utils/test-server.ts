@@ -6,6 +6,7 @@ import { setupRoutes } from '../../routes';
 import { dbManager } from '../setup';
 import { signMessage } from 'viem/accounts';
 import { getAddress } from 'viem/utils';
+import { CompactMessage } from '../../validation/types';
 
 // Helper to generate test data
 const defaultBaseUrl = 'https://smallocator.example';
@@ -237,7 +238,7 @@ export function getFreshCompact(): typeof validCompact {
 export function compactToAPI(
   compact: typeof validCompact,
   options: { nullNonce?: boolean } = {}
-): Record<string, string | number | null> {
+): CompactMessage {
   const nonce = options.nullNonce ? null : compact.nonce;
 
   // Convert ID to hex preserving all bits
@@ -257,7 +258,6 @@ export function compactToAPI(
     witnessHash: compact.witnessHash
       ? ensure0x(padToBytes(compact.witnessHash, 32))
       : null,
-    chainId: compact.chainId.toString(),
   };
 }
 

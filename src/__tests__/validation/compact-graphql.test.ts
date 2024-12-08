@@ -1,5 +1,5 @@
 import { validateCompact } from '../../validation/compact';
-import { getFreshCompact } from '../utils/test-server';
+import { getFreshCompact, compactToAPI } from '../utils/test-server';
 import { PGlite } from '@electric-sql/pglite';
 import {
   graphqlClient,
@@ -59,7 +59,11 @@ describe('Compact GraphQL Validation', () => {
       },
     });
 
-    const result = await validateCompact(getFreshCompact(), '1', db);
+    const result = await validateCompact(
+      compactToAPI(getFreshCompact()),
+      '1',
+      db
+    );
     expect(result.isValid).toBe(true);
   });
 
@@ -90,7 +94,11 @@ describe('Compact GraphQL Validation', () => {
       },
     });
 
-    const result = await validateCompact(getFreshCompact(), '1', db);
+    const result = await validateCompact(
+      compactToAPI(getFreshCompact()),
+      '1',
+      db
+    );
     expect(result.isValid).toBe(false);
     expect(result.error).toContain('Insufficient');
   });
@@ -122,7 +130,11 @@ describe('Compact GraphQL Validation', () => {
       },
     });
 
-    const result = await validateCompact(getFreshCompact(), '1', db);
+    const result = await validateCompact(
+      compactToAPI(getFreshCompact()),
+      '1',
+      db
+    );
     expect(result.isValid).toBe(false);
     expect(result.error).toContain('withdrawals enabled');
   });
@@ -154,7 +166,11 @@ describe('Compact GraphQL Validation', () => {
       },
     });
 
-    const result = await validateCompact(getFreshCompact(), '1', db);
+    const result = await validateCompact(
+      compactToAPI(getFreshCompact()),
+      '1',
+      db
+    );
     expect(result.isValid).toBe(false);
     expect(result.error).toContain('Invalid allocator ID');
   });
@@ -186,7 +202,11 @@ describe('Compact GraphQL Validation', () => {
       },
     });
 
-    const result = await validateCompact(getFreshCompact(), '1', db);
+    const result = await validateCompact(
+      compactToAPI(getFreshCompact()),
+      '1',
+      db
+    );
     expect(result.isValid).toBe(false);
     expect(result.error).toContain('Invalid allocator ID');
   });
@@ -196,7 +216,11 @@ describe('Compact GraphQL Validation', () => {
       throw new Error('GraphQL request failed');
     };
 
-    const result = await validateCompact(getFreshCompact(), '1', db);
+    const result = await validateCompact(
+      compactToAPI(getFreshCompact()),
+      '1',
+      db
+    );
     expect(result.isValid).toBe(false);
     expect(result.error).toContain('GraphQL request failed');
   });
