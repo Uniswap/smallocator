@@ -205,13 +205,16 @@ export const validCompact = {
 let compactCounter = BigInt(0);
 export function getFreshCompact(): typeof validCompact {
   const counter = compactCounter++;
-  // Create nonce as 32-byte hex where first 20 bytes are sponsor address
-  const sponsorAddress = getAddress(validCompact.sponsor)
-    .toLowerCase()
-    .slice(2);
-  const counterHex = counter.toString(16).padStart(24, '0'); // 12 bytes for counter
-  const nonceHex = sponsorAddress + counterHex;
-  const nonce = BigInt('0x' + nonceHex);
+  
+  // Get normalized sponsor address
+  const sponsorAddress = getAddress(validCompact.sponsor).toLowerCase();
+  
+  // Create nonce with sponsor in first 20 bytes and counter in last 12 bytes
+  // First convert the sponsor address to a BigInt (removing 0x prefix)
+  const sponsorBigInt = BigInt('0x' + sponsorAddress.slice(2));
+  
+  // Shift sponsor left by 96 bits (12 bytes) to make room for counter
+  const nonce = (sponsorBigInt << BigInt(96)) | counter;
 
   return {
     ...validCompact,
@@ -231,7 +234,7 @@ export function compactToAPI(
     id: ensure0x(padToBytes(compact.id.toString(16), 32)),
     arbiter: ensure0x(padToBytes(getAddress(compact.arbiter), 20)),
     sponsor: ensure0x(padToBytes(getAddress(compact.sponsor), 20)),
-    nonce: nonce === null ? null : ensure0x(padToBytes(nonce.toString(16), 32)),
+    nonce: nonce === null ? null : ensure0x(nonce.toString(16).padStart(64, '0')), // Pad to 32 bytes
     expires: compact.expires.toString(),
     amount: compact.amount, // Keep amount as decimal string
     witnessTypeString: compact.witnessTypeString,

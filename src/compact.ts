@@ -89,71 +89,89 @@ export async function submitCompact(
   submission: CompactSubmission,
   sponsorAddress: string
 ): Promise<{ hash: string; signature: string; nonce: string }> {
-  // Validate sponsor matches the session
-  if (getAddress(submission.compact.sponsor) !== getAddress(sponsorAddress)) {
-    throw new Error('Sponsor address does not match session');
+  try {
+    // Start a transaction
+    await server.db.query('BEGIN');
+
+    // Lock the sponsor's row to prevent concurrent updates
+    await server.db.query(
+      'SELECT id FROM sessions WHERE address = $1 FOR UPDATE',
+      [addressToBytes(sponsorAddress)]
+    );
+
+    // Validate sponsor matches the session
+    if (getAddress(submission.compact.sponsor) !== getAddress(sponsorAddress)) {
+      throw new Error('Sponsor address does not match session');
+    }
+
+    // Convert string values to BigInt for validation
+    const compactForValidation = {
+      ...submission.compact,
+      id:
+        typeof submission.compact.id === 'string'
+          ? BigInt(submission.compact.id)
+          : submission.compact.id,
+      expires:
+        typeof submission.compact.expires === 'string'
+          ? BigInt(submission.compact.expires)
+          : submission.compact.expires,
+    };
+
+    // Generate nonce if not provided (do this before validation)
+    const nonce =
+      submission.compact.nonce === null
+        ? await generateNonce(sponsorAddress, submission.chainId, server.db)
+        : submission.compact.nonce;
+
+    // Update compact with final nonce
+    const finalCompact = {
+      ...compactForValidation,
+      nonce,
+    };
+
+    // Validate the compact (including nonce validation)
+    const validationResult = await validateCompact(
+      finalCompact,
+      submission.chainId,
+      server.db
+    );
+    if (!validationResult.isValid) {
+      throw new Error(validationResult.error || 'Invalid compact');
+    }
+
+    // Convert to StoredCompactMessage for crypto operations
+    const storedCompact = toStoredCompact(finalCompact);
+
+    // Generate the claim hash
+    const hash = await generateClaimHash(
+      storedCompact,
+      BigInt(submission.chainId)
+    );
+
+    // Sign the compact
+    const signature = await signCompact(hash, BigInt(submission.chainId));
+
+    // Store the compact first
+    await storeCompact(
+      server.db,
+      storedCompact,
+      submission.chainId,
+      hash,
+      signature
+    );
+
+    // Store the nonce as used (within the same transaction)
+    await storeNonce(nonce, submission.chainId, server.db);
+
+    // Commit the transaction
+    await server.db.query('COMMIT');
+
+    return { hash, signature, nonce: nonce.toString() };
+  } catch (error) {
+    // Rollback on any error
+    await server.db.query('ROLLBACK');
+    throw error;
   }
-
-  // Convert string values to BigInt for validation
-  const compactForValidation = {
-    ...submission.compact,
-    id:
-      typeof submission.compact.id === 'string'
-        ? BigInt(submission.compact.id)
-        : submission.compact.id,
-    expires:
-      typeof submission.compact.expires === 'string'
-        ? BigInt(submission.compact.expires)
-        : submission.compact.expires,
-  };
-
-  // Generate nonce if not provided (do this before validation)
-  const nonce =
-    submission.compact.nonce === null
-      ? await generateNonce(sponsorAddress, submission.chainId, server.db)
-      : submission.compact.nonce;
-
-  // Update compact with final nonce
-  const finalCompact = {
-    ...compactForValidation,
-    nonce,
-  };
-
-  // Validate the compact (including nonce validation)
-  const validationResult = await validateCompact(
-    finalCompact,
-    submission.chainId,
-    server.db
-  );
-  if (!validationResult.isValid) {
-    throw new Error(validationResult.error || 'Invalid compact');
-  }
-
-  // Convert to StoredCompactMessage for crypto operations
-  const storedCompact = toStoredCompact(finalCompact);
-
-  // Generate the claim hash
-  const hash = await generateClaimHash(
-    storedCompact,
-    BigInt(submission.chainId)
-  );
-
-  // Sign the compact
-  const signature = await signCompact(hash, BigInt(submission.chainId));
-
-  // Store the nonce as used
-  await storeNonce(nonce, submission.chainId, server.db);
-
-  // Store the compact
-  await storeCompact(
-    server,
-    storedCompact,
-    submission.chainId,
-    hash,
-    signature
-  );
-
-  return { hash, signature, nonce: nonce.toString() };
 }
 
 export async function getCompactsByAddress(
@@ -264,14 +282,19 @@ export async function getCompactByHash(
 }
 
 async function storeCompact(
-  server: FastifyInstance,
+  db: any,
   compact: StoredCompactMessage,
   chainId: string,
   hash: Hex,
   signature: Hex
 ): Promise<void> {
   const id = randomUUID();
-  await server.db.query(
+  
+  // Convert nonce to hex string preserving all 32 bytes
+  const nonceHex = compact.nonce.toString(16).padStart(64, '0');
+  const nonceBytes = hexToBytes(`0x${nonceHex}`);
+
+  await db.query(
     `INSERT INTO compacts (
       id,
       chain_id,
@@ -291,7 +314,7 @@ async function storeCompact(
       hexToBuffer(hash),
       addressToBytes(compact.arbiter),
       addressToBytes(compact.sponsor),
-      numberToHex(compact.nonce, { size: 32 }),
+      nonceBytes,
       compact.expires.toString(),
       numberToHex(compact.id, { size: 32 }),
       amountToBytes(compact.amount),

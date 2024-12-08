@@ -127,12 +127,20 @@ export async function generateNonce(
 
   const [high, low] = [BigInt(match[1]), BigInt(match[2])];
 
-  // Combine into final nonce
-  const sponsorPart = BigInt('0x' + sponsorBytes.toString('hex')) << BigInt(96);
-  const noncePart = (high << BigInt(32)) | low;
+  // Create a buffer for the complete nonce (32 bytes: 20 + 8 + 4)
+  const nonceBuffer = Buffer.alloc(32);
+  
+  // Copy sponsor (20 bytes)
+  sponsorBytes.copy(nonceBuffer, 0);
+  
+  // Write high value (8 bytes)
+  nonceBuffer.writeBigUInt64BE(high, 20);
+  
+  // Write low value (4 bytes)
+  nonceBuffer.writeUInt32BE(Number(low), 28);
 
-  // Return the final nonce
-  return sponsorPart | noncePart;
+  // Convert the complete buffer to BigInt
+  return BigInt('0x' + nonceBuffer.toString('hex'));
 }
 
 export async function validateNonce(
@@ -144,6 +152,7 @@ export async function validateNonce(
   try {
     // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
     const nonceHex = bigintToHex(nonce);
+    console.log('Debug - Nonce hex:', nonceHex);
 
     // Split nonce into sponsor and fragment parts
     const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
@@ -151,6 +160,10 @@ export async function validateNonce(
 
     // Check that the sponsor part matches the sponsor's address (both lowercase)
     const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
+    console.log('Debug - Comparing sponsor parts:');
+    console.log('  From nonce:', sponsorPart);
+    console.log('  Expected: ', sponsorAddress);
+
     if (sponsorPart !== sponsorAddress) {
       return {
         isValid: false,
@@ -203,6 +216,12 @@ export async function storeNonce(
   const fragmentBigInt = BigInt('0x' + fragmentPart);
   const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
   const nonceHigh = Number(fragmentBigInt >> BigInt(32));
+
+  // Lock the nonces table for this sponsor and chain before inserting
+  await db.query(
+    'SELECT 1 FROM nonces WHERE chain_id = $1 AND sponsor = $2 FOR UPDATE',
+    [chainId, hexToBytes(toHexString(sponsorPart))]
+  );
 
   await db.query(
     'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',

@@ -413,6 +413,9 @@ describe('API Routes', () => {
           compact: compactToAPI(freshCompact),
         };
 
+        // Log the nonce value for debugging
+        console.log('Debug - Submitting compact with nonce:', freshCompact.nonce.toString(16));
+
         const response = await server.inject({
           method: 'POST',
           url: '/compact',
@@ -538,13 +541,21 @@ describe('API Routes', () => {
           expect(response.statusCode).toBe(200);
           const result = JSON.parse(response.payload);
 
-          // Verify nonce was stored
+          // Extract nonce components
+          const nonceHex = BigInt(result.nonce).toString(16).padStart(64, '0');
+          const fragmentPart = nonceHex.slice(40); // last 12 bytes (24 hex chars)
+          const fragmentBigInt = BigInt('0x' + fragmentPart);
+          const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
+          const nonceHigh = Number(fragmentBigInt >> BigInt(32));
+
+          // Verify nonce was stored with correct high and low values
           const dbResult = await server.db.query<{ count: number }>(
-            'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND nonceFragment = $3',
+            'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND nonce_high = $3 AND nonce_low = $4',
             [
               chainId,
               hexToBytes(freshCompact.sponsor as `0x${string}`),
-              hexToBytes(('0x' + result.nonce.slice(42)) as `0x${string}`),
+              nonceHigh,
+              nonceLow,
             ]
           );
           expect(dbResult.rows[0].count).toBe(1);
