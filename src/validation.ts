@@ -28,21 +28,22 @@ export async function generateNonce(
   // Get sponsor address without 0x prefix and lowercase
   const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
 
-  // Get the highest nonce used for this sponsor
-  const result = await db.query<{ nonce: string }>(
-    `SELECT nonce FROM nonces 
+  // Get the highest nonce fragment used for this sponsor
+  const result = await db.query<{ nonceFragment: string }>(
+    `SELECT nonceFragment FROM nonces 
      WHERE chain_id = $1 
-     AND SUBSTRING(nonce FROM 1 FOR 40) = $2
-     ORDER BY nonce::numeric DESC
+     AND sponsor = $2
+     ORDER BY nonceFragment::numeric DESC
      LIMIT 1`,
     [chainId, sponsorAddress]
   );
 
   let lastNonceCounter = BigInt(0);
   if (result.rows.length > 0) {
-    // Extract the counter part (last 12 bytes) of the last nonce
-    const lastNonce = BigInt(result.rows[0].nonce);
-    lastNonceCounter = lastNonce & ((BigInt(1) << BigInt(96)) - BigInt(1)); // Get last 12 bytes
+    // Extract the counter part from the last nonce fragment
+    lastNonceCounter = BigInt(
+      '0x' + result.rows[0].nonceFragment.toLowerCase()
+    );
   }
 
   // Create new nonce: sponsor address (20 bytes) + incremented counter (12 bytes)
@@ -167,19 +168,21 @@ export async function validateNonce(
   db: PGlite
 ): Promise<ValidationResult> {
   try {
-    // Convert nonce to 32-byte hex string (without 0x prefix)
+    // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
     let nonceHex;
     if (nonce.toString(16).startsWith('0x')) {
-      nonceHex = nonce.toString(16).slice(2).padStart(64, '0');
+      nonceHex = nonce.toString(16).slice(2).padStart(64, '0').toLowerCase();
     } else {
-      nonceHex = nonce.toString(16).padStart(64, '0');
+      nonceHex = nonce.toString(16).padStart(64, '0').toLowerCase();
     }
 
-    // Check that the first 20 bytes of the nonce match the sponsor's address
-    const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
-    const noncePrefix = nonceHex.slice(0, 40); // first 20 bytes = 42 chars
+    // Split nonce into sponsor and fragment parts
+    const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
+    const fragmentPart = nonceHex.slice(40); // remaining 12 bytes = 24 hex chars
 
-    if (noncePrefix !== sponsorAddress) {
+    // Check that the sponsor part matches the sponsor's address (both lowercase)
+    const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
+    if (sponsorPart !== sponsorAddress) {
       return {
         isValid: false,
         error: 'Nonce does not match sponsor address',
@@ -188,8 +191,8 @@ export async function validateNonce(
 
     // Check if nonce has been used before in this domain
     const result = await db.query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND nonce = $2',
-      [chainId, nonce.toString()]
+      'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND LOWER(nonceFragment) = $3',
+      [chainId, sponsorAddress, fragmentPart]
     );
 
     if (result.rows[0].count > 0) {
@@ -376,8 +379,20 @@ export async function storeNonce(
   chainId: string,
   db: PGlite
 ): Promise<void> {
+  // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
+  let nonceHex;
+  if (nonce.toString(16).startsWith('0x')) {
+    nonceHex = nonce.toString(16).slice(2).padStart(64, '0').toLowerCase();
+  } else {
+    nonceHex = nonce.toString(16).padStart(64, '0').toLowerCase();
+  }
+
+  // Split nonce into sponsor and fragment parts
+  const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
+  const fragmentPart = nonceHex.slice(40); // remaining 12 bytes = 24 hex chars
+
   await db.query(
-    'INSERT INTO nonces (id, chain_id, nonce, consumed_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)',
-    [randomUUID(), chainId, nonce.toString()]
+    'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment, consumed_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)',
+    [randomUUID(), chainId, sponsorPart, fragmentPart]
   );
 }

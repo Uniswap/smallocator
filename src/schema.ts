@@ -28,9 +28,10 @@ export const schemas = {
     CREATE TABLE IF NOT EXISTS nonces (
       id TEXT PRIMARY KEY,
       chain_id TEXT NOT NULL,
-      nonce TEXT NOT NULL,
+      sponsor TEXT NOT NULL,
+      nonceFragment TEXT NOT NULL,
       consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(chain_id, nonce)
+      UNIQUE(chain_id, sponsor, nonceFragment)
     )
   `,
   compacts: `
@@ -63,7 +64,7 @@ export const indexes = {
     'CREATE INDEX IF NOT EXISTS idx_compacts_chain_claim ON compacts(chain_id, claim_hash)',
   ],
   nonces: [
-    'CREATE INDEX IF NOT EXISTS idx_nonces_chain_nonce ON nonces(chain_id, nonce)',
+    'CREATE INDEX IF NOT EXISTS idx_nonces_chain_sponsor_fragment ON nonces(chain_id, sponsor, nonceFragment)',
   ],
   session_requests: [
     'CREATE INDEX IF NOT EXISTS idx_session_requests_address ON session_requests(address)',

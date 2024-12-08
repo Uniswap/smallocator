@@ -508,8 +508,12 @@ describe('API Routes', () => {
 
           // Verify nonce was stored
           const dbResult = await server.db.query<{ count: number }>(
-            'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND nonce = $2',
-            [chainId, result.nonce]
+            'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND nonceFragment = $3',
+            [
+              chainId,
+              freshCompact.sponsor.slice(2).toLowerCase(),
+              result.nonce.slice(42).toLowerCase(),
+            ]
           );
           expect(dbResult.rows[0].count).toBe(1);
         } finally {

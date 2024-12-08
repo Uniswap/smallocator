@@ -42,9 +42,10 @@ describe('Validation', () => {
       CREATE TABLE IF NOT EXISTS nonces (
         id TEXT PRIMARY KEY,
         chain_id TEXT NOT NULL,
-        nonce TEXT NOT NULL,
+        sponsor TEXT NOT NULL,
+        nonceFragment TEXT NOT NULL,
         consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(chain_id, nonce)
+        UNIQUE(chain_id, sponsor, nonceFragment)
       )
     `);
   });
@@ -248,11 +249,14 @@ describe('Validation', () => {
 
     it('should reject a used nonce', async (): Promise<void> => {
       const compact = getFreshCompact();
+      const nonceHex = compact.nonce.toString(16).padStart(64, '0');
+      const sponsorPart = nonceHex.slice(0, 40);
+      const fragmentPart = nonceHex.slice(40);
 
       // Insert nonce as used
       await db.query(
-        'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
-        ['test-id', chainId, compact.nonce.toString()]
+        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
+        ['test-id', chainId, sponsorPart, fragmentPart]
       );
 
       const result = await validateCompact(compact, chainId, db);
@@ -272,15 +276,36 @@ describe('Validation', () => {
 
     it('should allow same nonce in different chains', async (): Promise<void> => {
       const compact = getFreshCompact();
+      const nonceHex = compact.nonce.toString(16).padStart(64, '0');
+      const sponsorPart = nonceHex.slice(0, 40);
+      const fragmentPart = nonceHex.slice(40);
 
       // Insert nonce as used in a different chain
       await db.query(
-        'INSERT INTO nonces (id, chain_id, nonce) VALUES ($1, $2, $3)',
-        ['test-id', '10', compact.nonce.toString()]
+        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
+        ['test-id', '10', sponsorPart, fragmentPart]
       );
 
       const result = await validateCompact(compact, chainId, db);
       expect(result.isValid).toBe(true);
+    });
+
+    it('should handle mixed case nonces consistently', async (): Promise<void> => {
+      const compact = getFreshCompact();
+      const nonceHex = compact.nonce.toString(16).padStart(64, '0');
+      const sponsorPart = nonceHex.slice(0, 40);
+      const fragmentPart = nonceHex.slice(40).toUpperCase(); // Use uppercase
+
+      // Insert nonce with uppercase fragment
+      await db.query(
+        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
+        ['test-id', chainId, sponsorPart, fragmentPart]
+      );
+
+      // Try to validate same nonce with uppercase
+      const result = await validateCompact(compact, chainId, db);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain('Nonce has already been used');
     });
   });
 
@@ -357,7 +382,7 @@ describe('Validation', () => {
             items: [
               {
                 withdrawalStatus: 0,
-                balance: (BigInt(compact.amount) / 2n).toString(), // Half the compact amount
+                balance: (BigInt(compact.amount) / BigInt(2)).toString(), // Half the compact amount
               },
             ],
           },
@@ -416,7 +441,7 @@ describe('Validation', () => {
             items: [
               {
                 withdrawalStatus: 0,
-                balance: (BigInt(compact.amount) * 2n).toString(), // Enough for two compacts
+                balance: (BigInt(compact.amount) * BigInt(2)).toString(), // Enough for two compacts
               },
             ],
           },
