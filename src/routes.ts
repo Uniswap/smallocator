@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAddress } from 'viem/utils';
+import { hexToBytes, bytesToHex } from 'viem/utils';
 import { randomUUID } from 'crypto';
 import {
   validateAndCreateSession,
@@ -16,6 +17,16 @@ import {
 import { getCompactDetails, getAllResourceLocks } from './graphql';
 import { getAllocatedBalance } from './balance';
 import { generateNonce } from './validation';
+
+// Helper to convert bytea to checksummed address
+function byteaToAddress(bytes: Uint8Array): string {
+  return getAddress('0x' + Buffer.from(bytes).toString('hex'));
+}
+
+// Helper to convert address to bytea
+function addressToBytes(address: string): Uint8Array {
+  return hexToBytes(address as `0x${string}`);
+}
 
 // Declare db property on FastifyInstance
 declare module 'fastify' {
@@ -95,7 +106,7 @@ function createAuthMiddleware(server: FastifyInstance) {
       }
 
       // Get the session data
-      const result = await server.db.query<{ address: string }>(
+      const result = await server.db.query<{ address: Uint8Array }>(
         'SELECT address FROM sessions WHERE id = $1',
         [sessionId]
       );
@@ -105,10 +116,10 @@ function createAuthMiddleware(server: FastifyInstance) {
         return;
       }
 
-      // Store the session in the request object
+      // Store the session in the request object with checksummed address
       request.session = {
         id: sessionId,
-        address: result.rows[0].address,
+        address: byteaToAddress(result.rows[0].address),
       };
     } catch (err) {
       server.log.error({
@@ -203,7 +214,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           expirationTime: expirationTime.toISOString(),
         };
 
-        // Store session request
+        // Store session request with address as bytea
         const requestId = randomUUID();
         await server.db.query(
           `INSERT INTO session_requests (
@@ -211,7 +222,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
           ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             requestId,
-            normalizedAddress,
+            addressToBytes(normalizedAddress),
             nonce,
             domain,
             chainIdNum,
@@ -290,7 +301,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         // Get full session details
         const result = await server.db.query<{
           id: string;
-          address: string;
+          address: Uint8Array;
           expires_at: string;
         }>('SELECT id, address, expires_at FROM sessions WHERE id = $1', [
           sessionId,
@@ -307,7 +318,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
         return {
           session: {
             id: session.id,
-            address: session.address,
+            address: byteaToAddress(session.address),
             expiresAt: session.expires_at,
           },
         };

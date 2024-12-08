@@ -15,6 +15,7 @@ import {
   AllResourceLocksResponse,
 } from '../graphql';
 import { RequestDocument, Variables, RequestOptions } from 'graphql-request';
+import { hexToBytes } from 'viem/utils';
 
 describe('API Routes', () => {
   let server: FastifyInstance;
@@ -542,8 +543,8 @@ describe('API Routes', () => {
             'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND nonceFragment = $3',
             [
               chainId,
-              freshCompact.sponsor.slice(2).toLowerCase(),
-              result.nonce.slice(42).toLowerCase(),
+              hexToBytes(freshCompact.sponsor as `0x${string}`),
+              hexToBytes(('0x' + result.nonce.slice(42)) as `0x${string}`),
             ]
           );
           expect(dbResult.rows[0].count).toBe(1);

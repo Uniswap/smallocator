@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { type Hex } from 'viem';
-import { getAddress } from 'viem/utils';
+import { getAddress, hexToBytes, toHex, numberToHex } from 'viem/utils';
 import {
   validateCompact,
   type CompactMessage,
@@ -33,6 +33,39 @@ export interface CompactRecord {
   hash: string;
   signature: string;
   createdAt: string;
+}
+
+// Helper to convert address to bytea
+function addressToBytes(address: string): Uint8Array {
+  return hexToBytes(address as `0x${string}`);
+}
+
+// Helper to convert bytea to checksummed address
+function byteaToAddress(bytes: Uint8Array): string {
+  return getAddress('0x' + Buffer.from(bytes).toString('hex'));
+}
+
+// Helper to convert hex string to bytea
+function hexToBuffer(hex: string): Uint8Array {
+  return hexToBytes((hex.startsWith('0x') ? hex : `0x${hex}`) as `0x${string}`);
+}
+
+// Helper to convert bytea to hex string
+function bufferToHex(bytes: Uint8Array): string {
+  return '0x' + Buffer.from(bytes).toString('hex');
+}
+
+// Helper to convert BigInt amount to 32-byte array
+function amountToBytes(amount: string | bigint): Uint8Array {
+  const amountBigInt = typeof amount === 'string' ? BigInt(amount) : amount;
+  const hex = numberToHex(amountBigInt, { size: 32 });
+  return hexToBytes(hex);
+}
+
+// Helper to convert 32-byte array to amount string
+function bytesToAmount(bytes: Uint8Array): string {
+  const hex = toHex(bytes);
+  return BigInt(hex).toString();
 }
 
 // Helper to convert CompactMessage to StoredCompactMessage
@@ -129,14 +162,14 @@ export async function getCompactsByAddress(
 ): Promise<CompactRecord[]> {
   const result = await server.db.query<{
     chainId: string;
-    arbiter: string;
-    sponsor: string;
-    nonce: string;
+    arbiter: Uint8Array;
+    sponsor: Uint8Array;
+    nonce: Uint8Array;
     expires: string;
-    amount: string;
-    compact_id: string;
-    hash: string;
-    signature: string;
+    amount: Uint8Array;
+    compact_id: Uint8Array;
+    hash: Uint8Array;
+    signature: Uint8Array;
     createdAt: string;
   }>(
     `SELECT 
@@ -153,23 +186,23 @@ export async function getCompactsByAddress(
     FROM compacts 
     WHERE sponsor = $1 
     ORDER BY created_at DESC`,
-    [getAddress(address)]
+    [addressToBytes(address)]
   );
 
   return result.rows.map((row) => ({
     chainId: row.chainId,
     compact: {
-      id: BigInt(row.compact_id),
-      arbiter: row.arbiter,
-      sponsor: row.sponsor,
-      nonce: BigInt(row.nonce),
+      id: BigInt(bufferToHex(row.compact_id)),
+      arbiter: byteaToAddress(row.arbiter),
+      sponsor: byteaToAddress(row.sponsor),
+      nonce: BigInt(bufferToHex(row.nonce)),
       expires: BigInt(row.expires),
-      amount: row.amount,
+      amount: bytesToAmount(row.amount),
       witnessTypeString: null,
       witnessHash: null,
     },
-    hash: row.hash,
-    signature: row.signature,
+    hash: bufferToHex(row.hash),
+    signature: bufferToHex(row.signature),
     createdAt: row.createdAt,
   }));
 }
@@ -181,14 +214,14 @@ export async function getCompactByHash(
 ): Promise<CompactRecord | null> {
   const result = await server.db.query<{
     chainId: string;
-    arbiter: string;
-    sponsor: string;
-    nonce: string;
+    arbiter: Uint8Array;
+    sponsor: Uint8Array;
+    nonce: Uint8Array;
     expires: string;
-    amount: string;
-    compact_id: string;
-    hash: string;
-    signature: string;
+    amount: Uint8Array;
+    compact_id: Uint8Array;
+    hash: Uint8Array;
+    signature: Uint8Array;
     createdAt: string;
   }>(
     `SELECT 
@@ -203,8 +236,8 @@ export async function getCompactByHash(
       signature,
       created_at as "createdAt"
     FROM compacts 
-    WHERE chain_id = $1 AND LOWER(claim_hash) = LOWER($2)`,
-    [chainId, claimHash]
+    WHERE chain_id = $1 AND claim_hash = $2`,
+    [chainId, hexToBuffer(claimHash)]
   );
 
   if (result.rows.length === 0) {
@@ -215,17 +248,17 @@ export async function getCompactByHash(
   return {
     chainId: row.chainId,
     compact: {
-      id: BigInt(row.compact_id),
-      arbiter: row.arbiter,
-      sponsor: row.sponsor,
-      nonce: BigInt(row.nonce),
+      id: BigInt(bufferToHex(row.compact_id)),
+      arbiter: byteaToAddress(row.arbiter),
+      sponsor: byteaToAddress(row.sponsor),
+      nonce: BigInt(bufferToHex(row.nonce)),
       expires: BigInt(row.expires),
-      amount: row.amount,
+      amount: bytesToAmount(row.amount),
       witnessTypeString: null,
       witnessHash: null,
     },
-    hash: row.hash,
-    signature: row.signature,
+    hash: bufferToHex(row.hash),
+    signature: bufferToHex(row.signature),
     createdAt: row.createdAt,
   };
 }
@@ -255,14 +288,14 @@ async function storeCompact(
     [
       id,
       chainId,
-      hash,
-      compact.arbiter,
-      compact.sponsor,
-      compact.nonce.toString(),
+      hexToBuffer(hash),
+      addressToBytes(compact.arbiter),
+      addressToBytes(compact.sponsor),
+      numberToHex(compact.nonce, { size: 32 }),
       compact.expires.toString(),
-      compact.id.toString(),
-      compact.amount,
-      signature,
+      numberToHex(compact.id, { size: 32 }),
+      amountToBytes(compact.amount),
+      hexToBuffer(signature),
     ]
   );
 }

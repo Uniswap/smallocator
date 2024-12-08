@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { getAddress, verifyMessage } from 'viem/utils';
+import { hexToBytes } from 'viem/utils';
 import { randomUUID } from 'crypto';
 
 // Import the FastifyInstance augmentation
@@ -23,6 +24,16 @@ export interface Session {
   expiresAt: string;
   nonce: string;
   domain: string;
+}
+
+// Helper to convert bytea to checksummed address
+function byteaToAddress(bytes: Uint8Array): string {
+  return getAddress('0x' + Buffer.from(bytes).toString('hex'));
+}
+
+// Helper to convert address to bytea
+function addressToBytes(address: string): Uint8Array {
+  return hexToBytes(address as `0x${string}`);
 }
 
 export async function validateAndCreateSession(
@@ -53,7 +64,12 @@ export async function validateAndCreateSession(
        AND address = $4
        AND used = FALSE
        AND expiration_time > CURRENT_TIMESTAMP`,
-      [payload.nonce, payload.domain, payload.chainId, payload.address]
+      [
+        payload.nonce,
+        payload.domain,
+        payload.chainId,
+        addressToBytes(payload.address),
+      ]
     );
 
     if (!requests.rows || requests.rows.length === 0) {
@@ -119,15 +135,20 @@ export async function validateAndCreateSession(
        AND domain = $2 
        AND chain_id = $3 
        AND address = $4`,
-      [payload.nonce, payload.domain, payload.chainId, payload.address]
+      [
+        payload.nonce,
+        payload.domain,
+        payload.chainId,
+        addressToBytes(payload.address),
+      ]
     );
 
-    // Store session in database
+    // Store session in database with address as bytea
     await server.db.query(
       'INSERT INTO sessions (id, address, expires_at, nonce, domain) VALUES ($1, $2, $3, $4, $5)',
       [
         session.id,
-        session.address,
+        addressToBytes(session.address),
         session.expiresAt,
         session.nonce,
         session.domain,
@@ -150,7 +171,7 @@ export async function verifySession(
     throw new Error('Session ID is required');
   }
 
-  const result = await server.db.query<{ address: string; expires_at: string }>(
+  const result = await server.db.query<{ address: Uint8Array; expires_at: string }>(
     'SELECT address, expires_at FROM sessions WHERE id = $1',
     [sessionId]
   );
@@ -171,8 +192,11 @@ export async function verifySession(
   }
 
   // If an address is provided, verify it matches the session
-  if (address && getAddress(address) !== getAddress(session.address)) {
-    throw new Error('Session address mismatch');
+  if (address) {
+    const sessionAddress = byteaToAddress(session.address);
+    if (getAddress(address) !== getAddress(sessionAddress)) {
+      throw new Error('Session address mismatch');
+    }
   }
 
   return true;

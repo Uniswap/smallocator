@@ -12,6 +12,7 @@ import {
   AccountDeltasResponse,
   AccountResponse,
 } from '../graphql';
+import { hexToBytes } from 'viem/utils';
 
 describe('Validation', () => {
   let db: PGlite;
@@ -19,21 +20,21 @@ describe('Validation', () => {
   beforeAll(async (): Promise<void> => {
     db = new PGlite();
 
-    // Create test tables
+    // Create test tables with bytea columns
     await db.query(`
       CREATE TABLE IF NOT EXISTS compacts (
-        id TEXT PRIMARY KEY,
-        chain_id TEXT NOT NULL,
-        claim_hash TEXT NOT NULL,
-        arbiter TEXT NOT NULL,
-        sponsor TEXT NOT NULL,
-        nonce TEXT NOT NULL,
+        id UUID PRIMARY KEY,
+        chain_id bigint NOT NULL,
+        claim_hash bytea NOT NULL CHECK (length(claim_hash) = 32),
+        arbiter bytea NOT NULL CHECK (length(arbiter) = 20),
+        sponsor bytea NOT NULL CHECK (length(sponsor) = 20),
+        nonce bytea NOT NULL CHECK (length(nonce) = 32),
         expires BIGINT NOT NULL,
-        compact_id TEXT NOT NULL,
-        amount TEXT NOT NULL,
+        compact_id bytea NOT NULL CHECK (length(compact_id) = 32),
+        amount bytea NOT NULL CHECK (length(amount) = 32),
         witness_type_string TEXT,
-        witness_hash TEXT,
-        signature TEXT NOT NULL,
+        witness_hash bytea CHECK (witness_hash IS NULL OR length(witness_hash) = 32),
+        signature bytea NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(chain_id, claim_hash)
       )
@@ -41,12 +42,13 @@ describe('Validation', () => {
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS nonces (
-        id TEXT PRIMARY KEY,
-        chain_id TEXT NOT NULL,
-        sponsor TEXT NOT NULL,
-        nonceFragment TEXT NOT NULL,
+        id UUID PRIMARY KEY,
+        chain_id bigint NOT NULL,
+        sponsor bytea NOT NULL CHECK (length(sponsor) = 20),
+        nonce_high bigint NOT NULL,
+        nonce_low integer NOT NULL,
         consumed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(chain_id, sponsor, nonceFragment)
+        UNIQUE(chain_id, sponsor, nonce_high, nonce_low)
       )
     `);
   });
@@ -81,20 +83,25 @@ describe('Validation', () => {
 
     it('should increment nonce fragment when previous ones are used', async (): Promise<void> => {
       const sponsor = '0x1234567890123456789012345678901234567890';
-      const sponsorNoPrefix = sponsor.slice(2).toLowerCase();
       const chainId = '1';
 
       // Insert a used nonce with fragment 0
       await db.query(
-        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
-        ['test-id-1', chainId, sponsorNoPrefix, '0']
+        'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',
+        [
+          '123e4567-e89b-12d3-a456-426614174000',
+          chainId,
+          hexToBytes(sponsor as `0x${string}`),
+          0,
+          0,
+        ]
       );
 
       const nonce = await generateNonce(sponsor, chainId, db);
       const nonceHex = nonce.toString(16).padStart(64, '0');
 
       // Check sponsor part
-      expect(nonceHex.slice(0, 40)).toBe(sponsorNoPrefix);
+      expect(nonceHex.slice(0, 40)).toBe(sponsor.slice(2).toLowerCase());
 
       // Check fragment is incremented
       expect(BigInt('0x' + nonceHex.slice(40))).toBe(BigInt(1));
@@ -102,13 +109,21 @@ describe('Validation', () => {
 
     it('should find first available gap in nonce fragments', async (): Promise<void> => {
       const sponsor = '0x1234567890123456789012345678901234567890';
-      const sponsorNoPrefix = sponsor.slice(2).toLowerCase();
       const chainId = '1';
 
       // Insert nonces with fragments 0 and 2, leaving 1 as a gap
       await db.query(
-        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4), ($5, $2, $3, $6)',
-        ['test-id-1', chainId, sponsorNoPrefix, '0', 'test-id-2', '2']
+        'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5), ($6, $2, $3, $7, $8)',
+        [
+          '123e4567-e89b-12d3-a456-426614174000',
+          chainId,
+          hexToBytes(sponsor as `0x${string}`),
+          0,
+          0,
+          '123e4567-e89b-12d3-a456-426614174001',
+          0,
+          2,
+        ]
       );
 
       const nonce = await generateNonce(sponsor, chainId, db);
@@ -327,10 +342,21 @@ describe('Validation', () => {
       const sponsorPart = nonceHex.slice(0, 40);
       const fragmentPart = nonceHex.slice(40);
 
+      // Extract high and low parts from fragment
+      const fragmentBigInt = BigInt('0x' + fragmentPart);
+      const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
+      const nonceHigh = Number(fragmentBigInt >> BigInt(32));
+
       // Insert nonce as used
       await db.query(
-        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
-        ['test-id', chainId, sponsorPart, fragmentPart]
+        'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',
+        [
+          '123e4567-e89b-12d3-a456-426614174000',
+          chainId,
+          hexToBytes(('0x' + sponsorPart) as `0x${string}`),
+          nonceHigh,
+          nonceLow,
+        ]
       );
 
       const result = await validateCompact(compact, chainId, db);
@@ -354,10 +380,21 @@ describe('Validation', () => {
       const sponsorPart = nonceHex.slice(0, 40);
       const fragmentPart = nonceHex.slice(40);
 
+      // Extract high and low parts from fragment
+      const fragmentBigInt = BigInt('0x' + fragmentPart);
+      const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
+      const nonceHigh = Number(fragmentBigInt >> BigInt(32));
+
       // Insert nonce as used in a different chain
       await db.query(
-        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
-        ['test-id', '10', sponsorPart, fragmentPart]
+        'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',
+        [
+          '123e4567-e89b-12d3-a456-426614174000',
+          '10',
+          hexToBytes(('0x' + sponsorPart) as `0x${string}`),
+          nonceHigh,
+          nonceLow,
+        ]
       );
 
       const result = await validateCompact(compact, chainId, db);
@@ -370,10 +407,21 @@ describe('Validation', () => {
       const sponsorPart = nonceHex.slice(0, 40);
       const fragmentPart = nonceHex.slice(40).toUpperCase(); // Use uppercase
 
+      // Extract high and low parts from fragment
+      const fragmentBigInt = BigInt('0x' + fragmentPart.toLowerCase());
+      const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
+      const nonceHigh = Number(fragmentBigInt >> BigInt(32));
+
       // Insert nonce with uppercase fragment
       await db.query(
-        'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment) VALUES ($1, $2, $3, $4)',
-        ['test-id', chainId, sponsorPart, fragmentPart]
+        'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',
+        [
+          '123e4567-e89b-12d3-a456-426614174000',
+          chainId,
+          hexToBytes(('0x' + sponsorPart) as `0x${string}`),
+          nonceHigh,
+          nonceLow,
+        ]
       );
 
       // Try to validate same nonce with uppercase
@@ -474,7 +522,7 @@ describe('Validation', () => {
     it('should consider existing allocated balance', async (): Promise<void> => {
       const compact = getFreshCompact();
 
-      // Insert existing compact
+      // Insert existing compact with bytea values
       await db.query(
         `
         INSERT INTO compacts (
@@ -485,16 +533,16 @@ describe('Validation', () => {
         )
       `,
         [
-          '1',
+          '123e4567-e89b-12d3-a456-426614174000',
           chainId,
-          'hash1',
-          compact.arbiter,
-          compact.sponsor,
-          compact.nonce.toString(),
+          hexToBytes('0x' + '1'.repeat(64) as `0x${string}`), // claim_hash
+          hexToBytes(compact.arbiter as `0x${string}`), // arbiter
+          hexToBytes(compact.sponsor as `0x${string}`), // sponsor
+          hexToBytes(('0x' + compact.nonce.toString(16).padStart(64, '0')) as `0x${string}`), // nonce
           (mockTimestampSec + 3600).toString(),
-          compact.id.toString(),
-          compact.amount,
-          '0xsig1',
+          hexToBytes(('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`), // compact_id
+          hexToBytes(('0x' + BigInt(compact.amount).toString(16).padStart(64, '0')) as `0x${string}`), // amount
+          hexToBytes('0x' + '1'.repeat(130) as `0x${string}`), // signature
         ]
       );
 
@@ -532,7 +580,7 @@ describe('Validation', () => {
     it('should exclude processed claims from allocated balance', async (): Promise<void> => {
       const compact = getFreshCompact();
 
-      // Insert existing compact
+      // Insert existing compact with bytea values
       await db.query(
         `
         INSERT INTO compacts (
@@ -543,16 +591,16 @@ describe('Validation', () => {
         )
       `,
         [
-          '1',
+          '123e4567-e89b-12d3-a456-426614174000',
           chainId,
-          'hash1',
-          compact.arbiter,
-          compact.sponsor,
-          compact.nonce.toString(),
+          hexToBytes('0x' + '1'.repeat(64) as `0x${string}`), // claim_hash
+          hexToBytes(compact.arbiter as `0x${string}`), // arbiter
+          hexToBytes(compact.sponsor as `0x${string}`), // sponsor
+          hexToBytes(('0x' + compact.nonce.toString(16).padStart(64, '0')) as `0x${string}`), // nonce
           (mockTimestampSec + 3600).toString(),
-          compact.id.toString(),
-          compact.amount,
-          '0xsig1',
+          hexToBytes(('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`), // compact_id
+          hexToBytes(('0x' + BigInt(compact.amount).toString(16).padStart(64, '0')) as `0x${string}`), // amount
+          hexToBytes('0x' + '1'.repeat(130) as `0x${string}`), // signature
         ]
       );
 
@@ -580,7 +628,7 @@ describe('Validation', () => {
           claims: {
             items: [
               {
-                claimHash: 'hash1', // Mark the existing compact as processed
+                claimHash: '0x' + '1'.repeat(64), // Mark the existing compact as processed
               },
             ],
           },

@@ -1,8 +1,27 @@
 import { PGlite } from '@electric-sql/pglite';
 import { getFinalizationThreshold } from './chain-config.js';
+import { toHex, numberToHex, hexToBytes } from 'viem/utils';
 
 interface CompactRow {
-  amount: string;
+  amount: Uint8Array;
+}
+
+// Helper to convert 32-byte array to BigInt
+function bytesToBigInt(bytes: Uint8Array): bigint {
+  const hex = toHex(bytes);
+  return BigInt(hex);
+}
+
+// Helper to convert string/bigint to 32-byte array
+function toBytea(value: string | bigint): Uint8Array {
+  const bigIntValue = typeof value === 'string' ? BigInt(value) : value;
+  const hex = numberToHex(bigIntValue, { size: 32 });
+  return Buffer.from(hex.slice(2), 'hex');
+}
+
+// Helper to convert address to bytea
+function addressToBytes(address: string): Uint8Array {
+  return hexToBytes(address.toLowerCase() as `0x${string}`);
 }
 
 /**
@@ -22,6 +41,15 @@ export async function getAllocatedBalance(
   const currentTimeSeconds = BigInt(Math.floor(Date.now() / 1000));
   const finalizationThreshold = BigInt(getFinalizationThreshold(chainId));
 
+  // Convert sponsor address and lockId to bytea
+  const sponsorBytes = addressToBytes(sponsor);
+  const lockIdBytes = toBytea(lockId);
+
+  // Convert processed claim hashes to bytea
+  const processedClaimByteas = processedClaimHashes.map(hash => 
+    hexToBytes(hash as `0x${string}`)
+  );
+
   // Handle empty processed claims list case
   if (processedClaimHashes.length === 0) {
     const query = `
@@ -34,15 +62,15 @@ export async function getAllocatedBalance(
     `;
 
     const result = await db.query<CompactRow>(query, [
-      sponsor,
+      sponsorBytes,
       chainId,
-      lockId,
+      lockIdBytes,
       currentTimeSeconds.toString(),
       finalizationThreshold.toString(),
     ]);
 
     return result.rows.reduce(
-      (sum, row) => sum + BigInt(row.amount),
+      (sum, row) => sum + bytesToBigInt(row.amount),
       BigInt(0)
     );
   }
@@ -55,19 +83,22 @@ export async function getAllocatedBalance(
     AND chain_id = $2 
     AND compact_id = $3
     AND $4 < CAST(expires AS BIGINT) + $5
-    AND claim_hash NOT IN (${processedClaimHashes.map((_, i) => `$${i + 6}`).join(',')})
+    AND claim_hash NOT IN (${processedClaimByteas.map((_, i) => `$${i + 6}`).join(',')})
   `;
 
   const params = [
-    sponsor,
+    sponsorBytes,
     chainId,
-    lockId,
+    lockIdBytes,
     currentTimeSeconds.toString(),
     finalizationThreshold.toString(),
-    ...processedClaimHashes,
+    ...processedClaimByteas,
   ];
 
   const result = await db.query<CompactRow>(query, params);
 
-  return result.rows.reduce((sum, row) => sum + BigInt(row.amount), BigInt(0));
+  return result.rows.reduce(
+    (sum, row) => sum + bytesToBigInt(row.amount),
+    BigInt(0)
+  );
 }

@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { setupRoutes } from '../../routes';
 import { dbManager } from '../setup';
 import { signMessage } from 'viem/accounts';
-import { getAddress } from 'viem/utils';
+import { getAddress, hexToBytes, bytesToHex, numberToHex } from 'viem/utils';
 
 // Helper to generate test data
 const defaultBaseUrl = 'https://smallocator.example';
@@ -172,6 +172,16 @@ export async function createTestSession(
   return result.session.id;
 }
 
+// Helper to pad hex string to specific byte length
+function padToBytes(hex: string, byteLength: number): string {
+  return hex.slice(2).padStart(byteLength * 2, '0');
+}
+
+// Helper to ensure hex string has 0x prefix
+function ensure0x(hex: string): `0x${string}` {
+  return hex.startsWith('0x') ? (hex as `0x${string}`) : (`0x${hex}` as `0x${string}`);
+}
+
 export const validCompact = {
   // Set allocatorId to 1 in bits 160-251 (92 bits) and reset period index 7 in bits 252-254
   id: (BigInt(1) << BigInt(160)) | (BigInt(7) << BigInt(252)), // Reset period index 7 = 2592000 seconds (30 days)
@@ -214,12 +224,17 @@ export function compactToAPI(
   options: { nullNonce?: boolean } = {}
 ): Record<string, string | number | null> {
   const nonce = options.nullNonce ? null : compact.nonce;
+  
   return {
-    ...compact,
-    id: compact.id.toString(),
+    id: ensure0x(padToBytes(compact.id.toString(16), 32)),
+    arbiter: ensure0x(padToBytes(getAddress(compact.arbiter), 20)),
+    sponsor: ensure0x(padToBytes(getAddress(compact.sponsor), 20)),
+    nonce: nonce === null ? null : ensure0x(padToBytes(nonce.toString(16), 32)),
     expires: compact.expires.toString(),
-    nonce: nonce === null ? null : '0x' + nonce.toString(16).padStart(64, '0'),
-    chainId: compact.chainId.toString(), // Convert chainId to string
+    amount: compact.amount, // Keep amount as decimal string
+    witnessTypeString: compact.witnessTypeString,
+    witnessHash: compact.witnessHash ? ensure0x(padToBytes(compact.witnessHash, 32)) : null,
+    chainId: compact.chainId.toString(),
   };
 }
 

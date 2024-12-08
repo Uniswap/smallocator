@@ -1,4 +1,5 @@
 import { getAddress } from 'viem/utils';
+import { hexToBytes, numberToHex } from 'viem/utils';
 import { getCompactDetails } from './graphql';
 import { getAllocatedBalance } from './balance';
 import { PGlite } from '@electric-sql/pglite';
@@ -20,74 +21,219 @@ export interface ValidationResult {
   error?: string;
 }
 
+// Helper to convert address to bytea
+function addressToBytes(address: string): Uint8Array {
+  return hexToBytes(address as `0x${string}`);
+}
+
+// Helper to convert hex string to 0x-prefixed hex string
+function toHexString(hex: string): `0x${string}` {
+  return `0x${hex}` as `0x${string}`;
+}
+
+// Helper to convert bigint to 32-byte hex string
+function bigintToHex(value: bigint): string {
+  return numberToHex(value, { size: 32 }).slice(2);
+}
+
 export async function generateNonce(
   sponsor: string,
   chainId: string,
   db: PGlite
 ): Promise<bigint> {
-  // Get sponsor address without 0x prefix and lowercase
-  const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
-
-  // Maximum value for uint96 (2^96 - 1)
-  const MAX_UINT96 = BigInt('0xffffffffffffffffffffffff');
-
-  // Find the first unused nonce fragment for this sponsor
-  const result = await db.query<{ noncefragment: string }>(
-    `WITH numbered_gaps AS (
+  const sponsorBytes = Buffer.from(getAddress(sponsor).toLowerCase().slice(2), 'hex');
+  
+  const result = await db.query<{ next_nonce: string }>(
+    `-- This query finds the first available 12-byte nonce fragment for a given sponsor and chain.
+    -- The nonce is represented as two parts:
+    --   1. nonce_high (uint64): The upper 8 bytes
+    --   2. nonce_low (uint32): The lower 4 bytes
+    -- 
+    -- The query finds the first available fragment by:
+    -- 1. Ordering all existing nonces for this sponsor/chain
+    -- 2. Looking for gaps in the sequence using several strategies:
+    --    a. Checking if (0,0) is unused
+    --    b. Finding gaps between consecutive low values within the same high value
+    --    c. Finding gaps between different high values
+    --    d. Handling the carry case when low value maxes out (2^32 - 1)
+    -- 3. If no gaps are found, using the next value after the highest existing nonce
+    -- 
+    -- The lowest available gap is always chosen to keep the nonce values as small as possible.
+    -- Returns a tuple of (high, low) representing the next available nonce fragment.
+    
+    WITH numbered_gaps AS (
         SELECT 
-            nonceFragment::numeric as current_value,
-            LEAD(nonceFragment::numeric) OVER (ORDER BY nonceFragment::numeric) AS next_value
-        FROM nonces
+            nonce_high,
+            nonce_low,
+            LEAD(nonce_high) OVER w as next_high,
+            LEAD(nonce_low) OVER w as next_low
+        FROM nonces 
         WHERE chain_id = $1 
         AND sponsor = $2
+        WINDOW w AS (ORDER BY nonce_high, nonce_low)
     ),
     gaps AS (
-        SELECT 
-            current_value + 1 as missing_value
+        -- Gap within same high value
+        SELECT nonce_high, nonce_low + 1 as gap_low
         FROM numbered_gaps
-        WHERE next_value - current_value > 1
+        WHERE 
+            -- Next value exists and has same high part
+            next_high = nonce_high 
+            -- And there's a gap
+            AND next_low > nonce_low + 1
         UNION ALL
-        SELECT 0 as missing_value
+        -- Gap between different high values
+        SELECT nonce_high + 1, 0
+        FROM numbered_gaps
+        WHERE 
+            -- Next high value is more than one greater
+            next_high > nonce_high + 1
+            -- Or this is the last value and we can still increment
+            OR (next_high IS NULL AND nonce_low < 2147483647)
+        UNION ALL
+        -- Handle carry case (current low is max int)
+        SELECT nonce_high + 1, 0
+        FROM numbered_gaps
+        WHERE
+            next_high = nonce_high + 1
+            AND nonce_low = 2147483647
+        UNION ALL
+        -- Handle case where (0,0) is available
+        SELECT 0, 0
         WHERE NOT EXISTS (
-            SELECT 1 
-            FROM nonces 
+            SELECT 1 FROM nonces 
             WHERE chain_id = $1 
             AND sponsor = $2 
-            AND nonceFragment::numeric = 0
+            AND nonce_high = 0 
+            AND nonce_low = 0
         )
     )
     SELECT 
-        CASE 
-            WHEN EXISTS (SELECT 1 FROM gaps) 
-            THEN (SELECT MIN(missing_value) FROM gaps)
-            ELSE COALESCE(
-                (SELECT MAX(nonceFragment::numeric) + 1 
-                 FROM nonces 
-                 WHERE chain_id = $1 
-                 AND sponsor = $2),
-                0
-            )
-        END::text AS noncefragment`,
-    [chainId, sponsorAddress]
+        COALESCE(
+            -- First available gap if one exists
+            (SELECT (gap_high, gap_low)::text 
+             FROM (
+                 SELECT nonce_high as gap_high, gap_low 
+                 FROM gaps 
+                 ORDER BY gap_high, gap_low 
+                 LIMIT 1
+             ) g),
+            -- Otherwise use next value after highest
+            (SELECT 
+                CASE 
+                    -- If we can increment low, do that
+                    WHEN MAX(nonce_low) < 2147483647 
+                    THEN (MAX(nonce_high), MAX(nonce_low) + 1)::text
+                    -- Otherwise carry to next high value
+                    ELSE (MAX(nonce_high) + 1, 0)::text
+                END
+             FROM nonces 
+             WHERE chain_id = $1 
+             AND sponsor = $2),
+            -- If no records exist, start at (0,0)
+            '(0,0)'
+        ) as next_nonce`,
+    [chainId, sponsorBytes]
   );
+  
+  // Parse the (high, low) tuple from postgres
+  const match = result.rows[0].next_nonce.match(/\((\d+),(\d+)\)/);
+  if (!match) throw new Error('Invalid nonce format returned');
+  
+  const [high, low] = [BigInt(match[1]), BigInt(match[2])];
+  
+  // Combine into final nonce
+  const sponsorPart = BigInt('0x' + sponsorBytes.toString('hex')) << BigInt(96);
+  const noncePart = (high << BigInt(32)) | low;
+  
+  // Store the new nonce
+  await db.query(
+    'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',
+    [randomUUID(), chainId, sponsorBytes, high.toString(), low.toString()]
+  );
+  
+  return sponsorPart | noncePart;
+}
 
-  if (!result.rows[0]?.noncefragment) {
-    throw new Error('Failed to generate nonce fragment');
+export async function validateNonce(
+  nonce: bigint,
+  sponsor: string,
+  chainId: string,
+  db: PGlite
+): Promise<ValidationResult> {
+  try {
+    // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
+    const nonceHex = bigintToHex(nonce);
+
+    // Split nonce into sponsor and fragment parts
+    const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
+    const fragmentPart = nonceHex.slice(40); // remaining 12 bytes = 24 hex chars
+
+    // Check that the sponsor part matches the sponsor's address (both lowercase)
+    const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
+    if (sponsorPart !== sponsorAddress) {
+      return {
+        isValid: false,
+        error: 'Nonce does not match sponsor address',
+      };
+    }
+
+    // Extract high and low parts from fragment
+    const fragmentBigInt = BigInt('0x' + fragmentPart);
+    const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
+    const nonceHigh = Number(fragmentBigInt >> BigInt(32));
+
+    // Check if nonce has been used before in this domain
+    const result = await db.query<{ count: number }>(
+      'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND nonce_high = $3 AND nonce_low = $4',
+      [chainId, addressToBytes(sponsor), nonceHigh, nonceLow]
+    );
+
+    if (result.rows[0].count > 0) {
+      return {
+        isValid: false,
+        error: 'Nonce has already been used',
+      };
+    }
+
+    return { isValid: true };
+  } catch (error) {
+    return {
+      isValid: false,
+      error: `Nonce validation error: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
   }
+}
 
-  // Convert the nonce fragment to BigInt
-  const nonceCounter = BigInt(result.rows[0].noncefragment);
+export async function storeNonce(
+  nonce: bigint,
+  chainId: string,
+  db: PGlite
+): Promise<void> {
+  // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
+  const nonceHex = bigintToHex(nonce);
 
-  // Check if we've exceeded uint96 max value
-  if (nonceCounter > MAX_UINT96) {
-    throw new Error('Nonce fragment exceeds maximum uint96 value');
-  }
+  // Split nonce into sponsor and fragment parts
+  const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
+  const fragmentPart = nonceHex.slice(40); // remaining 12 bytes = 24 hex chars
 
-  // Create new nonce: sponsor address (20 bytes) + counter (12 bytes)
-  const sponsorPart = BigInt('0x' + sponsorAddress) << BigInt(96);
-  const newNonce = sponsorPart | nonceCounter;
+  // Extract high and low parts from fragment
+  const fragmentBigInt = BigInt('0x' + fragmentPart);
+  const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
+  const nonceHigh = Number(fragmentBigInt >> BigInt(32));
 
-  return newNonce;
+  await db.query(
+    'INSERT INTO nonces (id, chain_id, sponsor, nonce_high, nonce_low) VALUES ($1, $2, $3, $4, $5)',
+    [
+      randomUUID(),
+      chainId,
+      hexToBytes(toHexString(sponsorPart)),
+      nonceHigh,
+      nonceLow,
+    ]
+  );
 }
 
 export async function validateCompact(
@@ -192,58 +338,6 @@ export async function validateStructure(
     return {
       isValid: false,
       error: `Structural validation error: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    };
-  }
-}
-
-export async function validateNonce(
-  nonce: bigint,
-  sponsor: string,
-  chainId: string,
-  db: PGlite
-): Promise<ValidationResult> {
-  try {
-    // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
-    let nonceHex;
-    if (nonce.toString(16).startsWith('0x')) {
-      nonceHex = nonce.toString(16).slice(2).padStart(64, '0').toLowerCase();
-    } else {
-      nonceHex = nonce.toString(16).padStart(64, '0').toLowerCase();
-    }
-
-    // Split nonce into sponsor and fragment parts
-    const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
-    const fragmentPart = nonceHex.slice(40); // remaining 12 bytes = 24 hex chars
-
-    // Check that the sponsor part matches the sponsor's address (both lowercase)
-    const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
-    if (sponsorPart !== sponsorAddress) {
-      return {
-        isValid: false,
-        error: 'Nonce does not match sponsor address',
-      };
-    }
-
-    // Check if nonce has been used before in this domain
-    const result = await db.query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND LOWER(nonceFragment) = $3',
-      [chainId, sponsorAddress, fragmentPart]
-    );
-
-    if (result.rows[0].count > 0) {
-      return {
-        isValid: false,
-        error: 'Nonce has already been used',
-      };
-    }
-
-    return { isValid: true };
-  } catch (error) {
-    return {
-      isValid: false,
-      error: `Nonce validation error: ${
         error instanceof Error ? error.message : String(error)
       }`,
     };
@@ -409,27 +503,4 @@ export async function validateAllocation(
       }`,
     };
   }
-}
-
-export async function storeNonce(
-  nonce: bigint,
-  chainId: string,
-  db: PGlite
-): Promise<void> {
-  // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
-  let nonceHex;
-  if (nonce.toString(16).startsWith('0x')) {
-    nonceHex = nonce.toString(16).slice(2).padStart(64, '0').toLowerCase();
-  } else {
-    nonceHex = nonce.toString(16).padStart(64, '0').toLowerCase();
-  }
-
-  // Split nonce into sponsor and fragment parts
-  const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
-  const fragmentPart = nonceHex.slice(40); // remaining 12 bytes = 24 hex chars
-
-  await db.query(
-    'INSERT INTO nonces (id, chain_id, sponsor, nonceFragment, consumed_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)',
-    [randomUUID(), chainId, sponsorPart, fragmentPart]
-  );
 }
