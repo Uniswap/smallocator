@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { setupRoutes } from '../../routes';
 import { dbManager } from '../setup';
 import { signMessage } from 'viem/accounts';
-import { getAddress, hexToBytes, bytesToHex, numberToHex } from 'viem/utils';
+import { getAddress } from 'viem/utils';
 
 // Helper to generate test data
 const defaultBaseUrl = 'https://smallocator.example';
@@ -186,7 +186,9 @@ function ensure0x(hex: string): `0x${string}` {
 
 export const validCompact = {
   // Pack scope (0), reset period (7), allocatorId (1), and token (0) into the ID
-  id: BigInt('0x7000000000000000000000010000000000000000000000000000000000000000'),  // Set reset period to 7 (30 days)
+  id: BigInt(
+    '0x7000000000000000000000010000000000000000000000000000000000000000'
+  ), // Set reset period to 7 (30 days)
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
   sponsor: validPayload.address,
   // Create nonce where first 20 bytes match sponsor address
@@ -205,14 +207,14 @@ export const validCompact = {
 let compactCounter = BigInt(0);
 export function getFreshCompact(): typeof validCompact {
   const counter = compactCounter++;
-  
+
   // Get normalized sponsor address
   const sponsorAddress = getAddress(validCompact.sponsor).toLowerCase();
-  
+
   // Create nonce with sponsor in first 20 bytes and counter in last 12 bytes
   // First convert the sponsor address to a BigInt (removing 0x prefix)
   const sponsorBigInt = BigInt('0x' + sponsorAddress.slice(2));
-  
+
   // Shift sponsor left by 96 bits (12 bytes) to make room for counter
   const nonce = (sponsorBigInt << BigInt(96)) | counter;
 
@@ -245,7 +247,10 @@ export function compactToAPI(
     id: ensure0x(idHex),
     arbiter: ensure0x(padToBytes(getAddress(compact.arbiter), 20)),
     sponsor: ensure0x(padToBytes(getAddress(compact.sponsor), 20)),
-    nonce: nonce === null ? null : ensure0x(padToBytes("0x" + nonce.toString(16), 32)),
+    nonce:
+      nonce === null
+        ? null
+        : ensure0x(padToBytes('0x' + nonce.toString(16), 32)),
     expires: compact.expires.toString(),
     amount: compact.amount, // Keep amount as decimal string
     witnessTypeString: compact.witnessTypeString,

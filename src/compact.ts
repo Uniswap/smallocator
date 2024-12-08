@@ -9,6 +9,7 @@ import {
 } from './validation';
 import { generateClaimHash, signCompact } from './crypto';
 import { randomUUID } from 'crypto';
+import { PGlite } from '@electric-sql/pglite';
 
 export interface CompactSubmission {
   chainId: string;
@@ -116,10 +117,6 @@ export async function submitCompact(
           ? BigInt(submission.compact.expires)
           : submission.compact.expires,
     };
-
-    // Log the compact ID before validation
-    console.log('Debug - Compact ID before validation:', compactForValidation.id.toString(16));
-    console.log('Debug - Reset period bits:', (compactForValidation.id >> BigInt(252) & BigInt(7)).toString());
 
     // Generate nonce if not provided (do this before validation)
     const nonce =
@@ -286,19 +283,18 @@ export async function getCompactByHash(
 }
 
 async function storeCompact(
-  db: any,
+  db: PGlite,
   compact: StoredCompactMessage,
   chainId: string,
   hash: Hex,
   signature: Hex
 ): Promise<void> {
   const id = randomUUID();
-  
+
   // Convert nonce to hex string preserving all 32 bytes
   const nonceHex = compact.nonce.toString(16).padStart(64, '0');
   const nonceBytes = hexToBuffer(nonceHex);
 
-  console.log('?');
   await db.query(
     `INSERT INTO compacts (
       id,
@@ -326,5 +322,4 @@ async function storeCompact(
       hexToBuffer(signature),
     ]
   );
-  console.log("!");
 }

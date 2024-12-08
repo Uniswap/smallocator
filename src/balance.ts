@@ -24,10 +24,22 @@ export async function getAllocatedBalance(
   const finalizationThreshold = BigInt(getFinalizationThreshold(chainId));
 
   // Convert inputs to bytea format
-  const sponsorBytes = hexToBytes(sponsor.startsWith('0x') ? sponsor as `0x${string}` : `0x${sponsor}` as `0x${string}`);
-  const lockIdBytes = hexToBytes(lockId.startsWith('0x') ? lockId as `0x${string}` : `0x${lockId}` as `0x${string}`);
-  const processedClaimBytea = processedClaimHashes.map(hash => 
-    hexToBytes(hash.startsWith('0x') ? hash as `0x${string}` : `0x${hash}` as `0x${string}`)
+  const sponsorBytes = hexToBytes(
+    sponsor.startsWith('0x')
+      ? (sponsor as `0x${string}`)
+      : (`0x${sponsor}` as `0x${string}`)
+  );
+  const lockIdBytes = hexToBytes(
+    lockId.startsWith('0x')
+      ? (lockId as `0x${string}`)
+      : (`0x${lockId}` as `0x${string}`)
+  );
+  const processedClaimBytea = processedClaimHashes.map((hash) =>
+    hexToBytes(
+      hash.startsWith('0x')
+        ? (hash as `0x${string}`)
+        : (`0x${hash}` as `0x${string}`)
+    )
   );
 
   // Handle empty processed claims list case
@@ -77,8 +89,5 @@ export async function getAllocatedBalance(
 
   const result = await db.query<CompactRow>(query, params);
 
-  return result.rows.reduce(
-    (sum, row) => sum + BigInt(row.amount),
-    BigInt(0)
-  );
+  return result.rows.reduce((sum, row) => sum + BigInt(row.amount), BigInt(0));
 }

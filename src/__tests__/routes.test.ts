@@ -413,9 +413,6 @@ describe('API Routes', () => {
           compact: compactToAPI(freshCompact),
         };
 
-        // Log the nonce value for debugging
-        console.log('Debug - Submitting compact with nonce:', freshCompact.nonce.toString(16));
-
         const response = await server.inject({
           method: 'POST',
           url: '/compact',

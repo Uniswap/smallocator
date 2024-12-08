@@ -129,13 +129,13 @@ export async function generateNonce(
 
   // Create a buffer for the complete nonce (32 bytes: 20 + 8 + 4)
   const nonceBuffer = Buffer.alloc(32);
-  
+
   // Copy sponsor (20 bytes)
   sponsorBytes.copy(nonceBuffer, 0);
-  
+
   // Write high value (8 bytes)
   nonceBuffer.writeBigUInt64BE(high, 20);
-  
+
   // Write low value (4 bytes)
   nonceBuffer.writeUInt32BE(Number(low), 28);
 
@@ -402,7 +402,7 @@ export async function validateDomainAndId(
     ];
     const resetPeriod = resetPeriods[resetPeriodIndex];
 
-    // Check that resetPeriod doesn't allow forced withdrawal before expiration
+    // Ensure resetPeriod doesn't allow forced withdrawal before expiration
     const now = BigInt(Math.floor(Date.now() / 1000));
 
     if (now + resetPeriod < expires) {
