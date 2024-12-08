@@ -9,6 +9,10 @@ import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 
+interface BalanceDisplayProps {
+  sessionToken: string | null;
+}
+
 // Interface for the selected lock data needed by ForcedWithdrawalDialog
 interface SelectedLockData {
   chainId: string;
@@ -45,7 +49,7 @@ const formatResetPeriod = (seconds: number): string => {
   return `${Math.floor(seconds / 86400)} days`;
 };
 
-export function BalanceDisplay(): JSX.Element | null {
+export function BalanceDisplay({ sessionToken }: BalanceDisplayProps): JSX.Element | null {
   const { isConnected } = useAccount();
   const { balances, error, isLoading } = useBalances();
   const { data: resourceLocksData, isLoading: resourceLocksLoading } =
@@ -297,6 +301,7 @@ export function BalanceDisplay(): JSX.Element | null {
                       }}
                       tokenSymbol={balance.token?.symbol || ''}
                       withdrawalStatus={balance.withdrawalStatus}
+                      sessionToken={sessionToken}
                       onForceWithdraw={() => {
                         setSelectedLockId(balance.lockId);
                         setIsWithdrawalDialogOpen(true);

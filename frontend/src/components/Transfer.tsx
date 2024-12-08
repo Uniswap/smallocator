@@ -4,6 +4,7 @@ import { parseUnits, formatUnits } from 'viem';
 import { useNotification } from '../hooks/useNotification';
 import { useAllocatedTransfer } from '../hooks/useAllocatedTransfer';
 import { useAllocatedWithdrawal } from '../hooks/useAllocatedWithdrawal';
+import { useRequestAllocation } from '../hooks/useRequestAllocation';
 import { COMPACT_ADDRESS, COMPACT_ABI } from '../constants/contracts';
 
 interface TransferProps {
@@ -18,16 +19,17 @@ interface TransferProps {
   };
   tokenSymbol: string;
   withdrawalStatus: number;
+  sessionToken: string | null;
   onForceWithdraw: () => void;
   onDisableForceWithdraw: () => void;
 }
 
 interface FormData {
-  nonce: string;
   expires: string;
   recipient: string;
   amount: string;
-  allocatorSignature: string;
+  allocatorSignature?: string;
+  nonce?: string;
 }
 
 interface WalletError extends Error {
@@ -46,6 +48,7 @@ export function Transfer({
   tokenName,
   tokenSymbol,
   withdrawalStatus,
+  sessionToken,
   onForceWithdraw,
   onDisableForceWithdraw,
 }: TransferProps) {
@@ -54,16 +57,17 @@ export function Transfer({
   const [isOpen, setIsOpen] = useState(false);
   const [isWithdrawal, setIsWithdrawal] = useState(false);
   const [isWithdrawalLoading, setIsWithdrawalLoading] = useState(false);
+  const [isRequestingAllocation, setIsRequestingAllocation] = useState(false);
+  const [hasAllocation, setHasAllocation] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    nonce: '',
     expires: '',
     recipient: '',
     amount: '',
-    allocatorSignature: '',
   });
 
   const { allocatedTransfer, isPending: isTransferLoading } = useAllocatedTransfer();
   const { allocatedWithdrawal, isPending: isWithdrawalPending } = useAllocatedWithdrawal();
+  const { requestAllocation } = useRequestAllocation();
   const { showNotification } = useNotification();
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string | undefined }>({});
 
@@ -151,18 +155,7 @@ export function Transfer({
 
   const isFormValid = useMemo(() => {
     // Basic form validation
-    if (
-      !formData.nonce ||
-      !formData.expires ||
-      !formData.recipient ||
-      !formData.amount ||
-      !formData.allocatorSignature
-    ) {
-      return false;
-    }
-
-    // Check if nonce has been consumed
-    if (nonceError) {
+    if (!formData.expires || !formData.recipient || !formData.amount) {
       return false;
     }
 
@@ -178,7 +171,7 @@ export function Transfer({
     }
 
     return true;
-  }, [formData, nonceError, fieldErrors]);
+  }, [formData, fieldErrors]);
 
   const handleAction = async (action: 'transfer' | 'withdraw' | 'force' | 'disable') => {
     // Check if we need to switch networks
@@ -248,30 +241,79 @@ export function Transfer({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+  const handleRequestAllocation = async () => {
+    if (!isFormValid || !sessionToken || !address) {
+      if (!sessionToken) {
+        showNotification({
+          type: 'error',
+          title: 'Session Required',
+          message: 'Please sign in to request allocation',
+        });
+      }
+      if (!address) {
+        showNotification({
+          type: 'error',
+          title: 'Wallet Required',
+          message: 'Please connect your wallet first',
+        });
+      }
+      return;
+    }
 
     try {
-      // Validate inputs before creating transfer struct
-      if (!formData.allocatorSignature?.startsWith('0x')) {
-        throw new Error('Allocator signature must start with 0x');
-      }
+      setIsRequestingAllocation(true);
+
+      const params = {
+        chainId: targetChainId,
+        compact: {
+          // Set arbiter equal to sponsor (user's address)
+          arbiter: address,
+          sponsor: address,
+          nonce: null,
+          expires: formData.expires,
+          id: lockId.toString(),
+          amount: parseUnits(formData.amount, decimals).toString(),
+          witnessTypeString: null,
+          witnessHash: null,
+        },
+      };
+
+      const response = await requestAllocation(params, sessionToken);
+
+      setFormData(prev => ({
+        ...prev,
+        allocatorSignature: response.signature,
+        nonce: response.nonce,
+      }));
+
+      setHasAllocation(true);
+      showNotification({
+        type: 'success',
+        title: 'Allocation Requested',
+        message: 'Successfully received allocation. You can now submit the transfer.',
+      });
+    } catch (error) {
+      console.error('Error requesting allocation:', error);
+      showNotification({
+        type: 'error',
+        title: 'Allocation Request Failed',
+        message: error instanceof Error ? error.message : 'Failed to request allocation',
+      });
+    } finally {
+      setIsRequestingAllocation(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid || !formData.allocatorSignature || !formData.nonce) return;
+
+    try {
+      // Validate recipient
       if (!formData.recipient?.startsWith('0x')) {
         throw new Error('Recipient must be a valid address starting with 0x');
       }
       
-      // Validate numeric fields
-      if (!formData.nonce || !/^\d+$/.test(formData.nonce)) {
-        throw new Error('Nonce must be a valid number');
-      }
-      if (!formData.expires || !/^\d+$/.test(formData.expires)) {
-        throw new Error('Expires must be a valid timestamp');
-      }
-      if (!formData.amount || isNaN(Number(formData.amount)) || Number(formData.amount) <= 0) {
-        throw new Error('Amount must be a valid positive number');
-      }
-
       try {
         // Convert values and prepare transfer struct
         const transfer = {
@@ -300,12 +342,11 @@ export function Transfer({
 
         // Reset form and close
         setFormData({
-          nonce: '',
           expires: '',
           recipient: '',
           amount: '',
-          allocatorSignature: '',
         });
+        setHasAllocation(false);
         setIsOpen(false);
       } catch (conversionError) {
         console.error('Error converting values:', conversionError);
@@ -421,39 +462,6 @@ export function Transfer({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Allocator Signature
-                </label>
-                <input
-                  type="text"
-                  value={formData.allocatorSignature}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, allocatorSignature: e.target.value }))
-                  }
-                  placeholder="0x..."
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Nonce
-                </label>
-                <input
-                  type="text"
-                  value={formData.nonce}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nonce: e.target.value }))}
-                  placeholder="Enter nonce"
-                  className={`w-full px-3 py-2 bg-gray-800 border ${
-                    fieldErrors.nonce ? 'border-red-500' : 'border-gray-700'
-                  } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
-                />
-                {fieldErrors.nonce && (
-                  <p className="mt-1 text-sm text-red-500">{fieldErrors.nonce}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Expires
                 </label>
                 <div className="flex gap-2">
@@ -536,39 +544,76 @@ export function Transfer({
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={!isFormValid || isTransferLoading || isWithdrawalPending}
-                className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isTransferLoading || isWithdrawalPending ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {isWithdrawal ? 'Submitting Withdrawal...' : 'Submitting Transfer...'}
-                  </span>
-                ) : (
-                  <>{isWithdrawal ? 'Submit Withdrawal' : 'Submit Transfer'}</>
-                )}
-              </button>
+              {!hasAllocation ? (
+                <button
+                  type="button"
+                  onClick={handleRequestAllocation}
+                  disabled={!isFormValid || isRequestingAllocation}
+                  className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRequestingAllocation ? (
+                    <span className="flex items-center justify-center">
+                      <svg
+                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Requesting Allocation...
+                    </span>
+                  ) : (
+                    'Request Allocation'
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!isFormValid || isTransferLoading || isWithdrawalPending}
+                  className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isTransferLoading || isWithdrawalPending ? (
+                    <span className="flex items-center justify-center">
+                      <svg
+                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      {isWithdrawal ? 'Submitting Withdrawal...' : 'Submitting Transfer...'}
+                    </span>
+                  ) : (
+                    <>{isWithdrawal ? 'Submit Withdrawal' : 'Submit Transfer'}</>
+                  )}
+                </button>
+              )}
             </form>
           </div>
         </div>

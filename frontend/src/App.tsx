@@ -126,7 +126,7 @@ function App() {
                     {/* Balance Display */}
                     {sessionToken && (
                       <div className="mx-auto p-6 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
-                        <BalanceDisplay />
+                        <BalanceDisplay sessionToken={sessionToken} />
                       </div>
                     )}
 
