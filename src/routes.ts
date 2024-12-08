@@ -718,7 +718,7 @@ export async function setupRoutes(server: FastifyInstance): Promise<void> {
 
           // Convert BigInt values to strings for JSON serialization
           const serializedCompact: SerializedCompactRecord = {
-            chainId: compact.chainId,
+            chainId,
             compact: serializeCompactMessage(compact.compact),
             hash: compact.hash,
             signature: compact.signature,

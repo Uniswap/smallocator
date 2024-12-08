@@ -117,6 +117,10 @@ export async function submitCompact(
           : submission.compact.expires,
     };
 
+    // Log the compact ID before validation
+    console.log('Debug - Compact ID before validation:', compactForValidation.id.toString(16));
+    console.log('Debug - Reset period bits:', (compactForValidation.id >> BigInt(252) & BigInt(7)).toString());
+
     // Generate nonce if not provided (do this before validation)
     const nonce =
       submission.compact.nonce === null
@@ -292,8 +296,9 @@ async function storeCompact(
   
   // Convert nonce to hex string preserving all 32 bytes
   const nonceHex = compact.nonce.toString(16).padStart(64, '0');
-  const nonceBytes = hexToBytes(`0x${nonceHex}`);
+  const nonceBytes = hexToBuffer(nonceHex);
 
+  console.log('?');
   await db.query(
     `INSERT INTO compacts (
       id,
@@ -316,9 +321,10 @@ async function storeCompact(
       addressToBytes(compact.sponsor),
       nonceBytes,
       compact.expires.toString(),
-      numberToHex(compact.id, { size: 32 }),
+      hexToBuffer(numberToHex(compact.id, { size: 32 })),
       amountToBytes(compact.amount),
       hexToBuffer(signature),
     ]
   );
+  console.log("!");
 }

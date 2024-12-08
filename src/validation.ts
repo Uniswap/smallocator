@@ -152,7 +152,6 @@ export async function validateNonce(
   try {
     // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
     const nonceHex = bigintToHex(nonce);
-    console.log('Debug - Nonce hex:', nonceHex);
 
     // Split nonce into sponsor and fragment parts
     const sponsorPart = nonceHex.slice(0, 40); // first 20 bytes = 40 hex chars
@@ -160,9 +159,6 @@ export async function validateNonce(
 
     // Check that the sponsor part matches the sponsor's address (both lowercase)
     const sponsorAddress = getAddress(sponsor).toLowerCase().slice(2);
-    console.log('Debug - Comparing sponsor parts:');
-    console.log('  From nonce:', sponsorPart);
-    console.log('  Expected: ', sponsorAddress);
 
     if (sponsorPart !== sponsorAddress) {
       return {
@@ -393,6 +389,7 @@ export async function validateDomainAndId(
 
     // Extract resetPeriod and allocatorId from the compact id
     const resetPeriodIndex = Number((id >> BigInt(252)) & BigInt(0x7));
+
     const resetPeriods = [
       BigInt(1),
       BigInt(15),
@@ -407,6 +404,7 @@ export async function validateDomainAndId(
 
     // Check that resetPeriod doesn't allow forced withdrawal before expiration
     const now = BigInt(Math.floor(Date.now() / 1000));
+
     if (now + resetPeriod < expires) {
       return {
         isValid: false,

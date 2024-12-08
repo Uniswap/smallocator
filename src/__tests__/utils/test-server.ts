@@ -185,8 +185,8 @@ function ensure0x(hex: string): `0x${string}` {
 }
 
 export const validCompact = {
-  // Set allocatorId to 1 in bits 160-251 (92 bits) and reset period index 7 in bits 252-254
-  id: (BigInt(1) << BigInt(160)) | (BigInt(7) << BigInt(252)), // Reset period index 7 = 2592000 seconds (30 days)
+  // Pack scope (0), reset period (7), allocatorId (1), and token (0) into the ID
+  id: BigInt('0x7000000000000000000000010000000000000000000000000000000000000000'),  // Set reset period to 7 (30 days)
   arbiter: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
   sponsor: validPayload.address,
   // Create nonce where first 20 bytes match sponsor address
@@ -216,10 +216,18 @@ export function getFreshCompact(): typeof validCompact {
   // Shift sponsor left by 96 bits (12 bytes) to make room for counter
   const nonce = (sponsorBigInt << BigInt(96)) | counter;
 
+  // Create new ID preserving everything except the token bits
+  const tokenMask = (BigInt(1) << BigInt(160)) - BigInt(1);
+  const id = (validCompact.id & ~tokenMask) | (counter & tokenMask);
+
+  // Set expiration to 1 hour from now (within server's 2-hour limit)
+  const expires = BigInt(Math.floor(Date.now() / 1000) + 3600);
+
   return {
     ...validCompact,
+    id,
     nonce,
-    expires: BigInt(Math.floor(Date.now() / 1000) + 3600),
+    expires,
   };
 }
 
@@ -230,11 +238,14 @@ export function compactToAPI(
 ): Record<string, string | number | null> {
   const nonce = options.nullNonce ? null : compact.nonce;
 
+  // Convert ID to hex preserving all bits
+  const idHex = compact.id.toString(16).padStart(64, '0');
+
   return {
-    id: ensure0x(padToBytes(compact.id.toString(16), 32)),
+    id: ensure0x(idHex),
     arbiter: ensure0x(padToBytes(getAddress(compact.arbiter), 20)),
     sponsor: ensure0x(padToBytes(getAddress(compact.sponsor), 20)),
-    nonce: nonce === null ? null : ensure0x(nonce.toString(16).padStart(64, '0')), // Pad to 32 bytes
+    nonce: nonce === null ? null : ensure0x(padToBytes("0x" + nonce.toString(16), 32)),
     expires: compact.expires.toString(),
     amount: compact.amount, // Keep amount as decimal string
     witnessTypeString: compact.witnessTypeString,
