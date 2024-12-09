@@ -1,13 +1,12 @@
 import {
   type Hex,
-  parseCompactSignature,
   serializeCompactSignature,
   keccak256,
   encodeAbiParameters,
   encodePacked,
   concat,
   getAddress,
-  serializeSignature,
+  signatureToCompactSignature,
 } from 'viem';
 import { privateKeyToAccount, signMessage, sign } from 'viem/accounts';
 import { type StoredCompactMessage } from './compact';
@@ -151,12 +150,9 @@ export async function signDigest(hash: Hex): Promise<Hex> {
     privateKey,
   });
 
-  // Convert signature object to hex string
-  const signatureHex = serializeSignature(signature);
-
   // Convert to EIP2098 compact signature format
-  const parsedCompactSig = parseCompactSignature(signatureHex);
-  return serializeCompactSignature(parsedCompactSig);
+  const compactSig = signatureToCompactSignature(signature);
+  return serializeCompactSignature(compactSig);
 }
 
 export type CompactSignature = {
