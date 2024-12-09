@@ -12,7 +12,7 @@ interface CompactRequest {
   compact: {
     arbiter: string
     sponsor: string
-    nonce: string
+    nonce: string | null
     expires: string
     id: string
     amount: string

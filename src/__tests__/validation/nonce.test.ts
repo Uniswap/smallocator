@@ -1,5 +1,4 @@
 import { generateNonce, validateNonce } from '../../validation/nonce';
-import { getFreshCompact } from '../utils/test-server';
 import { PGlite } from '@electric-sql/pglite';
 import { hexToBytes } from 'viem/utils';
 

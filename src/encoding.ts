@@ -9,7 +9,8 @@ import { getAddress, hexToBytes, toHex, numberToHex } from 'viem/utils';
 export function toBytes32(value: string | bigint): Uint8Array {
   const hex =
     typeof value === 'string' ? value : numberToHex(value, { size: 32 });
-  return hexToBytes(hex.startsWith('0x') ? hex : `0x${hex}`);
+  // Use toHex to ensure proper typing
+  return hexToBytes(toHex(hex.startsWith('0x') ? hex : `0x${hex}`));
 }
 
 /**
@@ -41,7 +42,7 @@ export function addressToBytes(address: string): Uint8Array {
     // First normalize the address using viem's getAddress
     const normalizedAddress = getAddress(address);
     return hexToBytes(normalizedAddress);
-  } catch (error) {
+  } catch {
     throw new Error(`Invalid Ethereum address: ${address}`);
   }
 }

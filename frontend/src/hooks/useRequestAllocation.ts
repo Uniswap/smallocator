@@ -10,7 +10,7 @@ interface RequestAllocationParams {
     expires: string;
     id: string;
     amount: string;
-    nonce: null;
+    nonce?: string | null;
     witnessTypeString?: string | null;
     witnessHash?: string | null;
   };
@@ -37,7 +37,8 @@ export function useRequestAllocation() {
           expires: params.compact.expires,
           id: params.compact.id,
           amount: params.compact.amount,
-          nonce: null,
+          // If nonce is undefined, use null
+          nonce: params.compact.nonce === undefined ? null : params.compact.nonce,
           ...(params.compact.witnessTypeString && { witnessTypeString: params.compact.witnessTypeString }),
           ...(params.compact.witnessHash && { witnessHash: params.compact.witnessHash }),
         }

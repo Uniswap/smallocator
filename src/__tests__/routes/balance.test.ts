@@ -1,7 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import {
   createTestServer,
-  validPayload,
   getFreshCompact,
   cleanupTestServer,
   generateSignature,

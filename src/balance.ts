@@ -3,10 +3,6 @@ import { getFinalizationThreshold } from './chain-config.js';
 import { hexToBytes } from 'viem/utils';
 import { toBigInt } from './utils/encoding.js';
 
-interface CompactRow {
-  amount: Buffer;
-}
-
 /**
  * Calculate the total allocated balance for a given sponsor, chain, and resource lock
  * that hasn't been processed yet. This accounts for:
@@ -49,23 +45,6 @@ export async function getAllocatedBalance(
       )
     );
 
-    console.log('Input parameters:', {
-      sponsor,
-      chainId,
-      lockId,
-      processedClaimHashes,
-      currentTimeSeconds: currentTimeSeconds.toString(),
-      finalizationThreshold: finalizationThreshold.toString(),
-    });
-
-    console.log('Converted bytea values:', {
-      sponsorBytes: Buffer.from(sponsorBytes).toString('hex'),
-      lockIdBytes: Buffer.from(lockIdBytes).toString('hex'),
-      processedClaimBytea: processedClaimBytea.map((b) =>
-        Buffer.from(b).toString('hex')
-      ),
-    });
-
     // Handle empty processed claims list case
     if (processedClaimHashes.length === 0) {
       const query = `
@@ -85,37 +64,13 @@ export async function getAllocatedBalance(
         finalizationThreshold.toString(),
       ];
 
-      // Log the query and parameters
-      console.log('Executing query:', {
-        query,
-        params: {
-          sponsor: Buffer.from(sponsorBytes).toString('hex'),
-          chainId,
-          lockId: Buffer.from(lockIdBytes).toString('hex'),
-          currentTime: currentTimeSeconds.toString(),
-          finalizationThreshold: finalizationThreshold.toString(),
-        },
-      });
-
       const result = await db.query<{ amount: Buffer }>(query, params);
-
-      // Log the result
-      console.log(
-        'Query result:',
-        result.rows.map((row) => ({
-          amount: Buffer.from(row.amount).toString('hex'),
-        }))
-      );
 
       return result.rows.reduce((sum, row) => {
         // Convert bytea amount to decimal string
         const amountBigInt = BigInt(
           '0x' + Buffer.from(row.amount).toString('hex')
         );
-        console.log('Converting amount:', {
-          hex: Buffer.from(row.amount).toString('hex'),
-          decimal: amountBigInt.toString(),
-        });
         return sum + amountBigInt;
       }, BigInt(0));
     }
@@ -140,48 +95,19 @@ export async function getAllocatedBalance(
       ...processedClaimBytea,
     ];
 
-    // Log the query and parameters
-    console.log('Executing query with claims filter:', {
-      query,
-      params: {
-        sponsor: Buffer.from(sponsorBytes).toString('hex'),
-        chainId,
-        lockId: Buffer.from(lockIdBytes).toString('hex'),
-        currentTime: currentTimeSeconds.toString(),
-        finalizationThreshold: finalizationThreshold.toString(),
-        processedClaimHashes: processedClaimBytea.map((b) =>
-          Buffer.from(b).toString('hex')
-        ),
-      },
-    });
-
     const result = await db.query<{ amount: Buffer }>(query, params);
-
-    // Log the result
-    console.log(
-      'Query result:',
-      result.rows.map((row) => ({
-        amount: Buffer.from(row.amount).toString('hex'),
-      }))
-    );
 
     return result.rows.reduce((sum, row) => {
       // Convert bytea amount to decimal string
       const amountBigInt = BigInt(
         '0x' + Buffer.from(row.amount).toString('hex')
       );
-      console.log('Converting amount:', {
-        hex: Buffer.from(row.amount).toString('hex'),
-        decimal: amountBigInt.toString(),
-      });
       return sum + amountBigInt;
     }, BigInt(0));
   } catch (error) {
-    console.error('Error in getAllocatedBalance:', error);
     if (error instanceof Error) {
-      console.error('Error stack:', error.stack);
-      console.error('Error message:', error.message);
+      throw new Error(`Error in getAllocatedBalance: ${error.message}`);
     }
-    throw error; // Re-throw to let the route handler handle it
+    throw error;
   }
 }

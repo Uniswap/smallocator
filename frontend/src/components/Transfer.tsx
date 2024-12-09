@@ -171,7 +171,7 @@ export function Transfer({
     }
 
     return true;
-  }, [formData, fieldErrors]);
+  }, [formData, fieldErrors, validateAmount]);
 
   const handleAction = async (action: 'transfer' | 'withdraw' | 'force' | 'disable') => {
     // Check if we need to switch networks

@@ -13,7 +13,7 @@ import {
   AccountDeltasResponse,
   AccountResponse,
 } from '../../graphql';
-import { RequestDocument, Variables, RequestOptions } from 'graphql-request';
+import { Variables } from 'graphql-request';
 
 describe('Integration Tests', () => {
   let server: FastifyInstance;
@@ -123,8 +123,8 @@ describe('Integration Tests', () => {
       const submitResult = JSON.parse(submitResponse.payload);
       expect(submitResult).toHaveProperty('hash');
 
-      // Dump compacts table
-      const compactsResult = await server.db.query(`
+      // Query compacts table
+      await server.db.query(`
         SELECT 
           id::text,
           chain_id,
@@ -141,10 +141,6 @@ describe('Integration Tests', () => {
           created_at
         FROM compacts
       `);
-      console.log(
-        'Compacts table after insertion:',
-        JSON.stringify(compactsResult.rows, null, 2)
-      );
 
       // 5. Verify updated balance
       const updatedBalanceResponse = await server.inject({
