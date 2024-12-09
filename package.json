@@ -24,12 +24,12 @@
     "type-check": "tsc --noEmit -p tsconfig.lint.json",
     "type-check:staged": "tsc --noEmit --skipLibCheck --skipDefaultLibCheck --target ES2022 --module ESNext --moduleResolution bundler --strict --esModuleInterop --forceConsistentCasingInFileNames --baseUrl . --paths viem:['./src/types/viem.d.ts'] --paths webauthn-p256:['./src/types/webauthn-p256.d.ts'] src/types/fastify.d.ts",
     "type-check:staged-files": "tsc --noEmit --skipLibCheck --skipDefaultLibCheck",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" && cd frontend && prettier --write \"src/**/*.{ts,tsx}\" && cd -",
+    "format:check": "prettier --check \"src/**/*.ts\" && cd frontend && prettier --check \"src/**/*.{ts,tsx}\" && cd -",
     "prepare": "husky",
     "check-test-files": "node scripts/check-test-files.js",
     "lint-staged": "lint-staged",
-    "check:all": "pnpm build:all || true && pnpm lint || true && cd frontend && pnpm lint || true && cd - && pnpm format:check || true && cd frontend && prettier --check \"src/**/*.{ts,tsx}\" || true && cd - && pnpm type-check || true && cd frontend && pnpm tsc --noEmit -p tsconfig.app.json || true && cd - && pnpm test:parallel || true && pnpm smoke-test || true"
+    "check:all": "pnpm build:all || true && pnpm lint || true && cd frontend && pnpm lint || true && cd - && pnpm format:check || true && pnpm type-check || true && cd frontend && pnpm tsc --noEmit -p tsconfig.app.json || true && cd - && pnpm test:parallel || true && pnpm smoke-test || true"
   },
   "lint-staged": {
     "**/*.{test,spec}.ts": [

@@ -54,7 +54,7 @@ export function useBalances(): UseBalancesResult {
     if (!isConnected || !address || isFetchingRef.current) return;
 
     isFetchingRef.current = true;
-    let shouldSetLoading = !balances.length; // Only show loading on initial fetch
+    const shouldSetLoading = !balances.length; // Only show loading on initial fetch
 
     try {
       if (shouldSetLoading) setIsLoading(true);
@@ -143,7 +143,8 @@ export function useBalances(): UseBalancesResult {
 
         // Check if any balances have changed
         const hasAnyBalanceChanged = newBalances.some(
-          (newBalance, index) => newBalance !== prevBalances[index]
+          (newBalance: Balance, index: number) =>
+            newBalance !== prevBalances[index]
         );
 
         return hasAnyBalanceChanged ? newBalances : prevBalances;

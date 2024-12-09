@@ -64,9 +64,7 @@ export function BalanceDisplay({
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
   );
-  const [currentTime, setCurrentTime] = useState(() =>
-    Math.floor(Date.now() / 1000)
-  );
+  const [, setCurrentTime] = useState(() => Math.floor(Date.now() / 1000));
 
   const handleDisableWithdrawal = useCallback(
     async (lockId: string) => {
@@ -118,7 +116,7 @@ export function BalanceDisplay({
         ? formatResetPeriod(balance.resourceLock.resetPeriod)
         : '',
     }));
-  }, [balances, currentTime]);
+  }, [balances]);
 
   if (!isConnected) return null;
 
