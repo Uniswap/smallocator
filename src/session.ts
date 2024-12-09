@@ -157,7 +157,10 @@ export async function validateAndCreateSession(
 
     return session;
   } catch (error) {
-    server.log.error('Session validation failed:', error);
+    server.log.error({
+      msg: 'Session validation failed',
+      err: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   }
 }

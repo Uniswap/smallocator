@@ -81,7 +81,11 @@ export async function setupCompactRoutes(
           nonce: '0x' + nonce.toString(16).padStart(64, '0'),
         };
       } catch (error) {
-        server.log.error('Failed to generate nonce:', error);
+        server.log.error({
+          msg: 'Failed to generate nonce',
+          err: error instanceof Error ? error.message : String(error),
+          path: request.url,
+        });
         reply.code(500);
         return {
           error:
@@ -118,7 +122,11 @@ export async function setupCompactRoutes(
           request.session.address
         );
       } catch (error) {
-        server.log.error('Failed to submit compact:', error);
+        server.log.error({
+          msg: 'Failed to submit compact',
+          err: error instanceof Error ? error.message : String(error),
+          path: request.url,
+        });
         if (
           error instanceof Error &&
           error.message.includes('Sponsor address does not match')
@@ -150,7 +158,11 @@ export async function setupCompactRoutes(
       try {
         return await getCompactsByAddress(server, request.session.address);
       } catch (error) {
-        server.log.error('Failed to get compacts:', error);
+        server.log.error({
+          msg: 'Failed to get compacts',
+          err: error instanceof Error ? error.message : String(error),
+          path: request.url,
+        });
         if (
           error instanceof Error &&
           error.message.includes('No compacts found')
@@ -201,7 +213,11 @@ export async function setupCompactRoutes(
 
         return serializedCompact;
       } catch (error) {
-        server.log.error('Failed to get compact:', error);
+        server.log.error({
+          msg: 'Failed to get compact',
+          err: error instanceof Error ? error.message : String(error),
+          path: request.url,
+        });
         reply.code(500);
         return {
           error:
