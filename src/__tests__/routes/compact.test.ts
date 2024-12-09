@@ -162,6 +162,30 @@ describe('Compact Routes', () => {
       );
     });
 
+    // New test for base 10 numeric string id
+    it('should submit valid compact with base 10 numeric string id', async () => {
+      const freshCompact = getFreshCompact();
+      const compactWithBase10Id = {
+        ...compactToAPI(freshCompact),
+        id: freshCompact.id.toString(10), // Convert id to base 10 string
+      };
+
+      const response = await server.inject({
+        method: 'POST',
+        url: '/compact',
+        headers: {
+          'x-session-id': sessionId,
+        },
+        payload: { chainId: '1', compact: compactWithBase10Id },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const result = JSON.parse(response.payload);
+      expect(result).toHaveProperty('hash');
+      expect(result).toHaveProperty('signature');
+      expect(result).toHaveProperty('nonce');
+    });
+
     // New test for hex inputs
     it('should submit valid compact with hex inputs', async () => {
       const freshCompact = getFreshCompact();
