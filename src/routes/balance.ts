@@ -160,6 +160,12 @@ export async function setupBalanceRoutes(
           const { chainId, lockId } = request.params;
           const sponsor = request.session.address;
 
+          console.log('Balance request params:', {
+            chainId,
+            lockId,
+            sponsor,
+          });
+
           // Get details from GraphQL
           const response = await getCompactDetails({
             allocator: process.env.ALLOCATOR_ADDRESS!,
@@ -167,6 +173,8 @@ export async function setupBalanceRoutes(
             lockId,
             chainId,
           });
+
+          console.log('GraphQL response:', JSON.stringify(response, null, 2));
 
           // Verify the resource lock exists
           const resourceLock = response.account.resourceLocks.items[0];
@@ -205,6 +213,15 @@ export async function setupBalanceRoutes(
               ? resourceLockBalance - pendingBalance
               : BigInt(0);
 
+          console.log('Calling getAllocatedBalance with params:', {
+            sponsor,
+            chainId,
+            lockId,
+            claimHashes: response.account.claims.items.map(
+              (claim) => claim.claimHash
+            ),
+          });
+
           // Get allocated balance from database
           const allocatedBalance = await getAllocatedBalance(
             server.db,
@@ -212,6 +229,11 @@ export async function setupBalanceRoutes(
             chainId,
             lockId,
             response.account.claims.items.map((claim) => claim.claimHash)
+          );
+
+          console.log(
+            'getAllocatedBalance result:',
+            allocatedBalance.toString()
           );
 
           // Calculate balance available to allocate
@@ -230,7 +252,10 @@ export async function setupBalanceRoutes(
             withdrawalStatus: resourceLock.withdrawalStatus,
           };
         } catch (error) {
-          server.log.error('Failed to get balance:', error);
+          console.error('Failed to get balance:', error);
+          if (error instanceof Error) {
+            console.error('Error stack:', error.stack);
+          }
           reply.code(500);
           return {
             error:
