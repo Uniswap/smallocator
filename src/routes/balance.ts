@@ -3,6 +3,7 @@ import { getAddress } from 'viem/utils';
 import { getAllocatedBalance } from '../balance';
 import { getCompactDetails, getAllResourceLocks } from '../graphql';
 import { createAuthMiddleware } from './session';
+import { toBigInt } from '../utils/encoding';
 
 interface Balance {
   chainId: string;
@@ -88,12 +89,18 @@ export async function setupBalanceRoutes(
               const allocatableBalance =
                 BigInt(resourceLock.balance) + pendingBalance;
 
+              // Convert lockId to BigInt
+              const lockIdBigInt = toBigInt(lock.resourceLock.lockId, 'lockId');
+              if (lockIdBigInt === null) {
+                throw new Error('Invalid lockId format');
+              }
+
               // Get allocated balance
               const allocatedBalance = await getAllocatedBalance(
                 server.db,
                 sponsor,
                 lock.chainId,
-                lock.resourceLock.lockId,
+                lockIdBigInt,
                 lockDetails.account.claims.items.map((claim) => claim.claimHash)
               );
 
@@ -175,7 +182,11 @@ export async function setupBalanceRoutes(
           }
 
           // Extract allocatorId from the lockId
-          const lockIdBigInt = BigInt(lockId);
+          const lockIdBigInt = toBigInt(lockId, 'lockId');
+          if (lockIdBigInt === null) {
+            throw new Error('Invalid lockId format');
+          }
+
           const allocatorId =
             (lockIdBigInt >> BigInt(160)) &
             ((BigInt(1) << BigInt(92)) - BigInt(1));
@@ -209,7 +220,7 @@ export async function setupBalanceRoutes(
             server.db,
             sponsor,
             chainId,
-            lockId,
+            lockIdBigInt,
             response.account.claims.items.map((claim) => claim.claimHash)
           );
 

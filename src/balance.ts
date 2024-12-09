@@ -1,7 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import { getFinalizationThreshold } from './chain-config.js';
 import { hexToBytes } from 'viem/utils';
-import { toBigInt } from './utils/encoding.js';
 
 /**
  * Calculate the total allocated balance for a given sponsor, chain, and resource lock
@@ -14,7 +13,7 @@ export async function getAllocatedBalance(
   db: PGlite,
   sponsor: string,
   chainId: string,
-  lockId: string,
+  lockId: bigint,
   processedClaimHashes: string[]
 ): Promise<bigint> {
   try {
@@ -28,13 +27,8 @@ export async function getAllocatedBalance(
         : (`0x${sponsor}` as `0x${string}`)
     );
 
-    // Convert lockId to BigInt first (handles both decimal and hex formats)
-    const lockIdBigInt = toBigInt(lockId, 'lockId');
-    if (lockIdBigInt === null) {
-      throw new Error('Invalid lockId');
-    }
     // Convert BigInt to proper hex string with 0x prefix and padding
-    const lockIdHex = '0x' + lockIdBigInt.toString(16).padStart(64, '0');
+    const lockIdHex = '0x' + lockId.toString(16).padStart(64, '0');
     const lockIdBytes = hexToBytes(lockIdHex as `0x${string}`);
 
     const processedClaimBytea = processedClaimHashes.map((hash) =>

@@ -65,7 +65,7 @@ export async function validateAllocation(
       db,
       getAddress(compact.sponsor).toLowerCase(),
       chainId,
-      bigintToHex(compact.id),
+      compact.id,
       response.account.claims.items.map((item) => item.claimHash)
     );
 
