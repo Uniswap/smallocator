@@ -8,7 +8,7 @@ import {
   storeNonce,
   generateNonce,
 } from './validation';
-import { generateClaimHash, signCompact } from './crypto';
+import { signCompact } from './crypto';
 import { randomUUID } from 'crypto';
 import { PGlite } from '@electric-sql/pglite';
 
