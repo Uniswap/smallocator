@@ -20,7 +20,6 @@ import { useState, useMemo } from 'react';
 import { WalletConnect } from './components/WalletConnect';
 import { SessionManager } from './components/SessionManager';
 import { BalanceDisplay } from './components/BalanceDisplay';
-import { CreateAllocation } from './components/CreateAllocation';
 import HealthCheck from './components/HealthCheck';
 import { DepositForm } from './components/DepositForm';
 import { NotificationProvider } from './context/NotificationProvider';
@@ -128,11 +127,6 @@ function App() {
                       <div className="mx-auto p-6 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
                         <BalanceDisplay sessionToken={sessionToken} />
                       </div>
-                    )}
-
-                    {/* Create Allocation Form */}
-                    {sessionToken && (
-                      <CreateAllocation sessionToken={sessionToken} />
                     )}
                   </div>
                 </div>
