@@ -29,7 +29,7 @@ describe('Allocation Validation', () => {
         sponsor bytea NOT NULL CHECK (length(sponsor) = 20),
         nonce bytea NOT NULL CHECK (length(nonce) = 32),
         expires BIGINT NOT NULL,
-        compact_id bytea NOT NULL CHECK (length(compact_id) = 32),
+        lock_id bytea NOT NULL CHECK (length(lock_id) = 32),
         amount bytea NOT NULL CHECK (length(amount) = 32),
         witness_type_string TEXT,
         witness_hash bytea CHECK (witness_hash IS NULL OR length(witness_hash) = 32),
@@ -135,7 +135,7 @@ describe('Allocation Validation', () => {
       `
       INSERT INTO compacts (
         id, chain_id, claim_hash, arbiter, sponsor, nonce, expires,
-        compact_id, amount, signature
+        lock_id, amount, signature
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
       )
@@ -152,7 +152,7 @@ describe('Allocation Validation', () => {
         (mockTimestampSec + 3600).toString(),
         hexToBytes(
           ('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`
-        ), // compact_id
+        ), // lock_id
         hexToBytes(
           ('0x' +
             BigInt(compact.amount)
@@ -202,7 +202,7 @@ describe('Allocation Validation', () => {
       `
       INSERT INTO compacts (
         id, chain_id, claim_hash, arbiter, sponsor, nonce, expires,
-        compact_id, amount, signature
+        lock_id, amount, signature
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
       )
@@ -219,7 +219,7 @@ describe('Allocation Validation', () => {
         (mockTimestampSec + 3600).toString(),
         hexToBytes(
           ('0x' + compact.id.toString(16).padStart(64, '0')) as `0x${string}`
-        ), // compact_id
+        ), // lock_id
         hexToBytes(
           ('0x' +
             BigInt(compact.amount)

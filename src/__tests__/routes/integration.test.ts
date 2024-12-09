@@ -129,7 +129,7 @@ describe('Integration Tests', () => {
           encode(sponsor, 'hex') as sponsor,
           encode(nonce, 'hex') as nonce,
           expires,
-          encode(compact_id, 'hex') as compact_id,
+          encode(lock_id, 'hex') as lock_id,
           encode(amount, 'hex') as amount,
           witness_type_string,
           encode(witness_hash, 'hex') as witness_hash,

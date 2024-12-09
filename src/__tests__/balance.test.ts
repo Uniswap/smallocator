@@ -25,7 +25,7 @@ describe('Balance Functions', () => {
         sponsor bytea NOT NULL CHECK (length(sponsor) = 20),
         nonce bytea NOT NULL CHECK (length(nonce) = 32),
         expires BIGINT NOT NULL,
-        compact_id bytea NOT NULL CHECK (length(compact_id) = 32),
+        lock_id bytea NOT NULL CHECK (length(lock_id) = 32),
         amount bytea NOT NULL CHECK (length(amount) = 32),
         witness_type_string TEXT,
         witness_hash bytea CHECK (witness_hash IS NULL OR length(witness_hash) = 32),
@@ -66,7 +66,7 @@ describe('Balance Functions', () => {
           '0x0000000000000000000000000000000000000000000000000000000000000001'
         ),
         expires: (mockTimestampSec + 3600).toString(), // Expires in 1 hour
-        compact_id: hexToBytes(
+        lock_id: hexToBytes(
           '0x0000000000000000000000000000000000000000000000000000000000123000'
         ),
         amount: hexToBytes(
@@ -89,7 +89,7 @@ describe('Balance Functions', () => {
           '0x0000000000000000000000000000000000000000000000000000000000000002'
         ),
         expires: (mockTimestampSec - 2).toString(), // Expired 2 seconds ago (within 5s threshold)
-        compact_id: hexToBytes(
+        lock_id: hexToBytes(
           '0x0000000000000000000000000000000000000000000000000000000000123000'
         ),
         amount: hexToBytes(
@@ -112,7 +112,7 @@ describe('Balance Functions', () => {
           '0x0000000000000000000000000000000000000000000000000000000000000003'
         ),
         expires: (mockTimestampSec - 10).toString(), // Expired 10 seconds ago (beyond 5s threshold)
-        compact_id: hexToBytes(
+        lock_id: hexToBytes(
           '0x0000000000000000000000000000000000000000000000000000000000123000'
         ),
         amount: hexToBytes(
@@ -129,7 +129,7 @@ describe('Balance Functions', () => {
         `
         INSERT INTO compacts (
           id, chain_id, claim_hash, arbiter, sponsor, nonce, expires,
-          compact_id, amount, signature
+          lock_id, amount, signature
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
         )
@@ -142,7 +142,7 @@ describe('Balance Functions', () => {
           compact.sponsor,
           compact.nonce,
           compact.expires,
-          compact.compact_id,
+          compact.lock_id,
           compact.amount,
           compact.signature,
         ]

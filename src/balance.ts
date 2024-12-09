@@ -52,7 +52,7 @@ export async function getAllocatedBalance(
         FROM compacts 
         WHERE sponsor = $1 
         AND chain_id = $2 
-        AND compact_id = $3
+        AND lock_id = $3
         AND $4 < CAST(expires AS BIGINT) + $5
       `;
 
@@ -81,7 +81,7 @@ export async function getAllocatedBalance(
       FROM compacts 
       WHERE sponsor = $1 
       AND chain_id = $2 
-      AND compact_id = $3
+      AND lock_id = $3
       AND $4 < CAST(expires AS BIGINT) + $5
       AND claim_hash NOT IN (${processedClaimBytea.map((_, i) => `$${i + 6}`).join(',')})
     `;

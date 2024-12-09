@@ -18,7 +18,7 @@ describe('Nonce Validation', () => {
         sponsor bytea NOT NULL CHECK (length(sponsor) = 20),
         nonce bytea NOT NULL CHECK (length(nonce) = 32),
         expires BIGINT NOT NULL,
-        compact_id bytea NOT NULL CHECK (length(compact_id) = 32),
+        lock_id bytea NOT NULL CHECK (length(lock_id) = 32),
         amount bytea NOT NULL CHECK (length(amount) = 32),
         witness_type_string TEXT,
         witness_hash bytea CHECK (witness_hash IS NULL OR length(witness_hash) = 32),

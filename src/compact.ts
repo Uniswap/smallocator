@@ -191,7 +191,7 @@ export async function getCompactsByAddress(
     nonce: Uint8Array;
     expires: string;
     amount: Uint8Array;
-    compact_id: Uint8Array;
+    lock_id: Uint8Array;
     hash: Uint8Array;
     signature: Uint8Array;
     createdAt: string;
@@ -203,7 +203,7 @@ export async function getCompactsByAddress(
       nonce,
       expires,
       amount,
-      compact_id,
+      lock_id,
       claim_hash as hash,
       signature,
       created_at as "createdAt"
@@ -216,7 +216,7 @@ export async function getCompactsByAddress(
   return result.rows.map((row) => ({
     chainId: row.chainId,
     compact: {
-      id: BigInt(bufferToHex(row.compact_id)),
+      id: BigInt(bufferToHex(row.lock_id)),
       arbiter: byteaToAddress(row.arbiter),
       sponsor: byteaToAddress(row.sponsor),
       nonce: BigInt(bufferToHex(row.nonce)),
@@ -243,7 +243,7 @@ export async function getCompactByHash(
     nonce: Uint8Array;
     expires: string;
     amount: Uint8Array;
-    compact_id: Uint8Array;
+    lock_id: Uint8Array;
     hash: Uint8Array;
     signature: Uint8Array;
     createdAt: string;
@@ -255,7 +255,7 @@ export async function getCompactByHash(
       nonce,
       expires,
       amount,
-      compact_id,
+      lock_id,
       claim_hash as hash,
       signature,
       created_at as "createdAt"
@@ -272,7 +272,7 @@ export async function getCompactByHash(
   return {
     chainId: row.chainId,
     compact: {
-      id: BigInt(bufferToHex(row.compact_id)),
+      id: BigInt(bufferToHex(row.lock_id)),
       arbiter: byteaToAddress(row.arbiter),
       sponsor: byteaToAddress(row.sponsor),
       nonce: BigInt(bufferToHex(row.nonce)),
@@ -309,7 +309,7 @@ async function storeCompact(
       sponsor,
       nonce,
       expires,
-      compact_id,
+      lock_id,
       amount,
       signature,
       created_at
