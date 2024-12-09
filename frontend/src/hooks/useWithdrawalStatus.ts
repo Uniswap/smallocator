@@ -49,17 +49,7 @@ export function useWithdrawalStatus(balances: Balance[]): WithdrawalStatuses {
     balances.forEach((balance) => {
       const statusKey = getStatusKey(balance.chainId, balance.lockId);
 
-      console.log(
-        `[Chain ${balance.chainId}, Lock ${balance.lockId}] Status Check:`,
-        {
-          withdrawalStatus: balance.withdrawalStatus,
-          withdrawableAt: balance.withdrawableAt,
-          now,
-        }
-      );
-
       if (balance.withdrawalStatus === 0) {
-        console.log(`[${statusKey}] -> ACTIVE (status=0)`);
         newStatuses[statusKey] = {
           canExecute: false,
           timeRemaining: null,
@@ -72,7 +62,6 @@ export function useWithdrawalStatus(balances: Balance[]): WithdrawalStatuses {
           : now + 600; // default to 10 minutes if not set
 
         if (timestamp <= now) {
-          console.log(`[${statusKey}] -> READY (status=1, time elapsed)`);
           newStatuses[statusKey] = {
             canExecute: true,
             timeRemaining: 'Ready',
@@ -80,9 +69,6 @@ export function useWithdrawalStatus(balances: Balance[]): WithdrawalStatuses {
           };
         } else {
           const remaining = formatTimeRemaining(timestamp);
-          console.log(
-            `[${statusKey}] -> PENDING (status=1, ${remaining} remaining)`
-          );
           newStatuses[statusKey] = {
             canExecute: false,
             timeRemaining: remaining,
@@ -90,7 +76,6 @@ export function useWithdrawalStatus(balances: Balance[]): WithdrawalStatuses {
           };
         }
       } else {
-        console.log(`[${statusKey}] -> DEFAULT to ACTIVE (unexpected state)`);
         newStatuses[statusKey] = {
           canExecute: false,
           timeRemaining: null,
@@ -99,7 +84,6 @@ export function useWithdrawalStatus(balances: Balance[]): WithdrawalStatuses {
       }
     });
 
-    console.log('Final Statuses:', newStatuses);
     setStatuses(newStatuses);
   }, [balances]);
 

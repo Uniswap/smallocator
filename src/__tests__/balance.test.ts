@@ -26,7 +26,7 @@ describe('Balance Functions', () => {
         nonce bytea NOT NULL CHECK (length(nonce) = 32),
         expires BIGINT NOT NULL,
         compact_id bytea NOT NULL CHECK (length(compact_id) = 32),
-        amount TEXT NOT NULL,
+        amount bytea NOT NULL CHECK (length(amount) = 32),
         witness_type_string TEXT,
         witness_hash bytea CHECK (witness_hash IS NULL OR length(witness_hash) = 32),
         signature bytea NOT NULL,
@@ -69,7 +69,9 @@ describe('Balance Functions', () => {
         compact_id: hexToBytes(
           '0x0000000000000000000000000000000000000000000000000000000000123000'
         ),
-        amount: '1000',
+        amount: hexToBytes(
+          '0x0000000000000000000000000000000000000000000000000000000000000064'
+        ), // 100 in hex
         signature: hexToBytes(
           '0x1234000000000000000000000000000000000000000000000000000000001234'
         ),
@@ -90,7 +92,9 @@ describe('Balance Functions', () => {
         compact_id: hexToBytes(
           '0x0000000000000000000000000000000000000000000000000000000000123000'
         ),
-        amount: '2000',
+        amount: hexToBytes(
+          '0x00000000000000000000000000000000000000000000000000000000000000c8'
+        ), // 200 in hex
         signature: hexToBytes(
           '0x5678000000000000000000000000000000000000000000000000000000005678'
         ),
@@ -111,7 +115,9 @@ describe('Balance Functions', () => {
         compact_id: hexToBytes(
           '0x0000000000000000000000000000000000000000000000000000000000123000'
         ),
-        amount: '3000',
+        amount: hexToBytes(
+          '0x000000000000000000000000000000000000000000000000000000000000012c'
+        ), // 300 in hex
         signature: hexToBytes(
           '0x9abc000000000000000000000000000000000000000000000000000000009abc'
         ),
@@ -164,8 +170,8 @@ describe('Balance Functions', () => {
       []
     );
 
-    // Should include both active and not-fully-expired compacts (1000 + 2000)
-    expect(balance.toString()).toBe(BigInt(3000).toString());
+    // Should include both active and not-fully-expired compacts (100 + 200)
+    expect(balance.toString()).toBe(BigInt(300).toString());
   });
 
   it('should exclude processed claims from allocated balance', async () => {
@@ -177,8 +183,8 @@ describe('Balance Functions', () => {
       ['0x1000000000000000000000000000000000000000000000000000000000000001'] // Processed claim for the active compact
     );
 
-    // Should only include the not-fully-expired compact (2000)
-    expect(balance.toString()).toBe(BigInt(2000).toString());
+    // Should only include the not-fully-expired compact (200)
+    expect(balance.toString()).toBe(BigInt(200).toString());
   });
 
   it('should return zero for all processed or expired claims', async () => {
