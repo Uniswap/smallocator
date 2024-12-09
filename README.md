@@ -22,6 +22,20 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
 - 📡 No direct on-chain awareness: Relies entirely on indexer and internal attestation state
 - ⏳ Straightforward finalization: Uses a simple, time-based approach per chain for determining transaction finality
 
+## UI Usage
+
+A basic frontend is available at the root path (`GET /`), or at `localhost:3001/` when running locally in dev mode. While the primary intended mechanism of interaction with Smallocator is via the API, the UI serves as a convenient and direct secondary access point.
+
+It supports:
+ - viewing the health status of the server
+ - managing session key via EIP-4361 (Sign in with Ethereum)
+ - depositing Native tokens and ERC20 tokens
+ - viewing allocatable and allocated balances
+ - performing allocated transfers and withdrawals
+ - initiating, executing, and disabling forced withdrawals
+
+Note that the frontend is still relatively unstable (any contributions here are welcome).
+
 ## API Usage
 
 ### Health Check
@@ -135,13 +149,13 @@ All authentication endpoints require a valid session ID in the `x-session-id` he
 
 ### Compact Operations
 
-All compact operations require a valid session ID in the `x-session-id` header.
-
 1. **Submit Compact**
 
    ```http
    POST /compact
    ```
+
+   Requires a valid session ID in the `x-session-id` header.
 
    Example request:
 
@@ -179,6 +193,8 @@ Note that `nonce` can be provided as `null` in which case the next available val
    GET /compacts
    ```
 
+   Requires a valid session ID in the `x-session-id` header.
+
    Example response:
 
    ```json
@@ -208,6 +224,8 @@ Note that `nonce` can be provided as `null` in which case the next available val
    GET /compact/:chainId/:claimHash
    ```
 
+   Requires a valid session ID in the `x-session-id` header.
+
    Example response:
 
    ```json
@@ -235,6 +253,8 @@ Note that `nonce` can be provided as `null` in which case the next available val
    GET /balance/:chainId/:lockId
    ```
 
+   Requires a valid session ID in the `x-session-id` header.
+
    Returns balance information for a specific resource lock. Example response:
 
    ```json
@@ -246,6 +266,12 @@ Note that `nonce` can be provided as `null` in which case the next available val
    }
    ```
 
+   The `allocatableBalance` will be the current balance minus the sum of any unfinalized deposits or inbound transfers. The period after which these are considered finalized is configurable for each chain.
+
+   The `allocatedBalance` will be the sum of any submitted compacts that:
+   - have not been processed (as confirmed by a `Claim` event with the respective claim hash in a finalized block)
+   - have not expired (as confirmed by a finalized block with a timestamp exceeding the `expires` value)
+
    The `balanceAvailableToAllocate` will be:
 
    - `"0"` if `withdrawalStatus` is non-zero
@@ -256,7 +282,11 @@ Note that `nonce` can be provided as `null` in which case the next available val
    ```http
    GET /balances
    ```
+
+   Requires a valid session ID in the `x-session-id` header.
+
    Returns balance information for all resource locks managed by this allocator. Example response:
+
    ```json
    {
      "balances": [
@@ -271,7 +301,24 @@ Note that `nonce` can be provided as `null` in which case the next available val
      ]
    }
    ```
+
    Each balance entry follows the same rules as the single balance endpoint.
+
+6. **Get Suggested Nonce**
+   ```http
+   GET /suggested-nonce/:chainId
+   ```
+   
+   Requires a valid session ID in the `x-session-id` header.
+
+   Returns the next available unused nonce for the account on the session for creating new compacts on a specific chain.
+
+   Example response:
+   ```json
+   {
+     "nonce": "0x70997970C51812dc3A010C7d01b50e0d17dc79C800000000000000000000001"
+   }
+   ```
 
 ## Development
 
