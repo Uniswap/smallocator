@@ -54,6 +54,17 @@ declare module 'viem' {
     compactSignature: CompactSignature
   ): Hex;
   export function parseSignature(signatureHex: Hex): Signature;
+  export function recoverMessageAddress(args: {
+    message: SignableMessage | { raw: Hex };
+    signature: Hex;
+  }): Promise<Address>;
+  export function compactSignatureToSignature(
+    compactSignature: CompactSignature
+  ): Signature;
+  export function serializeSignature(signature: Signature): Hex;
+  export function parseCompactSignature(
+    compactSignatureHex: Hex
+  ): CompactSignature;
 }
 
 declare module 'viem/accounts' {
