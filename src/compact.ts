@@ -144,14 +144,12 @@ export async function submitCompact(
       nonce: validatedCompact.nonce,
     });
 
-    // Generate the claim hash
-    const hash = await generateClaimHash(
+    // Sign the compact and get claim hash
+    const [hash, signaturePromise] = await signCompact(
       storedCompact,
       BigInt(submission.chainId)
     );
-
-    // Sign the compact
-    const signature = await signCompact(hash, BigInt(submission.chainId));
+    const signature = await signaturePromise;
 
     // Store the compact first
     await storeCompact(

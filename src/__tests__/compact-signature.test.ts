@@ -1,6 +1,6 @@
 import {
   type Hex,
-  recoverMessageAddress,
+  recoverAddress,
   compactSignatureToSignature,
   serializeSignature,
   parseCompactSignature,
@@ -38,27 +38,24 @@ describe('Compact Signature Tests', () => {
 
   describe('generateClaimHash', () => {
     it('should generate a valid claim hash', async () => {
-      const hash = await generateClaimHash(mockCompact, chainId);
+      const hash = await generateClaimHash(mockCompact);
       expect(hash).toMatch(/^0x[a-fA-F0-9]{64}$/);
     });
 
     it('should generate different hashes for different nonces', async () => {
-      const hash1 = await generateClaimHash(mockCompact, chainId);
-      const hash2 = await generateClaimHash(
-        {
-          ...mockCompact,
-          nonce: BigInt('0x2'),
-        },
-        chainId
-      );
+      const hash1 = await generateClaimHash(mockCompact);
+      const hash2 = await generateClaimHash({
+        ...mockCompact,
+        nonce: BigInt('0x2'),
+      });
       expect(hash1).not.toBe(hash2);
     });
   });
 
   describe('signCompact', () => {
     it('should generate a valid EIP2098 compact signature', async () => {
-      const hash = await generateClaimHash(mockCompact, chainId);
-      const compactSig = await signCompact(hash, chainId);
+      const [hash, compactSigPromise] = await signCompact(mockCompact, chainId);
+      const compactSig = await compactSigPromise;
 
       // EIP2098 signatures should be 64 bytes (128 hex chars) without the 0x prefix
       expect(compactSig).toMatch(/^0x[a-fA-F0-9]{128}$/);
@@ -69,18 +66,18 @@ describe('Compact Signature Tests', () => {
       const fullSignature = serializeSignature(signature);
 
       // Recover and verify the signer
-      const recoveredAddress = await recoverMessageAddress({
-        message: { raw: hash },
+      const recoveredAddress = await recoverAddress({
+        hash,
         signature: fullSignature,
       });
       expect(recoveredAddress.toLowerCase()).toBe(expectedSigner.toLowerCase());
     });
 
     it('should generate consistent signatures for the same hash', async () => {
-      const hash = await generateClaimHash(mockCompact, chainId);
-      const sig1 = await signCompact(hash, chainId);
-      const sig2 = await signCompact(hash, chainId);
-      expect(sig1).toBe(sig2);
+      const [hash, sig1Promise] = await signCompact(mockCompact, chainId);
+      const [, sig2Promise] = await signCompact(mockCompact, chainId);
+      const sig1 = await sig1Promise;
+      const sig2 = await sig2Promise;
 
       // Convert compact signature to full signature
       const parsedCompactSig = parseCompactSignature(sig1);
@@ -88,25 +85,24 @@ describe('Compact Signature Tests', () => {
       const fullSignature = serializeSignature(signature);
 
       // Recover and verify the signer
-      const recoveredAddress = await recoverMessageAddress({
-        message: { raw: hash },
+      const recoveredAddress = await recoverAddress({
+        hash,
         signature: fullSignature,
       });
       expect(recoveredAddress.toLowerCase()).toBe(expectedSigner.toLowerCase());
     });
 
     it('should generate different signatures for different hashes', async () => {
-      const hash1 = await generateClaimHash(mockCompact, chainId);
-      const hash2 = await generateClaimHash(
+      const [hash1, sig1Promise] = await signCompact(mockCompact, chainId);
+      const [hash2, sig2Promise] = await signCompact(
         {
           ...mockCompact,
           nonce: BigInt('0x2'),
         },
         chainId
       );
-
-      const sig1 = await signCompact(hash1, chainId);
-      const sig2 = await signCompact(hash2, chainId);
+      const sig1 = await sig1Promise;
+      const sig2 = await sig2Promise;
       expect(sig1).not.toBe(sig2);
 
       // Convert first compact signature to full signature
@@ -120,12 +116,12 @@ describe('Compact Signature Tests', () => {
       const fullSignature2 = serializeSignature(signature2);
 
       // Recover and verify the signer for both signatures
-      const recoveredAddress1 = await recoverMessageAddress({
-        message: { raw: hash1 },
+      const recoveredAddress1 = await recoverAddress({
+        hash: hash1,
         signature: fullSignature1,
       });
-      const recoveredAddress2 = await recoverMessageAddress({
-        message: { raw: hash2 },
+      const recoveredAddress2 = await recoverAddress({
+        hash: hash2,
         signature: fullSignature2,
       });
       expect(recoveredAddress1.toLowerCase()).toBe(
@@ -145,8 +141,11 @@ describe('Compact Signature Tests', () => {
           '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
       };
 
-      const hash = await generateClaimHash(mockCompactWithWitness, chainId);
-      const compactSig = await signCompact(hash, chainId);
+      const [hash, compactSigPromise] = await signCompact(
+        mockCompactWithWitness,
+        chainId
+      );
+      const compactSig = await compactSigPromise;
 
       // Should still produce a valid EIP2098 signature
       expect(compactSig).toMatch(/^0x[a-fA-F0-9]{128}$/);
@@ -157,8 +156,8 @@ describe('Compact Signature Tests', () => {
       const fullSignature = serializeSignature(signature);
 
       // Recover and verify the signer
-      const recoveredAddress = await recoverMessageAddress({
-        message: { raw: hash },
+      const recoveredAddress = await recoverAddress({
+        hash,
         signature: fullSignature,
       });
       expect(recoveredAddress.toLowerCase()).toBe(expectedSigner.toLowerCase());
