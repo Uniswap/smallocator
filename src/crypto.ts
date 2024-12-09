@@ -2,7 +2,8 @@ import {
   type Hex,
   signatureToCompactSignature,
   serializeCompactSignature,
-  parseSignature,
+  parseCompactSignature,
+  compactSignatureToSignature,
 } from 'viem';
 import {
   hashTypedData,
@@ -147,12 +148,9 @@ export async function signCompact(hash: Hex, _chainId: bigint): Promise<Hex> {
     privateKey,
   });
 
-  // Parse the signature into its components
-  const parsedSignature = parseSignature(signature);
-
-  // Convert to EIP2098 compact signature format and serialize
-  const compactSig = signatureToCompactSignature(parsedSignature);
-  return serializeCompactSignature(compactSig);
+  // Convert to EIP2098 compact signature format
+  const parsedCompactSig = parseCompactSignature(signature);
+  return serializeCompactSignature(parsedCompactSig);
 }
 
 export function getSigningAddress(): string {
