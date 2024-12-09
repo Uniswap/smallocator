@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import { useResourceLocks } from './useResourceLocks';
 import { formatUnits } from 'viem';
@@ -54,8 +54,11 @@ export function useBalances(): UseBalancesResult {
     if (!isConnected || !address || isFetchingRef.current) return;
 
     isFetchingRef.current = true;
+    let shouldSetLoading = !balances.length; // Only show loading on initial fetch
 
     try {
+      if (shouldSetLoading) setIsLoading(true);
+
       const sessionId = localStorage.getItem(`session-${address}`);
       if (!sessionId) {
         throw new Error('No session ID found');
@@ -81,71 +84,88 @@ export function useBalances(): UseBalancesResult {
               item.chainId === balance.chainId
           );
 
-          if (resourceLock) {
-            const token = resourceLock.resourceLock.token;
-            const decimals = token.decimals;
+          if (!resourceLock) return balance;
 
-            return {
-              ...balance,
-              // Keep the allocation data from the server
-              allocatableBalance: balance.allocatableBalance,
-              allocatedBalance: balance.allocatedBalance,
-              balanceAvailableToAllocate: balance.balanceAvailableToAllocate,
-              // Add withdrawal status from the indexer
-              withdrawalStatus: resourceLock.withdrawalStatus,
-              withdrawableAt: resourceLock.withdrawableAt,
-              // Add token and resource lock details
-              token: {
-                tokenAddress: token.tokenAddress,
-                name: token.name,
-                symbol: token.symbol,
-                decimals: decimals,
-              },
-              resourceLock: {
-                resetPeriod: resourceLock.resourceLock.resetPeriod,
-                isMultichain: resourceLock.resourceLock.isMultichain,
-              },
-              // Format the balances
-              formattedAllocatableBalance: formatUnits(
-                BigInt(balance.allocatableBalance),
-                decimals
-              ),
-              formattedAllocatedBalance: formatUnits(
-                BigInt(balance.allocatedBalance),
-                decimals
-              ),
-              formattedAvailableBalance: formatUnits(
-                BigInt(balance.balanceAvailableToAllocate),
-                decimals
-              ),
-            };
-          }
+          const token = resourceLock.resourceLock.token;
+          const decimals = token.decimals;
 
-          return balance;
+          // Create new balance object with all fields
+          const newBalance = {
+            ...balance,
+            withdrawalStatus: resourceLock.withdrawalStatus,
+            withdrawableAt: resourceLock.withdrawableAt,
+            token: {
+              tokenAddress: token.tokenAddress,
+              name: token.name,
+              symbol: token.symbol,
+              decimals: decimals,
+            },
+            resourceLock: {
+              resetPeriod: resourceLock.resourceLock.resetPeriod,
+              isMultichain: resourceLock.resourceLock.isMultichain,
+            },
+            formattedAllocatableBalance: formatUnits(
+              BigInt(balance.allocatableBalance),
+              decimals
+            ),
+            formattedAllocatedBalance: formatUnits(
+              BigInt(balance.allocatedBalance),
+              decimals
+            ),
+            formattedAvailableBalance: formatUnits(
+              BigInt(balance.balanceAvailableToAllocate),
+              decimals
+            ),
+          };
+
+          // Find matching previous balance for comparison
+          const prevBalance = prevBalances.find(
+            (prev) =>
+              prev.lockId === balance.lockId && prev.chainId === balance.chainId
+          );
+
+          if (!prevBalance) return newBalance;
+
+          // Check if any important fields have changed
+          const hasChanged =
+            newBalance.allocatableBalance !== prevBalance.allocatableBalance ||
+            newBalance.allocatedBalance !== prevBalance.allocatedBalance ||
+            newBalance.balanceAvailableToAllocate !==
+              prevBalance.balanceAvailableToAllocate ||
+            newBalance.withdrawalStatus !== prevBalance.withdrawalStatus ||
+            newBalance.withdrawableAt !== prevBalance.withdrawableAt;
+
+          return hasChanged ? newBalance : prevBalance;
         });
 
-        const hasChanged =
-          JSON.stringify(prevBalances) !== JSON.stringify(newBalances);
-        return hasChanged ? newBalances : prevBalances;
+        // If array lengths are different, definitely update
+        if (prevBalances.length !== newBalances.length) return newBalances;
+
+        // Check if any balances have changed
+        const hasAnyBalanceChanged = newBalances.some(
+          (newBalance, index) => newBalance !== prevBalances[index]
+        );
+
+        return hasAnyBalanceChanged ? newBalances : prevBalances;
       });
 
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch balances');
     } finally {
+      if (shouldSetLoading) setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [isConnected, address, resourceLocksData]);
+  }, [isConnected, address, resourceLocksData, balances.length]);
 
   useEffect(() => {
-    // Initial load should show loading state
+    // Initial fetch
     if (isConnected && address) {
-      setIsLoading(true);
-      void fetchBalances().finally(() => setIsLoading(false));
+      void fetchBalances();
     }
 
     // Set up polling interval
-    const intervalId = setInterval(() => void fetchBalances(), 1000); // Poll every second
+    const intervalId = setInterval(() => void fetchBalances(), 1000); // Poll every second for quick updates
 
     // Cleanup on unmount or address change
     return () => {
@@ -165,9 +185,12 @@ export function useBalances(): UseBalancesResult {
     }
   }, [resourceLocksError]);
 
-  return {
-    balances,
-    error,
-    isLoading: isLoading || resourceLocksLoading,
-  };
+  return useMemo(
+    () => ({
+      balances,
+      error,
+      isLoading: isLoading || resourceLocksLoading,
+    }),
+    [balances, error, isLoading, resourceLocksLoading]
+  );
 }

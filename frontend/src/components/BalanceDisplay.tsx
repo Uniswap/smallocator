@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import { useBalances } from '../hooks/useBalances';
 import { useResourceLocks } from '../hooks/useResourceLocks';
@@ -64,41 +64,61 @@ export function BalanceDisplay({
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
   );
-  const [, setUpdateTrigger] = useState(0);
+  const [currentTime, setCurrentTime] = useState(() =>
+    Math.floor(Date.now() / 1000)
+  );
 
-  const handleDisableWithdrawal = async (lockId: string) => {
-    if (!lockId) return;
+  const handleDisableWithdrawal = useCallback(
+    async (lockId: string) => {
+      if (!lockId) return;
 
-    try {
-      await disableForcedWithdrawal({
-        args: [BigInt(lockId)],
-      });
+      try {
+        await disableForcedWithdrawal({
+          args: [BigInt(lockId)],
+        });
 
-      showNotification({
-        type: 'success',
-        title: 'Forced Withdrawal Disabled',
-        message: 'Your forced withdrawal has been disabled',
-      });
-    } catch (error) {
-      console.error('Error disabling forced withdrawal:', error);
-      showNotification({
-        type: 'error',
-        title: 'Error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to disable forced withdrawal',
-      });
-    }
-  };
+        showNotification({
+          type: 'success',
+          title: 'Forced Withdrawal Disabled',
+          message: 'Your forced withdrawal has been disabled',
+        });
+      } catch (error) {
+        console.error('Error disabling forced withdrawal:', error);
+        showNotification({
+          type: 'error',
+          title: 'Error',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Failed to disable forced withdrawal',
+        });
+      }
+    },
+    [disableForcedWithdrawal, showNotification]
+  );
 
-  // Update countdown every second
+  // Update time every second for countdown display
   useEffect(() => {
     const timer = setInterval(() => {
-      setUpdateTrigger((t) => t + 1);
+      setCurrentTime(Math.floor(Date.now() / 1000));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Memoize the formatted balances to prevent unnecessary recalculations
+  const formattedBalances = useMemo(() => {
+    if (!balances) return [];
+
+    return balances.map((balance) => ({
+      ...balance,
+      timeRemaining: balance.withdrawableAt
+        ? formatTimeRemaining(parseInt(balance.withdrawableAt))
+        : '',
+      resetPeriodFormatted: balance.resourceLock?.resetPeriod
+        ? formatResetPeriod(balance.resourceLock.resetPeriod)
+        : '',
+    }));
+  }, [balances, currentTime]);
 
   if (!isConnected) return null;
 
@@ -158,7 +178,7 @@ export function BalanceDisplay({
       </div>
 
       <div className="space-y-4">
-        {balances.map((balance) => {
+        {formattedBalances.map((balance) => {
           // Find matching resource lock from indexer data
           const resourceLock = resourceLocksData?.resourceLocks.items.find(
             (item) =>
@@ -171,7 +191,6 @@ export function BalanceDisplay({
           const canExecuteWithdrawal =
             parseInt(balance.withdrawalStatus.toString()) !== 0 &&
             withdrawableAt <= now;
-          const withdrawalTimeRemaining = formatTimeRemaining(withdrawableAt);
 
           return (
             <div
@@ -198,8 +217,7 @@ export function BalanceDisplay({
                 {balance.resourceLock?.resetPeriod &&
                   balance.resourceLock.resetPeriod > 0 && (
                     <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                      Reset Period:{' '}
-                      {formatResetPeriod(balance.resourceLock.resetPeriod)}
+                      Reset Period: {balance.resetPeriodFormatted}
                     </span>
                   )}
                 {balance.resourceLock?.isMultichain && (
@@ -218,7 +236,7 @@ export function BalanceDisplay({
                     ? 'Active'
                     : withdrawableAt <= now
                       ? 'Withdrawal Ready'
-                      : `Withdrawal Pending (${withdrawalTimeRemaining})`}
+                      : `Withdrawal Pending (${balance.timeRemaining})`}
                 </span>
               </div>
 
@@ -348,7 +366,7 @@ export function BalanceDisplay({
         onClose={() => setIsWithdrawalDialogOpen(false)}
         lockId={selectedLockId}
         resetPeriod={parseInt(
-          balances
+          formattedBalances
             .find((b) => b.lockId === selectedLockId)
             ?.resourceLock?.resetPeriod?.toString() || '0'
         )}

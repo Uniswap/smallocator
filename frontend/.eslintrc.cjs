@@ -4,7 +4,7 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
-    'plugin:react-hooks/recommended'
+    'plugin:react-hooks/recommended',
   ],
   ignorePatterns: ['dist', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
@@ -12,37 +12,33 @@ module.exports = {
     ecmaVersion: 2020,
     sourceType: 'module',
     ecmaFeatures: {
-      jsx: true
+      jsx: true,
     },
     tsconfigRootDir: __dirname,
-    project: ['tsconfig.app.json', 'tsconfig.node.json']
+    project: ['tsconfig.app.json', 'tsconfig.node.json'],
   },
   overrides: [
     {
       files: ['*.js', '*.cjs'],
       parserOptions: {
-        project: null
-      }
-    }
+        project: null,
+      },
+    },
   ],
-  plugins: [
-    'react',
-    'react-refresh',
-    '@typescript-eslint'
-  ],
+  plugins: ['react', 'react-refresh', '@typescript-eslint'],
   settings: {
     react: {
-      version: 'detect'
-    }
+      version: 'detect',
+    },
   },
   rules: {
     'react-refresh/only-export-components': [
       'warn',
-      { allowConstantExport: true }
+      { allowConstantExport: true },
     ],
     '@typescript-eslint/no-explicit-any': 'warn',
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
-  }
-}
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+  },
+};
