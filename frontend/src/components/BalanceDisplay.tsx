@@ -24,9 +24,8 @@ interface SelectedLockData {
 }
 
 // Helper function to format time remaining
-function formatTimeRemaining(expiryTimestamp: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = expiryTimestamp - now;
+function formatTimeRemaining(expiryTimestamp: number, currentTime: number): string {
+  const diff = expiryTimestamp - currentTime;
 
   if (diff <= 0) return 'Ready';
 
@@ -86,7 +85,7 @@ export function BalanceDisplay({
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
   );
-  const [, setCurrentTime] = useState(() => Math.floor(Date.now() / 1000));
+  const [currentTime, setCurrentTime] = useState(() => Math.floor(Date.now() / 1000));
   const [isSessionIdDialogOpen, setIsSessionIdDialogOpen] = useState(false);
 
   const handleDisableWithdrawal = useCallback(
@@ -100,8 +99,8 @@ export function BalanceDisplay({
 
         showNotification({
           type: 'success',
-          title: 'Forced Withdrawal Disabled',
-          message: 'Your forced withdrawal has been disabled',
+          title: 'Resource Lock Reactivated',
+          message: 'Your resource lock has been reactivated',
         });
       } catch (error) {
         console.error('Error disabling forced withdrawal:', error);
@@ -153,13 +152,13 @@ export function BalanceDisplay({
     return balances.map((balance) => ({
       ...balance,
       timeRemaining: balance.withdrawableAt
-        ? formatTimeRemaining(parseInt(balance.withdrawableAt))
+        ? formatTimeRemaining(parseInt(balance.withdrawableAt), currentTime)
         : '',
       resetPeriodFormatted: balance.resourceLock?.resetPeriod
         ? formatResetPeriod(balance.resourceLock.resetPeriod)
         : '',
     }));
-  }, [balances]);
+  }, [balances, currentTime]);
 
   if (!isConnected) return null;
 
@@ -201,10 +200,9 @@ export function BalanceDisplay({
           );
 
           const withdrawableAt = parseInt(balance.withdrawableAt || '0');
-          const now = Math.floor(Date.now() / 1000);
           const canExecuteWithdrawal =
             parseInt(balance.withdrawalStatus.toString()) !== 0 &&
-            withdrawableAt <= now;
+            withdrawableAt <= currentTime;
 
           return (
             <div
@@ -249,9 +247,9 @@ export function BalanceDisplay({
                 >
                   {balance.withdrawalStatus === 0
                     ? 'Active'
-                    : withdrawableAt <= now
-                      ? 'Withdrawal Ready'
-                      : `Withdrawal Pending (${balance.timeRemaining})`}
+                    : withdrawableAt <= currentTime
+                      ? 'Forced Withdrawals Enabled'
+                      : `Forced Withdrawals Enabled in ${formatTimeRemaining(withdrawableAt, currentTime)}`}
                 </span>
               </div>
 

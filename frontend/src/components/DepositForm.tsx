@@ -1,16 +1,23 @@
 import { useState } from 'react';
-import { useAccount, useBalance } from 'wagmi';
-import { formatEther, parseEther, parseUnits } from 'viem';
+import { useAccount, useBalance, useChainId } from 'wagmi';
+import { formatEther, parseEther, parseUnits, isAddress } from 'viem';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 import { useERC20 } from '../hooks/useERC20';
 import { useAllocatorAPI } from '../hooks/useAllocatorAPI';
+
+const chainNames = {
+  '1': 'Ethereum',
+  '10': 'Optimism',
+  '8453': 'Base',
+};
 
 type TokenType = 'native' | 'erc20';
 
 export function DepositForm() {
   const { address, isConnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
+  const chainId = useChainId();
   const [amount, setAmount] = useState('');
   const [tokenType, setTokenType] = useState<TokenType>('native');
   const [tokenAddress, setTokenAddress] = useState('');
@@ -72,7 +79,8 @@ export function DepositForm() {
           : BigInt(0);
 
         if (rawBalance && parsedAmount > balanceBigInt) {
-          return { type: 'error', message: 'Insufficient Balance' };
+          const chainName = chainNames[chainId.toString()] || `Chain ${chainId}`;
+          return { type: 'error', message: `Insufficient ${symbol || 'token'} balance on ${chainName}` };
         }
         if (parsedAmount > allowanceBigInt) {
           return { type: 'warning', message: 'Insufficient Allowance' };
@@ -88,7 +96,8 @@ export function DepositForm() {
       try {
         const parsedAmount = parseEther(amount);
         if (parsedAmount > ethBalance.value) {
-          return { type: 'error', message: 'Insufficient ETH Balance' };
+          const chainName = chainNames[chainId.toString()] || `Chain ${chainId}`;
+          return { type: 'error', message: `Insufficient native token balance on ${chainName}` };
         }
         return null;
       } catch {
@@ -254,47 +263,6 @@ export function DepositForm() {
           </button>
         </div>
 
-        {/* Amount Input */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-300">
-            Amount {tokenType === 'native' ? 'ETH' : symbol || 'tokens'}
-            {tokenType === 'native' && ethBalance && (
-              <span className="float-right text-gray-400">
-                Balance: {formatEther(ethBalance.value)} ETH
-              </span>
-            )}
-            {tokenType === 'erc20' && balance && (
-              <span className="float-right text-gray-400">
-                Balance: {balance} {symbol}
-              </span>
-            )}
-          </label>
-          <input
-            type="text"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.0"
-            className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-gray-300 focus:outline-none transition-colors ${
-              amountValidation?.type === 'error'
-                ? 'border-red-500 focus:border-red-500'
-                : amountValidation?.type === 'warning'
-                  ? 'border-yellow-500 focus:border-yellow-500'
-                  : 'border-gray-700 focus:border-[#00ff00]'
-            }`}
-          />
-          {amountValidation && (
-            <p
-              className={`mt-1 text-sm ${
-                amountValidation.type === 'error'
-                  ? 'text-red-500'
-                  : 'text-yellow-500'
-              }`}
-            >
-              {amountValidation.message}
-            </p>
-          )}
-        </div>
-
         {/* Token Address Input (for ERC20) */}
         {tokenType === 'erc20' && (
           <div>
@@ -306,26 +274,73 @@ export function DepositForm() {
               value={tokenAddress}
               onChange={(e) => setTokenAddress(e.target.value)}
               placeholder="0x..."
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors"
+              className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-gray-300 focus:outline-none transition-colors ${
+                !isValid && tokenAddress && !isLoadingToken
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-gray-700 focus:border-[#00ff00]'
+              }`}
             />
             {tokenAddress && !isValid && !isLoadingToken && (
-              <p className="mt-1 text-sm text-red-500">
-                Invalid ERC20 token address
-              </p>
+              <p className="mt-1 text-sm text-red-500">Invalid token address</p>
             )}
-            {tokenAddress && isLoadingToken && (
-              <p className="mt-1 text-sm text-yellow-500">
-                Retrieving token information...
-              </p>
+            {isLoadingToken && isAddress(tokenAddress) && (
+              <p className="mt-1 text-sm text-yellow-500">Loading token info...</p>
             )}
-            {isValid && (
-              <div className="mt-2 text-sm text-gray-400">
-                <p className="font-medium text-gray-300">
-                  {name} ({symbol})
-                </p>
-                <p>Balance: {balance || '0'}</p>
-                <p>Allowance: {allowance || '0'}</p>
+            {isValid && name && symbol && (
+              <div className="mt-1">
+                <div className="flex justify-between items-center text-sm text-gray-400">
+                  <span>{name} ({symbol})</span>
+                  <span>
+                    Allowance on The Compact: {Number(allowance || '0').toLocaleString(undefined, {
+                      maximumFractionDigits: 6,
+                      minimumFractionDigits: 0
+                    })} {symbol}
+                  </span>
+                </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Amount Input */}
+        {(tokenType === 'native' || (tokenType === 'erc20' && isValid)) && (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-300">
+              Amount
+              {tokenType === 'native' && ethBalance && (
+                <span className="float-right text-gray-400">
+                  Balance: {formatEther(ethBalance.value)} ETH
+                </span>
+              )}
+              {tokenType === 'erc20' && balance && (
+                <span className="float-right text-gray-400">
+                  Balance: {balance} {symbol}
+                </span>
+              )}
+            </label>
+            <input
+              type="text"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.0"
+              className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-gray-300 focus:outline-none transition-colors ${
+                amountValidation?.type === 'error'
+                  ? 'border-red-500 focus:border-red-500'
+                  : amountValidation?.type === 'warning'
+                    ? 'border-yellow-500 focus:border-yellow-500'
+                    : 'border-gray-700 focus:border-[#00ff00]'
+              }`}
+            />
+            {amountValidation && (
+              <p
+                className={`mt-1 text-sm ${
+                  amountValidation.type === 'error'
+                    ? 'text-red-500'
+                    : 'text-yellow-500'
+                }`}
+              >
+                {amountValidation.message}
+              </p>
             )}
           </div>
         )}

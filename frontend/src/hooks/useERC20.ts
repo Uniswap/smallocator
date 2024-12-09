@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useReadContract, useWriteContract, useAccount } from 'wagmi';
-import { formatUnits, parseUnits } from 'viem';
+import { formatUnits, parseUnits, isAddress } from 'viem';
 import { ERC20_ABI } from '../constants/contracts';
 
 export function useERC20(tokenAddress?: `0x${string}`) {
@@ -13,56 +13,79 @@ export function useERC20(tokenAddress?: `0x${string}`) {
   const [allowance, setAllowance] = useState<string>();
   const [rawBalance, setRawBalance] = useState<bigint>();
   const [rawAllowance, setRawAllowance] = useState<bigint>();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const shouldLoad = Boolean(tokenAddress && isAddress(tokenAddress));
 
   // Read token info
-  const { data: decimalsData } = useReadContract({
+  const { data: decimalsData, isLoading: isLoadingDecimals } = useReadContract({
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'decimals',
     query: {
-      enabled: Boolean(tokenAddress),
+      enabled: shouldLoad,
     },
   });
 
-  const { data: symbolData } = useReadContract({
+  const { data: symbolData, isLoading: isLoadingSymbol } = useReadContract({
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'symbol',
     query: {
-      enabled: Boolean(tokenAddress),
+      enabled: shouldLoad,
     },
   });
 
-  const { data: nameData } = useReadContract({
+  const { data: nameData, isLoading: isLoadingName } = useReadContract({
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'name',
     query: {
-      enabled: Boolean(tokenAddress),
+      enabled: shouldLoad,
     },
   });
 
-  const { data: balanceData } = useReadContract({
+  const { data: balanceData, isLoading: isLoadingBalance } = useReadContract({
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: [address!],
     query: {
-      enabled: Boolean(tokenAddress && address),
+      enabled: shouldLoad && Boolean(address),
     },
   });
 
-  const { data: allowanceData } = useReadContract({
+  const { data: allowanceData, isLoading: isLoadingAllowance } = useReadContract({
     address: tokenAddress,
     abi: ERC20_ABI,
     functionName: 'allowance',
     args: [address!, tokenAddress!],
     query: {
-      enabled: Boolean(tokenAddress && address),
+      enabled: shouldLoad && Boolean(address),
     },
   });
 
-  const { writeContract } = useWriteContract();
+  // Update loading state
+  useEffect(() => {
+    if (!shouldLoad) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(
+      isLoadingDecimals || 
+      isLoadingSymbol || 
+      isLoadingName || 
+      isLoadingBalance || 
+      isLoadingAllowance
+    );
+  }, [
+    shouldLoad,
+    isLoadingDecimals,
+    isLoadingSymbol,
+    isLoadingName,
+    isLoadingBalance,
+    isLoadingAllowance
+  ]);
 
   // Update state when data changes
   useEffect(() => {
@@ -71,10 +94,10 @@ export function useERC20(tokenAddress?: `0x${string}`) {
       setDecimals(Number(decimalsData));
       setSymbol(symbolData as string);
       setName(nameData as string);
-    } else {
+    } else if (shouldLoad) {
       setIsValid(false);
     }
-  }, [decimalsData, symbolData, nameData]);
+  }, [decimalsData, symbolData, nameData, shouldLoad]);
 
   // Update balance
   useEffect(() => {
@@ -91,6 +114,8 @@ export function useERC20(tokenAddress?: `0x${string}`) {
       setAllowance(formatUnits(allowanceData as bigint, decimals));
     }
   }, [allowanceData, decimals]);
+
+  const { writeContract } = useWriteContract();
 
   const approve = async () => {
     if (!tokenAddress || !address) throw new Error('Not ready');
@@ -115,6 +140,6 @@ export function useERC20(tokenAddress?: `0x${string}`) {
     rawBalance,
     rawAllowance,
     approve,
-    isLoading: !decimalsData || !symbolData || !nameData,
+    isLoading,
   };
 }

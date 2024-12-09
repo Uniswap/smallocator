@@ -495,13 +495,23 @@ export function Transfer({
       <div className="flex gap-2">
         <button
           onClick={() => handleAction('transfer')}
-          className="mt-2 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors"
+          disabled={BigInt(balanceAvailableToAllocate || '0') === BigInt(0)}
+          className={`mt-2 py-2 px-4 rounded-lg font-medium transition-colors ${
+            BigInt(balanceAvailableToAllocate || '0') === BigInt(0)
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-[#00ff00] text-gray-900 hover:bg-[#00dd00]'
+          }`}
         >
           Transfer
         </button>
         <button
           onClick={() => handleAction('withdraw')}
-          className="mt-2 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors"
+          disabled={BigInt(balanceAvailableToAllocate || '0') === BigInt(0)}
+          className={`mt-2 py-2 px-4 rounded-lg font-medium transition-colors ${
+            BigInt(balanceAvailableToAllocate || '0') === BigInt(0)
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              : 'bg-[#00ff00] text-gray-900 hover:bg-[#00dd00]'
+          }`}
         >
           Withdraw
         </button>
@@ -515,11 +525,11 @@ export function Transfer({
         )}
         {withdrawalStatus !== 0 && (
           <button
+            className="mt-2 py-2 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
             onClick={() => handleAction('disable')}
             disabled={isWithdrawalLoading}
-            className="mt-2 py-2 px-4 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
           >
-            {isWithdrawalLoading ? 'Disabling...' : 'Disable Forced Withdrawal'}
+            {isWithdrawalLoading ? 'Reactivating...' : 'Reactivate Resource Lock'}
           </button>
         )}
       </div>
