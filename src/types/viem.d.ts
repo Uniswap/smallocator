@@ -6,6 +6,17 @@ declare module 'viem' {
   export type Bytes = Hex;
   export type SignableMessage = string | Bytes;
 
+  export type Signature = {
+    r: Hex;
+    s: Hex;
+    yParity: 0 | 1;
+  };
+
+  export type CompactSignature = {
+    r: Hex;
+    yParityAndS: Hex;
+  };
+
   export type AbiParameter = {
     name: string;
     type: string;
@@ -36,6 +47,13 @@ declare module 'viem' {
     values: readonly any[]
   ): Hex;
   export function concat(values: readonly Hex[]): Hex;
+  export function signatureToCompactSignature(
+    signature: Signature
+  ): CompactSignature;
+  export function serializeCompactSignature(
+    compactSignature: CompactSignature
+  ): Hex;
+  export function parseSignature(signatureHex: Hex): Signature;
 }
 
 declare module 'viem/accounts' {

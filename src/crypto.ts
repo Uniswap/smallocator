@@ -1,4 +1,9 @@
-import { type Hex } from 'viem';
+import {
+  type Hex,
+  signatureToCompactSignature,
+  serializeCompactSignature,
+  parseSignature,
+} from 'viem';
 import {
   hashTypedData,
   keccak256,
@@ -137,10 +142,17 @@ export async function generateClaimHash(
 
 export async function signCompact(hash: Hex, _chainId: bigint): Promise<Hex> {
   // Sign the hash directly using the private key
-  return await signMessage({
+  const signature = await signMessage({
     message: { raw: hash },
     privateKey,
   });
+
+  // Parse the signature into its components
+  const parsedSignature = parseSignature(signature);
+
+  // Convert to EIP2098 compact signature format and serialize
+  const compactSig = signatureToCompactSignature(parsedSignature);
+  return serializeCompactSignature(compactSig);
 }
 
 export function getSigningAddress(): string {
