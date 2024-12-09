@@ -41,9 +41,15 @@ export function useSessionPoller(
           },
         });
 
-        // Handle 401 Unauthorized explicitly
-        if (response.status === 401) {
+        // Handle specific error cases where we want to clear the session
+        if (response.status === 401 || response.status === 403) {
           localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
+        }
+
+        // For server errors or network issues, just set session to null but keep localStorage
+        if (!response.ok) {
           onSessionUpdate(null);
           return;
         }
@@ -51,7 +57,7 @@ export function useSessionPoller(
         const data: SessionResponse = await response.json();
 
         // Check for invalid session error
-        if (data.error === 'Invalid session' || !response.ok) {
+        if (data.error === 'Invalid session') {
           localStorage.removeItem(`session-${address}`);
           onSessionUpdate(null);
           return;
@@ -74,9 +80,8 @@ export function useSessionPoller(
 
         // Session is valid, set it
         onSessionUpdate(sessionId);
-      } catch {
-        // On any error, clear the session
-        localStorage.removeItem(`session-${address}`);
+      } catch (error) {
+        // For network errors or server issues, just set session to null but keep localStorage
         onSessionUpdate(null);
       }
     };
@@ -93,9 +98,15 @@ export function useSessionPoller(
           },
         });
 
-        // Handle 401 Unauthorized explicitly
-        if (response.status === 401) {
+        // Handle specific error cases where we want to clear the session
+        if (response.status === 401 || response.status === 403) {
           localStorage.removeItem(`session-${address}`);
+          onSessionUpdate(null);
+          return;
+        }
+
+        // For server errors or network issues, just set session to null but keep localStorage
+        if (!response.ok) {
           onSessionUpdate(null);
           return;
         }
@@ -103,7 +114,7 @@ export function useSessionPoller(
         const data: SessionResponse = await response.json();
 
         // Check for invalid session error
-        if (data.error === 'Invalid session' || !response.ok) {
+        if (data.error === 'Invalid session') {
           localStorage.removeItem(`session-${address}`);
           onSessionUpdate(null);
           return;
@@ -123,9 +134,8 @@ export function useSessionPoller(
           onSessionUpdate(null);
           return;
         }
-      } catch {
-        // On any error, clear the session
-        localStorage.removeItem(`session-${address}`);
+      } catch (error) {
+        // For network errors or server issues, just set session to null but keep localStorage
         onSessionUpdate(null);
       }
     }, POLLING_INTERVAL);

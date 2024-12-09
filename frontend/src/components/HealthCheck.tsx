@@ -7,7 +7,11 @@ interface HealthStatus {
   timestamp: string;
 }
 
-const HealthCheck: React.FC = () => {
+interface HealthCheckProps {
+  onHealthStatusChange?: (isHealthy: boolean) => void;
+}
+
+const HealthCheck: React.FC<HealthCheckProps> = ({ onHealthStatusChange }) => {
   const [healthData, setHealthData] = useState<HealthStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,17 +19,15 @@ const HealthCheck: React.FC = () => {
     const fetchHealthData = async () => {
       try {
         const response = await fetch('/health');
-        if (!response.ok) throw new Error('Failed to fetch health status.');
+        if (!response.ok) throw new Error('Allocator server unavailable');
         const data: HealthStatus = await response.json();
         setHealthData(data);
         setError(null);
+        onHealthStatusChange?.(data.status === 'healthy');
       } catch (error) {
         console.error('Error fetching health status:', error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to fetch health status'
-        );
+        setError('Allocator server unavailable');
+        onHealthStatusChange?.(false);
       }
     };
 
@@ -34,7 +36,7 @@ const HealthCheck: React.FC = () => {
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
-  }, []);
+  }, [onHealthStatusChange]);
 
   if (error) {
     return (
@@ -54,8 +56,7 @@ const HealthCheck: React.FC = () => {
             </svg>
           </div>
           <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-400">System Error</h3>
-            <div className="mt-2 text-sm text-red-400/80">
+            <div className="text-sm text-red-400">
               <p>{error}</p>
             </div>
           </div>

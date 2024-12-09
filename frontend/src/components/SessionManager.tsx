@@ -5,11 +5,13 @@ import { useSessionPoller } from '../hooks/useSessionPoller';
 interface SessionManagerProps {
   sessionToken: string | null;
   onSessionUpdate: (token: string | null) => void;
+  isServerHealthy?: boolean;
 }
 
 export function SessionManager({
   sessionToken,
   onSessionUpdate,
+  isServerHealthy = true,
 }: SessionManagerProps) {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -112,9 +114,9 @@ export function SessionManager({
         (sessionToken ? (
           <button
             onClick={signOut}
-            disabled={isLoading}
+            disabled={isLoading || !isServerHealthy}
             className={`py-2 px-4 rounded-lg font-medium transition-colors ${
-              isLoading
+              isLoading || !isServerHealthy
                 ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
             }`}
@@ -124,9 +126,9 @@ export function SessionManager({
         ) : (
           <button
             onClick={createSession}
-            disabled={!address || !chainId || isLoading}
+            disabled={!address || !chainId || isLoading || !isServerHealthy}
             className={`py-2 px-4 rounded-lg font-medium transition-colors ${
-              !address || !chainId || isLoading
+              !address || !chainId || isLoading || !isServerHealthy
                 ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                 : 'bg-[#00ff00] text-gray-900 hover:bg-[#00dd00]'
             }`}

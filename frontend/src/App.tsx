@@ -54,6 +54,7 @@ const customTheme = darkTheme({
 
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [isHealthy, setIsHealthy] = useState(true);
 
   const queryClient = useMemo(
     () =>
@@ -106,6 +107,7 @@ function App() {
                     <SessionManager
                       sessionToken={sessionToken}
                       onSessionUpdate={setSessionToken}
+                      isServerHealthy={isHealthy}
                     />
                   </div>
                 </div>
@@ -116,17 +118,22 @@ function App() {
                   <div className="space-y-6">
                     {/* Health Check Status */}
                     <div className="mx-auto p-4 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
-                      <HealthCheck />
+                      <HealthCheck onHealthStatusChange={setIsHealthy} />
                     </div>
 
-                    {/* Deposit Form */}
-                    {sessionToken && <DepositForm />}
+                    {/* Only show these components if the server is healthy */}
+                    {isHealthy && (
+                      <>
+                        {/* Deposit Form */}
+                        {sessionToken && <DepositForm />}
 
-                    {/* Balance Display */}
-                    {sessionToken && (
-                      <div className="mx-auto p-6 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
-                        <BalanceDisplay sessionToken={sessionToken} />
-                      </div>
+                        {/* Balance Display */}
+                        {sessionToken && (
+                          <div className="mx-auto p-6 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
+                            <BalanceDisplay sessionToken={sessionToken} />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
