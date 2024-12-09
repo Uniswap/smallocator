@@ -63,7 +63,7 @@ export function InitiateForcedWithdrawalDialog({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800 p-6 max-w-md w-full">
+      <div className="bg-gray-900 rounded-lg shadow-xl border border-gray-800 p-6 max-w-md w-full mx-4">
         <h2 className="text-xl font-semibold text-gray-100 mb-4">
           Initiate Forced Withdrawal
         </h2>

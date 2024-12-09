@@ -49,6 +49,18 @@ const formatResetPeriod = (seconds: number): string => {
   return `${Math.floor(seconds / 86400)} days`;
 };
 
+// Chain name mapping
+const chainNames: Record<string, string> = {
+  '1': 'Ethereum',
+  '10': 'Optimism',
+  '8453': 'Base',
+};
+
+// Helper function to get chain name
+function getChainName(chainId: string): string {
+  return chainNames[chainId] || `Chain ${chainId}`;
+}
+
 // Helper function to format lock ID as 32-byte hex string
 function formatLockId(lockId: string): string {
   // Convert to BigInt to handle large numbers
@@ -199,18 +211,19 @@ export function BalanceDisplay({
               key={`${balance.chainId}-${balance.lockId}`}
               className="p-4 bg-gray-800 rounded-lg"
             >
-              {/* Header with Chain, Token Info, and Lock ID */}
+              {/* Header with Token Info and Chain Name */}
               <div className="flex justify-between items-baseline mb-4">
-                <div className="text-sm font-medium text-gray-300">
-                  Chain {balance.chainId}
-                  {balance.token && (
-                    <span className="ml-2 text-gray-400">
-                      {balance.token.name} ({balance.token.symbol})
-                    </span>
-                  )}
+                <div className="text-base font-medium text-gray-300">
+                  {balance.token?.name} ({balance.token?.symbol})
                 </div>
-                <div className="text-xs text-gray-400">
-                  Lock ID: <span className="font-mono">{formatLockId(balance.lockId)}</span>
+                <div className="flex items-baseline gap-6 text-xs text-gray-400 ml-8">
+                  <div>Chain: {getChainName(balance.chainId)}</div>
+                  <div>
+                    Lock ID:{' '}
+                    <span className="font-mono">
+                      {formatLockId(balance.lockId)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -263,7 +276,9 @@ export function BalanceDisplay({
                   </div>
 
                   <div>
-                    <div className="text-xs text-gray-400">Finalized Balance</div>
+                    <div className="text-xs text-gray-400">
+                      Finalized Balance
+                    </div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
                       {balance.formattedAllocatableBalance ||
                         balance.allocatableBalance}
@@ -276,7 +291,9 @@ export function BalanceDisplay({
                   </div>
 
                   <div>
-                    <div className="text-xs text-gray-400">Currently Allocated</div>
+                    <div className="text-xs text-gray-400">
+                      Currently Allocated
+                    </div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
                       {balance.formattedAllocatedBalance ||
                         balance.allocatedBalance}
@@ -376,12 +393,16 @@ export function BalanceDisplay({
               </button>
             </div>
             <p className="text-sm text-gray-300 mb-4">
-              Supply this value as a <code className="bg-black/30 px-1.5 py-0.5 rounded text-sm">x-session-id</code> header to make authenticated
-              requests to the API.
+              Supply this value as a{' '}
+              <code className="bg-black/30 px-1.5 py-0.5 rounded text-sm">
+                x-session-id
+              </code>{' '}
+              header to make authenticated requests to the API.
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-black/50 p-3 rounded font-mono text-sm break-all">
-                {localStorage.getItem(`session-${address}`) || 'No session found'}
+                {localStorage.getItem(`session-${address}`) ||
+                  'No session found'}
               </div>
               <button
                 onClick={handleCopySessionId}
@@ -391,8 +412,15 @@ export function BalanceDisplay({
               </button>
             </div>
             <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded text-sm text-yellow-200/80">
-              <strong className="block mb-1 text-yellow-200">⚠️ Warning:</strong>
-              Do not share your session key with third parties you do not trust! Anyone in possession of your session key will be able to request allocations on your behalf and view your allocation statuses and partial information on submitted compacts. However, they will not be able to transfer or withdraw your tokens without a corresponding signature from you.
+              <strong className="block mb-1 text-yellow-200">
+                ⚠️ Warning:
+              </strong>
+              Do not share your session key with third parties you do not trust!
+              Anyone in possession of your session key will be able to request
+              allocations on your behalf and view your allocation statuses and
+              partial information on submitted compacts. However, they will not
+              be able to transfer or withdraw your tokens without a
+              corresponding signature from you.
             </div>
           </div>
         </div>
