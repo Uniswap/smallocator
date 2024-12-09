@@ -36,9 +36,13 @@ export async function setupBalanceRoutes(
     > => {
       try {
         const sponsor = request.session!.address;
+        server.log.info(`Processing balances request for sponsor: ${sponsor}`);
 
         // Get all resource locks for the sponsor
         const response = await getAllResourceLocks(sponsor);
+        server.log.info(
+          `Found ${response?.account?.resourceLocks?.items?.length || 0} resource locks`
+        );
 
         // Add defensive checks
         if (!response?.account?.resourceLocks?.items) {
@@ -79,15 +83,44 @@ export async function setupBalanceRoutes(
                 return null; // Skip if lock no longer exists
               }
 
-              // Calculate pending balance
+              // Calculate pending balance (unfinalized deposits)
               const pendingBalance = lockDetails.accountDeltas.items.reduce(
                 (sum, delta) => sum + BigInt(delta.delta),
                 BigInt(0)
               );
+              server.log.info(
+                {
+                  chainId: lock.chainId,
+                  lockId: lock.resourceLock.lockId,
+                  pendingBalance: pendingBalance.toString(),
+                  deltas: lockDetails.accountDeltas.items.map((d) => d.delta),
+                },
+                'Unfinalized deposits'
+              );
 
-              // Calculate allocatable balance
-              const allocatableBalance =
-                BigInt(resourceLock.balance) + pendingBalance;
+              // The balance from GraphQL includes unfinalized deposits
+              // So we need to subtract them to get the finalized balance
+              const currentBalance = BigInt(resourceLock.balance);
+              // If pending balance exceeds current balance, set finalized balance to 0
+              const finalizedBalance =
+                pendingBalance > currentBalance
+                  ? BigInt(0)
+                  : currentBalance - pendingBalance;
+              // This is our allocatable balance (only includes finalized amounts)
+              const allocatableBalance = finalizedBalance;
+
+              server.log.info(
+                {
+                  chainId: lock.chainId,
+                  lockId: lock.resourceLock.lockId,
+                  currentBalance: currentBalance.toString(),
+                  pendingBalance: pendingBalance.toString(),
+                  finalizedBalance: finalizedBalance.toString(),
+                  allocatableBalance: allocatableBalance.toString(),
+                  pendingExceedsBalance: pendingBalance > currentBalance,
+                },
+                'Balance calculation'
+              );
 
               // Convert lockId to BigInt
               const lockIdBigInt = toBigInt(lock.resourceLock.lockId, 'lockId');
@@ -102,6 +135,15 @@ export async function setupBalanceRoutes(
                 lock.chainId,
                 lockIdBigInt,
                 lockDetails.account.claims.items.map((claim) => claim.claimHash)
+              );
+              server.log.info(
+                {
+                  chainId: lock.chainId,
+                  lockId: lock.resourceLock.lockId,
+                  allocatedBalance: allocatedBalance.toString(),
+                  processedClaims: lockDetails.account.claims.items.length,
+                },
+                'Allocated balance calculation'
               );
 
               // Calculate available balance
@@ -202,18 +244,22 @@ export async function setupBalanceRoutes(
             return { error: 'Invalid allocator ID' };
           }
 
-          // Calculate pending balance
+          // Calculate pending balance (unfinalized deposits)
           const pendingBalance = response.accountDeltas.items.reduce(
             (sum, delta) => sum + BigInt(delta.delta),
             BigInt(0)
           );
 
-          // Calculate allocatable balance
-          const resourceLockBalance = BigInt(resourceLock.balance);
-          const allocatableBalance =
-            resourceLockBalance > pendingBalance
-              ? resourceLockBalance - pendingBalance
-              : BigInt(0);
+          // The balance from GraphQL includes unfinalized deposits
+          // So we need to subtract them to get the finalized balance
+          const currentBalance = BigInt(resourceLock.balance);
+          // If pending balance exceeds current balance, set finalized balance to 0
+          const finalizedBalance =
+            pendingBalance > currentBalance
+              ? BigInt(0)
+              : currentBalance - pendingBalance;
+          // This is our allocatable balance (only includes finalized amounts)
+          const allocatableBalance = finalizedBalance;
 
           // Get allocated balance from database
           const allocatedBalance = await getAllocatedBalance(
