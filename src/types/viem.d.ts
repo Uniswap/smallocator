@@ -65,6 +65,15 @@ declare module 'viem' {
   export function parseCompactSignature(
     compactSignatureHex: Hex
   ): CompactSignature;
+  export function hexToBytes(hex: Hex): Uint8Array;
+  export function toHex(
+    value: number | bigint | Uint8Array,
+    opts?: { size?: number }
+  ): Hex;
+  export function numberToHex(
+    value: number | bigint,
+    opts?: { size?: number }
+  ): Hex;
 }
 
 declare module 'viem/accounts' {

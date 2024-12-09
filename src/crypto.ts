@@ -1,18 +1,14 @@
 import {
   type Hex,
-  signatureToCompactSignature,
-  serializeCompactSignature,
   parseCompactSignature,
-  compactSignatureToSignature,
-} from 'viem';
-import {
+  serializeCompactSignature,
   hashTypedData,
   keccak256,
   encodeAbiParameters,
   encodePacked,
   concat,
   getAddress,
-} from 'viem/utils';
+} from 'viem';
 import { privateKeyToAccount, signMessage } from 'viem/accounts';
 import { type StoredCompactMessage } from './compact';
 import { type SessionPayload } from './session';

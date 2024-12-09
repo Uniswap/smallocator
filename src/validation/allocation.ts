@@ -1,14 +1,8 @@
 import { getAddress } from 'viem/utils';
-import { numberToHex } from 'viem/utils';
 import { PGlite } from '@electric-sql/pglite';
 import { getCompactDetails } from '../graphql';
 import { getAllocatedBalance } from '../balance';
 import { ValidationResult, ValidatedCompactMessage } from './types';
-
-// Helper to convert bigint to 32-byte hex string
-function bigintToHex(value: bigint): string {
-  return numberToHex(value, { size: 32 }).slice(2);
-}
 
 export async function validateAllocation(
   compact: ValidatedCompactMessage,
