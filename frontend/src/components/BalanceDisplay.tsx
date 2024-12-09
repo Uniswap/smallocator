@@ -328,7 +328,6 @@ export function BalanceDisplay({
                 <div className="mt-4 border-t border-gray-700 pt-4">
                   <div className="flex gap-2">
                     <Transfer
-                      key={`${balance.chainId}-${balance.lockId}`}
                       chainId={balance.chainId}
                       resourceLockBalance={resourceLock.balance}
                       lockId={BigInt(balance.lockId)}
@@ -351,6 +350,7 @@ export function BalanceDisplay({
                         setSelectedLock(null);
                         handleDisableWithdrawal(balance.lockId);
                       }}
+                      balanceAvailableToAllocate={balance.balanceAvailableToAllocate}
                     />
                     {canExecuteWithdrawal && (
                       <button
@@ -368,7 +368,7 @@ export function BalanceDisplay({
                         }}
                         className="mt-2 py-2 px-4 bg-[#F97316] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
                       >
-                        Execute Withdrawal
+                        Execute Forced Withdrawal
                       </button>
                     )}
                   </div>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
-import { parseUnits, formatUnits } from 'viem';
+import { parseUnits, formatUnits, isAddress } from 'viem';
 import { useNotification } from '../hooks/useNotification';
 import { useAllocatedTransfer } from '../hooks/useAllocatedTransfer';
 import { useAllocatedWithdrawal } from '../hooks/useAllocatedWithdrawal';
@@ -22,6 +22,7 @@ interface TransferProps {
   sessionToken: string | null;
   onForceWithdraw: () => void;
   onDisableForceWithdraw: () => void;
+  balanceAvailableToAllocate: string;
 }
 
 interface FormData {
@@ -51,6 +52,7 @@ export function Transfer({
   sessionToken,
   onForceWithdraw,
   onDisableForceWithdraw,
+  balanceAvailableToAllocate,
 }: TransferProps) {
   const { address } = useAccount();
   const currentChainId = useChainId();
@@ -94,7 +96,7 @@ export function Transfer({
       // Check if amount is zero or negative
       const numAmount = parseFloat(formData.amount);
       if (numAmount <= 0) {
-        return { type: 'error', message: 'Amount must be greater than zero' };
+        return { type: 'error', message: 'Amount must be greater than zero.' };
       }
 
       // Check decimal places
@@ -102,28 +104,56 @@ export function Transfer({
       if (decimalParts.length > 1 && decimalParts[1].length > decimals) {
         return {
           type: 'error',
-          message: `Invalid amount (greater than ${decimals} decimals)`,
+          message: `Invalid amount (greater than ${decimals} decimals).`,
         };
       }
 
-      // Check against resource lock balance
+      // Parse amounts for comparison
       const parsedAmount = parseUnits(formData.amount, decimals);
-      const balanceBigInt = BigInt(resourceLockBalance);
+      const balanceBigInt = BigInt(resourceLockBalance || '0');
+      const availableToAllocateBigInt = BigInt(balanceAvailableToAllocate || '0');
+
+      // First check if amount exceeds total balance
       if (parsedAmount > balanceBigInt) {
-        return { type: 'error', message: 'Amount exceeds available balance' };
+        return { type: 'error', message: 'Amount exceeds available balance.' };
+      }
+
+      // Then check if amount exceeds available to allocate
+      if (parsedAmount > availableToAllocateBigInt) {
+        return {
+          type: 'error',
+          message: 'Amount exceeds balance currently available to allocate. Wait for pending allocations to clear or initiate a forced withdrawal.',
+        };
       }
 
       return null;
     } catch {
-      return { type: 'error', message: 'Invalid amount format' };
+      return { type: 'error', message: 'Invalid amount format.' };
     }
-  }, [formData.amount, decimals, resourceLockBalance]);
+  }, [formData.amount, decimals, resourceLockBalance, balanceAvailableToAllocate]);
+
+  const validateRecipient = useCallback(() => {
+    if (!formData.recipient) return null;
+    if (!isAddress(formData.recipient)) {
+      return { type: 'error', message: 'Invalid address format.' };
+    }
+    return null;
+  }, [formData.recipient]);
+
+  // Update field errors when recipient changes
+  useEffect(() => {
+    const recipientValidation = validateRecipient();
+    setFieldErrors((prev) => ({
+      ...prev,
+      recipient: recipientValidation?.message,
+    }));
+  }, [formData.recipient, validateRecipient]);
 
   // Update error message when nonce consumption status changes
   const nonceError = useMemo(() => {
     if (!formData.nonce) return undefined;
     if (isNonceConsumed) {
-      return 'This nonce has already been consumed';
+      return 'This nonce has already been consumed.';
     }
     return undefined;
   }, [isNonceConsumed, formData.nonce]);
@@ -138,17 +168,17 @@ export function Transfer({
 
   // Validate expiry
   const validateExpiry = (value: string) => {
-    if (!value) return { type: 'error', message: 'Expiry is required' };
+    if (!value) return { type: 'error', message: 'Expiry is required.' };
 
     const expiryTime = parseInt(value);
     const now = Math.floor(Date.now() / 1000);
 
     if (isNaN(expiryTime)) {
-      return { type: 'error', message: 'Invalid expiry time' };
+      return { type: 'error', message: 'Invalid expiry time.' };
     }
 
     if (expiryTime <= now) {
-      return { type: 'error', message: 'Expiry time must be in the future' };
+      return { type: 'error', message: 'Expiry time must be in the future.' };
     }
 
     return null;
@@ -542,17 +572,26 @@ export function Transfer({
                     }))
                   }
                   placeholder="0x..."
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors"
+                  className={`w-full px-3 py-2 bg-gray-800 border ${
+                    fieldErrors.recipient
+                      ? 'border-red-500'
+                      : 'border-gray-700'
+                  } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
                 />
+                {fieldErrors.recipient && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {fieldErrors.recipient}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Amount
                   <span className="float-right text-gray-400">
-                    Balance:{' '}
-                    {formatUnits(BigInt(resourceLockBalance), decimals)}{' '}
-                    {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}
+                    Balance: {formatUnits(BigInt(resourceLockBalance || '0'), decimals)}{' '}
+                    {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}{' '}
+                    (Available: {formatUnits(BigInt(balanceAvailableToAllocate || '0'), decimals)})
                   </span>
                 </label>
                 <input

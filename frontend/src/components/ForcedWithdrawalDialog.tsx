@@ -4,6 +4,13 @@ import { useAccount, useChainId } from 'wagmi';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 
+// Chain name mapping
+const chainNames: Record<number, string> = {
+  1: 'Ethereum',
+  10: 'Optimism',
+  8453: 'Base',
+};
+
 interface ForcedWithdrawalDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -187,7 +194,7 @@ export function ForcedWithdrawalDialog({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800 p-6 max-w-md w-full">
+      <div className="bg-gray-900 rounded-lg shadow-xl border border-gray-800 p-6 max-w-md w-full mx-4">
         <h2 className="text-xl font-semibold text-gray-100 mb-2">
           Execute Forced Withdrawal
         </h2>
@@ -195,7 +202,7 @@ export function ForcedWithdrawalDialog({
           <div>
             {tokenName} ({symbol})
           </div>
-          <div>Chain ID {targetChainId}</div>
+          <div>Chain: {chainNames[targetChainId] || `Chain ${targetChainId}`}</div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
