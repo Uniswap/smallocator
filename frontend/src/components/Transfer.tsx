@@ -23,6 +23,7 @@ interface TransferProps {
   onForceWithdraw: () => void;
   onDisableForceWithdraw: () => void;
   balanceAvailableToAllocate: string;
+  resetPeriod: number;
 }
 
 interface FormData {
@@ -53,6 +54,7 @@ export function Transfer({
   onForceWithdraw,
   onDisableForceWithdraw,
   balanceAvailableToAllocate,
+  resetPeriod,
 }: TransferProps) {
   const { address } = useAccount();
   const currentChainId = useChainId();
@@ -166,6 +168,9 @@ export function Transfer({
     }));
   }, [nonceError]);
 
+  // Constants for time limits
+  const TWO_HOURS_SECONDS = 7200; // 2 hours in seconds
+
   // Validate expiry
   const validateExpiry = (value: string) => {
     if (!value) return { type: 'error', message: 'Expiry is required.' };
@@ -179,6 +184,37 @@ export function Transfer({
 
     if (expiryTime <= now) {
       return { type: 'error', message: 'Expiry time must be in the future.' };
+    }
+
+    const duration = expiryTime - now;
+
+    // Check if duration exceeds 2 hours
+    if (duration > TWO_HOURS_SECONDS) {
+      return { type: 'error', message: 'Expiry cannot be more than 2 hours in the future.' };
+    }
+
+    // Check if expiry would exceed when tokens could be withdrawn
+    // Ensure expiry is within reset period
+    const resetPeriodSeconds = resetPeriod ? parseInt(String(resetPeriod)) : undefined;
+    const maxExpiryTime = resetPeriodSeconds 
+      ? Math.min(now + resetPeriodSeconds, now + TWO_HOURS_SECONDS) 
+      : now + TWO_HOURS_SECONDS;
+
+    console.log('Validating expiry:', {
+      now,
+      expiryTime,
+      resetPeriod: resetPeriodSeconds,
+      maxExpiryTime,
+      duration,
+      isExceedingResetPeriod: expiryTime > maxExpiryTime
+    });
+
+    if (expiryTime > maxExpiryTime) {
+      const timeLimit = resetPeriodSeconds ? Math.min(resetPeriodSeconds, TWO_HOURS_SECONDS) : TWO_HOURS_SECONDS;
+      return { 
+        type: 'error', 
+        message: `Expiry cannot exceed ${Math.floor(timeLimit / 60)} minutes from now.`
+      };
     }
 
     return null;
@@ -437,6 +473,9 @@ export function Transfer({
       case '1min':
         newExpiry = (now + 60).toString();
         break;
+      case '5min':
+        newExpiry = (now + 300).toString();
+        break;
       case '10min':
         newExpiry = (now + 600).toString();
         break;
@@ -516,41 +555,47 @@ export function Transfer({
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Expires
                 </label>
-                <div className="flex gap-2">
+                <div className="relative flex-1">
                   <select
                     value={expiryOption}
                     onChange={(e) => handleExpiryChange(e.target.value)}
-                    className="w-full px-3 pr-8 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors appearance-none pr-10"
                   >
                     <option value="1min">1 minute</option>
+                    <option value="5min">5 minutes</option>
                     <option value="10min">10 minutes</option>
-                    <option value="1hour">1 hour</option>
+                    {resetPeriod >= 3600 && TWO_HOURS_SECONDS >= 3600 && <option value="1hour">1 hour</option>}
                     <option value="custom">Custom</option>
                   </select>
-                  {customExpiry && (
-                    <input
-                      type="text"
-                      value={formData.expires}
-                      onChange={(e) => {
-                        const validation = validateExpiry(e.target.value);
-                        setFieldErrors((prev) => ({
-                          ...prev,
-                          expires: validation?.message,
-                        }));
-                        setFormData((prev) => ({
-                          ...prev,
-                          expires: e.target.value,
-                        }));
-                      }}
-                      placeholder="Unix timestamp"
-                      className={`w-full px-3 py-2 bg-gray-800 border ${
-                        fieldErrors.expires
-                          ? 'border-red-500'
-                          : 'border-gray-700'
-                      } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
-                    />
-                  )}
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                    </svg>
+                  </div>
                 </div>
+                {customExpiry && (
+                  <input
+                    type="text"
+                    value={formData.expires}
+                    onChange={(e) => {
+                      const validation = validateExpiry(e.target.value);
+                      setFieldErrors((prev) => ({
+                        ...prev,
+                        expires: validation?.message,
+                      }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        expires: e.target.value,
+                      }));
+                    }}
+                    placeholder="Unix timestamp"
+                    className={`w-full px-3 py-2 bg-gray-800 border ${
+                      fieldErrors.expires
+                        ? 'border-red-500'
+                        : 'border-gray-700'
+                    } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
+                  />
+                )}
                 {fieldErrors.expires && (
                   <p className="mt-1 text-sm text-red-500">
                     {fieldErrors.expires}

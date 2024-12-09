@@ -341,6 +341,7 @@ export function BalanceDisplay({
                       tokenSymbol={balance.token?.symbol || ''}
                       withdrawalStatus={balance.withdrawalStatus}
                       sessionToken={sessionToken}
+                      resetPeriod={resourceLock.resourceLock.resetPeriod}
                       onForceWithdraw={() => {
                         setSelectedLockId(balance.lockId);
                         setIsWithdrawalDialogOpen(true);
