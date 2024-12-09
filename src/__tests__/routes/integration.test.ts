@@ -13,7 +13,6 @@ import {
   AccountDeltasResponse,
   AccountResponse,
 } from '../../graphql';
-import { Variables } from 'graphql-request';
 
 describe('Integration Tests', () => {
   let server: FastifyInstance;
@@ -32,10 +31,7 @@ describe('Integration Tests', () => {
   describe('Allocation Flow', () => {
     it('should handle complete allocation flow: session -> compact -> balance -> nonce', async () => {
       // Mock GraphQL response with zero allocated balance
-      graphqlClient.request = async <
-        V extends Variables = Variables,
-        T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
-      >(): Promise<
+      graphqlClient.request = async (): Promise<
         AllocatorResponse & AccountDeltasResponse & AccountResponse
       > => ({
         allocator: {

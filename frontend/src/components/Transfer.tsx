@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { parseUnits, formatUnits } from 'viem';
 import { useNotification } from '../hooks/useNotification';
@@ -80,7 +80,7 @@ export function Transfer({
   });
 
   // Validate amount
-  const validateAmount = () => {
+  const validateAmount = useCallback(() => {
     if (!formData.amount) return null;
 
     try {
@@ -104,10 +104,10 @@ export function Transfer({
       }
 
       return null;
-    } catch (e) {
+    } catch {
       return { type: 'error', message: 'Invalid amount format' };
     }
-  };
+  }, [formData.amount, decimals, resourceLockBalance]);
 
   // Update error message when nonce consumption status changes
   const nonceError = useMemo(() => {

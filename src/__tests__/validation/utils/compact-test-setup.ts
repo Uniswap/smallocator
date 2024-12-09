@@ -52,9 +52,7 @@ export function cleanupCompactTestDb(db: PGlite): Promise<void> {
   ]).then(() => undefined);
 }
 
-export function mockGraphQLResponse(
-  originalRequest: typeof graphqlClient.request
-): void {
+export function mockGraphQLResponse(): void {
   graphqlClient.request = async (): Promise<
     AllocatorResponse & AccountDeltasResponse & AccountResponse
   > => ({
@@ -104,7 +102,7 @@ describe('Compact Test Setup', () => {
 
   it('should mock GraphQL response with expected structure', async () => {
     // Setup mock
-    mockGraphQLResponse(originalRequest);
+    mockGraphQLResponse();
 
     // Make request with required variables
     const response = await graphqlClient.request(GET_COMPACT_DETAILS, {

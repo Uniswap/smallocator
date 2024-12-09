@@ -4,7 +4,7 @@ import {
   CompactMessage,
   ValidatedCompactMessage,
 } from './types';
-import { toBigInt, toPositiveBigInt } from '../utils/encoding';
+import { toPositiveBigInt } from '../utils/encoding';
 
 export async function validateStructure(
   compact: CompactMessage

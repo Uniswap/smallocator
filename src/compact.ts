@@ -11,7 +11,6 @@ import {
 import { generateClaimHash, signCompact } from './crypto';
 import { randomUUID } from 'crypto';
 import { PGlite } from '@electric-sql/pglite';
-import { toBigInt } from './utils/encoding';
 
 export interface CompactSubmission {
   chainId: string;

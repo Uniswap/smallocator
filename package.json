@@ -29,7 +29,7 @@
     "prepare": "husky",
     "check-test-files": "node scripts/check-test-files.js",
     "lint-staged": "lint-staged",
-    "check:all": "pnpm build:all || true && pnpm lint || true && cd frontend && pnpm lint || true && cd - && pnpm format:check || true && cd frontend && prettier --check \"src/**/*.{ts,tsx}\" || true && cd - && pnpm type-check || true && cd frontend && pnpm tsc --noEmit -p tsconfig.app.json || true && cd - && pnpm test || true && pnpm smoke-test || true"
+    "check:all": "pnpm build:all || true && pnpm lint || true && cd frontend && pnpm lint || true && cd - && pnpm format:check || true && cd frontend && prettier --check \"src/**/*.{ts,tsx}\" || true && cd - && pnpm type-check || true && cd frontend && pnpm tsc --noEmit -p tsconfig.app.json || true && cd - && pnpm test:parallel || true && pnpm smoke-test || true"
   },
   "lint-staged": {
     "**/*.{test,spec}.ts": [

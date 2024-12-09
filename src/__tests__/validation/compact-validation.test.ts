@@ -22,7 +22,7 @@ describe('Compact Basic Validation', () => {
 
   beforeEach((): void => {
     originalRequest = graphqlClient.request;
-    mockGraphQLResponse(originalRequest);
+    mockGraphQLResponse();
   });
 
   afterEach((): void => {
