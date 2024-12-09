@@ -5,6 +5,9 @@ interface NotificationContextType {
     type: 'success' | 'error' | 'warning' | 'info';
     title: string;
     message: string;
+    stage?: 'initiated' | 'submitted' | 'confirmed';
+    txHash?: string;
+    autoHide?: boolean;
   }) => void;
 }
 

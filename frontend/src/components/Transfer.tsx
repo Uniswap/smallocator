@@ -200,15 +200,6 @@ export function Transfer({
       ? Math.min(now + resetPeriodSeconds, now + TWO_HOURS_SECONDS) 
       : now + TWO_HOURS_SECONDS;
 
-    console.log('Validating expiry:', {
-      now,
-      expiryTime,
-      resetPeriod: resetPeriodSeconds,
-      maxExpiryTime,
-      duration,
-      isExceedingResetPeriod: expiryTime > maxExpiryTime
-    });
-
     if (expiryTime > maxExpiryTime) {
       const timeLimit = resetPeriodSeconds ? Math.min(resetPeriodSeconds, TWO_HOURS_SECONDS) : TWO_HOURS_SECONDS;
       return { 

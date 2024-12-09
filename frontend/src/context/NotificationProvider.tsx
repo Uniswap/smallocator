@@ -1,6 +1,6 @@
 import { Fragment, ReactNode, useState, useEffect } from 'react';
 import { Transition } from '@headlessui/react';
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, XCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/20/solid';
 import { NotificationContext } from './notification-context';
 
@@ -10,6 +10,9 @@ interface Notification {
   title: string;
   message: string;
   timestamp: number;
+  stage?: 'initiated' | 'submitted' | 'confirmed';
+  txHash?: string;
+  autoHide?: boolean;
 }
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
@@ -19,25 +22,80 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     type: 'success' | 'error' | 'warning' | 'info';
     title: string;
     message: string;
+    stage?: 'initiated' | 'submitted' | 'confirmed';
+    txHash?: string;
+    autoHide?: boolean;
   }) => {
     const timestamp = Date.now();
     const id = `${timestamp}-${Math.random().toString(36).slice(2, 7)}`;
+
+    // If this is a transaction update, remove previous notifications for the same transaction
+    if (notification.txHash) {
+      setNotifications((prev) =>
+        prev.filter((n) => n.txHash !== notification.txHash)
+      );
+    }
+
     setNotifications((prev) => [...prev, { ...notification, id, timestamp }]);
   };
 
-  // Remove notifications after 5 seconds
+  // Remove notifications after 5 seconds if autoHide is true (default)
   useEffect(() => {
     const timer = setInterval(() => {
       setNotifications((prev) => {
         const now = Date.now();
         return prev.filter(
-          (notification) => now - notification.timestamp < 5000
+          (notification) =>
+            notification.autoHide === false ||
+            now - notification.timestamp < 5000
         );
       });
     }, 100);
 
     return () => clearInterval(timer);
   }, []);
+
+  const getIcon = (notification: Notification) => {
+    if (notification.stage === 'initiated' || notification.stage === 'submitted') {
+      return (
+        <ClockIcon
+          className="h-6 w-6 text-yellow-400 animate-spin"
+          aria-hidden="true"
+        />
+      );
+    }
+
+    switch (notification.type) {
+      case 'success':
+        return (
+          <CheckCircleIcon
+            className="h-6 w-6 text-[#00ff00]"
+            aria-hidden="true"
+          />
+        );
+      case 'error':
+        return (
+          <XCircleIcon
+            className="h-6 w-6 text-red-400"
+            aria-hidden="true"
+          />
+        );
+      case 'warning':
+        return (
+          <XCircleIcon
+            className="h-6 w-6 text-yellow-400"
+            aria-hidden="true"
+          />
+        );
+      default:
+        return (
+          <CheckCircleIcon
+            className="h-6 w-6 text-blue-400"
+            aria-hidden="true"
+          />
+        );
+    }
+  };
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>
@@ -63,27 +121,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 <div className="p-4">
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      {notification.type === 'success' ? (
-                        <CheckCircleIcon
-                          className="h-6 w-6 text-[#00ff00]"
-                          aria-hidden="true"
-                        />
-                      ) : notification.type === 'error' ? (
-                        <XCircleIcon
-                          className="h-6 w-6 text-red-400"
-                          aria-hidden="true"
-                        />
-                      ) : notification.type === 'warning' ? (
-                        <XCircleIcon
-                          className="h-6 w-6 text-yellow-400"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <CheckCircleIcon
-                          className="h-6 w-6 text-blue-400"
-                          aria-hidden="true"
-                        />
-                      )}
+                      {getIcon(notification)}
                     </div>
                     <div className="ml-3 w-0 flex-1 pt-0.5">
                       <p className="text-sm font-medium text-gray-100">
@@ -92,6 +130,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                       <p className="mt-1 text-sm text-gray-400">
                         {notification.message}
                       </p>
+                      {notification.txHash && (
+                        <p className="mt-1 text-sm text-gray-500">
+                          Transaction: {notification.txHash.slice(0, 6)}...{notification.txHash.slice(-4)}
+                        </p>
+                      )}
                     </div>
                     <div className="ml-4 flex flex-shrink-0">
                       <button

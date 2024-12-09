@@ -51,7 +51,7 @@ export function useCompact() {
   const { writeContract } = useWriteContract();
   const { showNotification } = useNotification();
 
-  const deposit = async (params: DepositParams) => {
+  const getContractAddress = () => {
     if (!isSupportedChain(chainId)) {
       throw new Error('Unsupported chain');
     }
@@ -61,137 +61,162 @@ export function useCompact() {
       throw new Error('Chain configuration not found');
     }
 
-    try {
-      if (params.isNative) {
-        const hash = await writeContract({
-          address: COMPACT_ADDRESS as `0x${string}`,
-          abi: [COMPACT_ABI[0]] as const,
-          functionName: 'deposit',
-          args: [params.allocator],
-          value: params.value,
-          account: address,
-          chain,
-        });
-        showNotification({
-          type: 'success',
-          title: 'Transaction Submitted',
-          message: 'Your deposit transaction has been submitted.',
-        });
-        return hash;
-      } else {
-        // TypeScript now knows this is TokenDeposit
-        const tokenParams = params as TokenDeposit;
-        const hash = await writeContract({
-          address: COMPACT_ADDRESS as `0x${string}`,
-          abi: [COMPACT_ABI[1]] as const,
-          functionName: 'deposit',
-          args: [tokenParams.token, tokenParams.allocator, tokenParams.amount],
-          account: address,
-          chain,
-        });
-        showNotification({
-          type: 'success',
-          title: 'Transaction Submitted',
-          message: 'Your deposit transaction has been submitted.',
-        });
-        return hash;
-      }
-    } catch (error) {
-      console.error('Deposit error:', error);
-      showNotification({
-        type: 'error',
-        title: 'Transaction Failed',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to submit transaction',
-      });
-      throw error;
-    }
+    return COMPACT_ADDRESS as `0x${string}`;
   };
 
-  const disableForcedWithdrawal = async ({ args }: WithdrawalParams) => {
-    if (!isSupportedChain(chainId)) {
-      throw new Error('Unsupported chain');
+  const deposit = async ({
+    args,
+    value,
+    isNative = false,
+  }: {
+    args: [string] | [string, string, bigint];
+    value: bigint;
+    isNative?: boolean;
+  }) => {
+    const contractAddress = getContractAddress();
+    if (!contractAddress) throw new Error('Contract address not found for current network');
+
+    showNotification({
+      type: 'info',
+      title: 'Transaction Initiated',
+      message: 'Please confirm the transaction in your wallet...',
+      stage: 'initiated',
+      autoHide: false,
+    });
+
+    // Select the appropriate ABI fragment based on whether it's a native deposit or not
+    const abiFragment = COMPACT_ABI.find(entry => 
+      entry.name === 'deposit' && 
+      (isNative ? entry.stateMutability === 'payable' : entry.stateMutability === 'nonpayable')
+    );
+    
+    if (!abiFragment) {
+      throw new Error('ABI fragment not found for deposit function');
     }
 
-    const chain = chains[chainId];
-    if (!chain) {
-      throw new Error('Chain configuration not found');
-    }
+    const { data } = await writeContract({
+      address: contractAddress,
+      abi: [abiFragment],
+      functionName: 'deposit',
+      args: isNative ? [args[0]] : [args[0], args[1], args[2]],
+      value,
+    });
 
-    try {
-      const hash = await writeContract({
-        address: COMPACT_ADDRESS as `0x${string}`,
-        abi: [
-          COMPACT_ABI.find((x) => x.name === 'disableForcedWithdrawal'),
-        ] as const,
-        functionName: 'disableForcedWithdrawal',
-        args,
-        account: address,
-        chain,
-      });
-      showNotification({
-        type: 'success',
-        title: 'Transaction Submitted',
-        message:
-          'Your disable forced withdrawal transaction has been submitted.',
-      });
-      return hash;
-    } catch (error) {
-      console.error('Disable forced withdrawal error:', error);
-      showNotification({
-        type: 'error',
-        title: 'Error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to disable forced withdrawal',
-      });
-      throw error;
-    }
+    const hash = data.hash;
+
+    showNotification({
+      type: 'success',
+      title: 'Transaction Submitted',
+      message: 'Waiting for block inclusion...',
+      stage: 'submitted',
+      txHash: hash,
+      autoHide: false,
+    });
+
+    // Wait for the transaction receipt
+    // await waitForTransaction(config, { hash })
+
+    showNotification({
+      type: 'success',
+      title: 'Transaction Confirmed',
+      message: 'Your deposit has been confirmed',
+      stage: 'confirmed',
+      txHash: hash,
+      autoHide: true,
+    });
+
+    // Trigger a balance refetch after the transaction
+    // await refetchBalance()
+    return hash;
   };
 
-  const enableForcedWithdrawal = async ({ args }: WithdrawalParams) => {
-    if (!isSupportedChain(chainId)) {
-      throw new Error('Unsupported chain');
-    }
 
-    const chain = chains[chainId];
-    if (!chain) {
-      throw new Error('Chain configuration not found');
-    }
+  const enableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
+    showNotification({
+      type: 'info',
+      title: 'Transaction Initiated',
+      message: 'Please confirm the transaction in your wallet...',
+      stage: 'initiated',
+      autoHide: false,
+    });
 
-    try {
-      const hash = await writeContract({
-        address: COMPACT_ADDRESS as `0x${string}`,
-        abi: [
-          COMPACT_ABI.find((x) => x.name === 'enableForcedWithdrawal'),
-        ] as const,
-        functionName: 'enableForcedWithdrawal',
-        args,
-        account: address,
-        chain,
-      });
-      showNotification({
-        type: 'success',
-        title: 'Transaction Submitted',
-        message:
-          'Your enable forced withdrawal transaction has been submitted.',
-      });
-      return hash;
-    } catch (error) {
-      console.error('Enable forced withdrawal error:', error);
-      showNotification({
-        type: 'error',
-        title: 'Error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to enable forced withdrawal',
-      });
-      throw error;
-    }
+    const { data } = await writeContract({
+      abi: COMPACT_ABI,
+      address: getContractAddress(),
+      functionName: 'enableForcedWithdrawal',
+      args,
+    });
+
+    const hash = data.hash;
+
+    showNotification({
+      type: 'success',
+      title: 'Transaction Submitted',
+      message: 'Waiting for block inclusion...',
+      stage: 'submitted',
+      txHash: hash,
+      autoHide: false,
+    });
+
+    // Wait for the transaction receipt
+    // await waitForTransaction(config, { hash })
+
+    showNotification({
+      type: 'success',
+      title: 'Transaction Confirmed',
+      message: 'Forced withdrawal has been enabled',
+      stage: 'confirmed',
+      txHash: hash,
+      autoHide: true,
+    });
+
+    // Trigger a balance refetch after the transaction
+    // await refetchBalance()
+    return hash;
+  };
+
+  const disableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
+    showNotification({
+      type: 'info',
+      title: 'Transaction Initiated',
+      message: 'Please confirm the transaction in your wallet...',
+      stage: 'initiated',
+      autoHide: false,
+    });
+
+    const { data } = await writeContract({
+      abi: COMPACT_ABI,
+      address: getContractAddress(),
+      functionName: 'disableForcedWithdrawal',
+      args,
+    });
+
+    const hash = data.hash;
+
+    showNotification({
+      type: 'success',
+      title: 'Transaction Submitted',
+      message: 'Waiting for block inclusion...',
+      stage: 'submitted',
+      txHash: hash,
+      autoHide: false,
+    });
+
+    // Wait for the transaction receipt
+    // await waitForTransaction(config, { hash })
+
+    showNotification({
+      type: 'success',
+      title: 'Transaction Confirmed',
+      message: 'Forced withdrawal has been disabled',
+      stage: 'confirmed',
+      txHash: hash,
+      autoHide: true,
+    });
+
+    // Trigger a balance refetch after the transaction
+    // await refetchBalance()
+    return hash;
   };
 
   const forcedWithdrawal = async ({ args }: WithdrawalParams) => {
@@ -205,7 +230,7 @@ export function useCompact() {
     }
 
     try {
-      const hash = await writeContract({
+      const { data } = await writeContract({
         address: COMPACT_ADDRESS as `0x${string}`,
         abi: [COMPACT_ABI.find((x) => x.name === 'forcedWithdrawal')] as const,
         functionName: 'forcedWithdrawal',
@@ -213,6 +238,9 @@ export function useCompact() {
         account: address,
         chain,
       });
+
+      const hash = data.hash;
+
       showNotification({
         type: 'success',
         title: 'Transaction Submitted',
