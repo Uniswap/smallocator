@@ -49,10 +49,20 @@ const formatResetPeriod = (seconds: number): string => {
   return `${Math.floor(seconds / 86400)} days`;
 };
 
+// Helper function to format lock ID as 32-byte hex string
+function formatLockId(lockId: string): string {
+  // Convert to BigInt to handle large numbers
+  const id = BigInt(lockId);
+  // Convert to hex and remove '0x' prefix
+  const hex = id.toString(16);
+  // Pad with leading zeros to make it 64 characters (32 bytes)
+  return '0x' + hex.padStart(64, '0');
+}
+
 export function BalanceDisplay({
   sessionToken,
 }: BalanceDisplayProps): JSX.Element | null {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const { balances, error, isLoading } = useBalances();
   const { data: resourceLocksData, isLoading: resourceLocksLoading } =
     useResourceLocks();
@@ -65,6 +75,7 @@ export function BalanceDisplay({
     null
   );
   const [, setCurrentTime] = useState(() => Math.floor(Date.now() / 1000));
+  const [isSessionIdDialogOpen, setIsSessionIdDialogOpen] = useState(false);
 
   const handleDisableWithdrawal = useCallback(
     async (lockId: string) => {
@@ -95,6 +106,26 @@ export function BalanceDisplay({
     [disableForcedWithdrawal, showNotification]
   );
 
+  const handleCopySessionId = useCallback(async () => {
+    const sessionId = localStorage.getItem(`session-${address}`);
+    if (!sessionId) return;
+
+    try {
+      await navigator.clipboard.writeText(sessionId);
+      showNotification({
+        type: 'success',
+        title: 'Copied',
+        message: 'Session ID copied to clipboard',
+      });
+    } catch (error) {
+      showNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to copy session ID',
+      });
+    }
+  }, [address, showNotification]);
+
   // Update time every second for countdown display
   useEffect(() => {
     const timer = setInterval(() => {
@@ -122,57 +153,30 @@ export function BalanceDisplay({
 
   if (isLoading || resourceLocksLoading) {
     return (
-      <div className="flex justify-center items-center py-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00ff00]"></div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#00ff00]"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-900/20 border border-red-700/30 rounded-lg">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <svg
-              className="h-5 w-5 text-red-400"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-400">
-              Error Loading Balances
-            </h3>
-            <div className="mt-2 text-sm text-red-400/80">
-              <p>{error}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (balances.length === 0) {
-    return (
-      <div className="p-4 bg-gray-800 rounded-lg">
-        <p className="text-gray-400 text-sm">No balances found</p>
+      <div className="text-red-500 p-4 rounded-lg border border-red-500">
+        Error: {error}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="border-b border-gray-800 pb-4">
-        <h2 className="text-xl font-semibold text-gray-100">Your Balances</h2>
-        <p className="mt-1 text-sm text-gray-400">
-          View your resource lock balances across different chains.
-        </p>
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-white">Allocations</h2>
+        <button
+          onClick={() => setIsSessionIdDialogOpen(true)}
+          className="px-3 py-1 text-sm bg-[#00ff00]/10 text-[#00ff00] rounded hover:bg-[#00ff00]/20 transition-colors"
+        >
+          Show Session ID
+        </button>
       </div>
 
       <div className="space-y-4">
@@ -184,8 +188,8 @@ export function BalanceDisplay({
               item.chainId === balance.chainId
           );
 
-          const now = Math.floor(Date.now() / 1000);
           const withdrawableAt = parseInt(balance.withdrawableAt || '0');
+          const now = Math.floor(Date.now() / 1000);
           const canExecuteWithdrawal =
             parseInt(balance.withdrawalStatus.toString()) !== 0 &&
             withdrawableAt <= now;
@@ -206,7 +210,7 @@ export function BalanceDisplay({
                   )}
                 </div>
                 <div className="text-xs text-gray-400">
-                  Lock ID: {balance.lockId}
+                  Lock ID: <span className="font-mono">{formatLockId(balance.lockId)}</span>
                 </div>
               </div>
 
@@ -243,7 +247,7 @@ export function BalanceDisplay({
                 {/* Left side - Current, Allocatable, and Allocated */}
                 <div className="col-span-8 grid grid-cols-3 gap-4 pr-4 border-r border-gray-700">
                   <div>
-                    <div className="text-xs text-gray-400">Current</div>
+                    <div className="text-xs text-gray-400">Current Balance</div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
                       {resourceLock &&
                         formatUnits(
@@ -259,7 +263,7 @@ export function BalanceDisplay({
                   </div>
 
                   <div>
-                    <div className="text-xs text-gray-400">Allocatable</div>
+                    <div className="text-xs text-gray-400">Finalized Balance</div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
                       {balance.formattedAllocatableBalance ||
                         balance.allocatableBalance}
@@ -272,7 +276,7 @@ export function BalanceDisplay({
                   </div>
 
                   <div>
-                    <div className="text-xs text-gray-400">Allocated</div>
+                    <div className="text-xs text-gray-400">Currently Allocated</div>
                     <div className="mt-1 text-sm text-[#00ff00] font-mono">
                       {balance.formattedAllocatedBalance ||
                         balance.allocatedBalance}
@@ -357,6 +361,42 @@ export function BalanceDisplay({
           );
         })}
       </div>
+
+      {/* Session ID Dialog */}
+      {isSessionIdDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 space-y-4 border border-gray-800">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white">Session ID</h3>
+              <button
+                onClick={() => setIsSessionIdDialogOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-300 mb-4">
+              Supply this value as a <code className="bg-black/30 px-1.5 py-0.5 rounded text-sm">x-session-id</code> header to make authenticated
+              requests to the API.
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-black/50 p-3 rounded font-mono text-sm break-all">
+                {localStorage.getItem(`session-${address}`) || 'No session found'}
+              </div>
+              <button
+                onClick={handleCopySessionId}
+                className="px-3 py-2 text-sm bg-[#00ff00]/10 text-[#00ff00] rounded hover:bg-[#00ff00]/20 transition-colors whitespace-nowrap"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded text-sm text-yellow-200/80">
+              <strong className="block mb-1 text-yellow-200">⚠️ Warning:</strong>
+              Do not share your session key with third parties you do not trust! Anyone in possession of your session key will be able to request allocations on your behalf and view your allocation statuses and partial information on submitted compacts. However, they will not be able to transfer or withdraw your tokens without a corresponding signature from you.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Withdrawal Dialogs */}
       <InitiateForcedWithdrawalDialog
