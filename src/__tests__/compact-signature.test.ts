@@ -5,6 +5,7 @@ import {
   serializeSignature,
   parseCompactSignature,
 } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { signCompact, generateClaimHash, getSigningAddress } from '../crypto';
 
 describe('Compact Signature Tests', () => {
@@ -23,6 +24,17 @@ describe('Compact Signature Tests', () => {
 
   const chainId = BigInt(1); // Mainnet
   const expectedSigner = getSigningAddress();
+
+  // Add test to verify private key matches expected signer
+  describe('test environment setup', () => {
+    it('should have private key that matches expected signer', () => {
+      const privateKey = process.env.PRIVATE_KEY as Hex;
+      expect(privateKey).toBeDefined();
+      const derivedAddress =
+        privateKeyToAccount(privateKey).address.toLowerCase();
+      expect(derivedAddress).toBe(expectedSigner.toLowerCase());
+    });
+  });
 
   describe('generateClaimHash', () => {
     it('should generate a valid claim hash', async () => {
