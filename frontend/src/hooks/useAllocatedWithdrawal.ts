@@ -46,7 +46,9 @@ export function useAllocatedWithdrawal() {
     try {
       const hash = await writeContract({
         address: COMPACT_ADDRESS as `0x${string}`,
-        abi: [COMPACT_ABI.find((x) => x.name === 'allocatedWithdrawal')] as const,
+        abi: [
+          COMPACT_ABI.find((x) => x.name === 'allocatedWithdrawal'),
+        ] as const,
         functionName: 'allocatedWithdrawal',
         args: [transferPayload],
         account: address,
@@ -66,7 +68,9 @@ export function useAllocatedWithdrawal() {
         type: 'error',
         title: 'Transaction Failed',
         message:
-          error instanceof Error ? error.message : 'Failed to submit withdrawal',
+          error instanceof Error
+            ? error.message
+            : 'Failed to submit withdrawal',
       });
       throw error;
     }

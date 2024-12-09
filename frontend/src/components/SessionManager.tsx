@@ -7,7 +7,10 @@ interface SessionManagerProps {
   onSessionUpdate: (token: string | null) => void;
 }
 
-export function SessionManager({ sessionToken, onSessionUpdate }: SessionManagerProps) {
+export function SessionManager({
+  sessionToken,
+  onSessionUpdate,
+}: SessionManagerProps) {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const chainId = useChainId();
@@ -26,9 +29,9 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
       if (!payloadResponse.ok) {
         throw new Error('Failed to get session payload');
       }
-      
+
       const { session } = await payloadResponse.json();
-      
+
       // Format the message according to EIP-4361
       const message = [
         `${session.domain} wants you to sign in with your Ethereum account:`,
@@ -63,7 +66,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
           },
         }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         storeSession(data.session.id);
@@ -86,8 +89,8 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
       const response = await fetch('/session', {
         method: 'DELETE',
         headers: {
-          'x-session-id': sessionToken
-        }
+          'x-session-id': sessionToken,
+        },
       });
 
       if (response.ok) {
@@ -105,8 +108,8 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
   // Always render a container, even if not connected
   return (
     <div className="flex items-center">
-      {isConnected && (
-        sessionToken ? (
+      {isConnected &&
+        (sessionToken ? (
           <button
             onClick={signOut}
             disabled={isLoading}
@@ -130,8 +133,7 @@ export function SessionManager({ sessionToken, onSessionUpdate }: SessionManager
           >
             {isLoading ? 'Signing in...' : 'Sign in'}
           </button>
-        )
-      )}
+        ))}
     </div>
   );
 }

@@ -1,7 +1,16 @@
-import { mainnet, optimism, optimismGoerli, sepolia, goerli, base, baseSepolia } from 'viem/chains'
+import {
+  mainnet,
+  optimism,
+  optimismGoerli,
+  sepolia,
+  goerli,
+  base,
+  baseSepolia,
+} from 'viem/chains';
 
 // The Compact is deployed at the same address on all networks
-export const COMPACT_ADDRESS = '0x00000000000018df021ff2467df97ff846e09f48' as const
+export const COMPACT_ADDRESS =
+  '0x00000000000018df021ff2467df97ff846e09f48' as const;
 
 // Chain configurations
 export const SUPPORTED_CHAINS = {
@@ -47,7 +56,7 @@ export const SUPPORTED_CHAINS = {
     compactAddress: COMPACT_ADDRESS as `0x${string}`,
     blockExplorer: 'https://sepolia.basescan.org',
   },
-} as const
+} as const;
 
 export const COMPACT_ABI = [
   // Native ETH deposit
@@ -199,7 +208,7 @@ export const COMPACT_ABI = [
     stateMutability: 'nonpayable',
     type: 'function',
   },
-] as const
+] as const;
 
 export const ERC20_ABI = [
   {
@@ -250,21 +259,21 @@ export const ERC20_ABI = [
     outputs: [{ name: '', type: 'bool' }],
     type: 'function',
   },
-] as const
+] as const;
 
 // Helper function to get chain configuration
 export function getChainConfig(chainId: number) {
-  return SUPPORTED_CHAINS[chainId as keyof typeof SUPPORTED_CHAINS]
+  return SUPPORTED_CHAINS[chainId as keyof typeof SUPPORTED_CHAINS];
 }
 
 // Helper function to check if chain is supported
 export function isSupportedChain(chainId: number): boolean {
-  return chainId in SUPPORTED_CHAINS
+  return chainId in SUPPORTED_CHAINS;
 }
 
 // Type for deposit function arguments
-export type NativeDepositArgs = readonly [`0x${string}`]
-export type TokenDepositArgs = readonly [`0x${string}`, `0x${string}`, bigint]
+export type NativeDepositArgs = readonly [`0x${string}`];
+export type TokenDepositArgs = readonly [`0x${string}`, `0x${string}`, bigint];
 
 // Type for transfer payload
 export interface BasicTransfer {

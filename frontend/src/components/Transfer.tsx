@@ -65,18 +65,25 @@ export function Transfer({
     amount: '',
   });
 
-  const { allocatedTransfer, isPending: isTransferLoading } = useAllocatedTransfer();
-  const { allocatedWithdrawal, isPending: isWithdrawalPending } = useAllocatedWithdrawal();
+  const { allocatedTransfer, isPending: isTransferLoading } =
+    useAllocatedTransfer();
+  const { allocatedWithdrawal, isPending: isWithdrawalPending } =
+    useAllocatedWithdrawal();
   const { requestAllocation } = useRequestAllocation();
   const { showNotification } = useNotification();
-  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string | undefined }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    [key: string]: string | undefined;
+  }>({});
 
   // Check if nonce has been consumed
   const { data: isNonceConsumed } = useReadContract({
     address: COMPACT_ADDRESS[parseInt(targetChainId)] as `0x${string}`,
     abi: COMPACT_ABI,
     functionName: 'hasConsumedAllocatorNonce',
-    args: formData.nonce && address ? [BigInt(formData.nonce), address as `0x${string}`] : undefined,
+    args:
+      formData.nonce && address
+        ? [BigInt(formData.nonce), address as `0x${string}`]
+        : undefined,
   });
 
   // Validate amount
@@ -93,7 +100,10 @@ export function Transfer({
       // Check decimal places
       const decimalParts = formData.amount.split('.');
       if (decimalParts.length > 1 && decimalParts[1].length > decimals) {
-        return { type: 'error', message: `Invalid amount (greater than ${decimals} decimals)` };
+        return {
+          type: 'error',
+          message: `Invalid amount (greater than ${decimals} decimals)`,
+        };
       }
 
       // Check against resource lock balance
@@ -120,7 +130,7 @@ export function Transfer({
 
   // Update field errors when nonce error changes
   useEffect(() => {
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
       nonce: nonceError,
     }));
@@ -129,25 +139,25 @@ export function Transfer({
   // Validate expiry
   const validateExpiry = (value: string) => {
     if (!value) return { type: 'error', message: 'Expiry is required' };
-    
+
     const expiryTime = parseInt(value);
     const now = Math.floor(Date.now() / 1000);
-    
+
     if (isNaN(expiryTime)) {
       return { type: 'error', message: 'Invalid expiry time' };
     }
-    
+
     if (expiryTime <= now) {
       return { type: 'error', message: 'Expiry time must be in the future' };
     }
-    
+
     return null;
   };
 
   // Update field errors when expiry changes
   useEffect(() => {
     const expiryValidation = validateExpiry(formData.expires);
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
       expires: expiryValidation?.message,
     }));
@@ -160,7 +170,7 @@ export function Transfer({
     }
 
     // Check for any field errors
-    if (Object.values(fieldErrors).some(error => error !== undefined)) {
+    if (Object.values(fieldErrors).some((error) => error !== undefined)) {
       return false;
     }
 
@@ -173,7 +183,9 @@ export function Transfer({
     return true;
   }, [formData, fieldErrors, validateAmount]);
 
-  const handleAction = async (action: 'transfer' | 'withdraw' | 'force' | 'disable') => {
+  const handleAction = async (
+    action: 'transfer' | 'withdraw' | 'force' | 'disable'
+  ) => {
     // Check if we need to switch networks
     const targetChainIdNumber = parseInt(targetChainId);
     if (targetChainIdNumber !== currentChainId) {
@@ -280,7 +292,7 @@ export function Transfer({
 
       const response = await requestAllocation(params, sessionToken);
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         allocatorSignature: response.signature,
         nonce: response.nonce,
@@ -290,14 +302,18 @@ export function Transfer({
       showNotification({
         type: 'success',
         title: 'Allocation Requested',
-        message: 'Successfully received allocation. You can now submit the transfer.',
+        message:
+          'Successfully received allocation. You can now submit the transfer.',
       });
     } catch (error) {
       console.error('Error requesting allocation:', error);
       showNotification({
         type: 'error',
         title: 'Allocation Request Failed',
-        message: error instanceof Error ? error.message : 'Failed to request allocation',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to request allocation',
       });
     } finally {
       setIsRequestingAllocation(false);
@@ -313,7 +329,7 @@ export function Transfer({
       if (!formData.recipient?.startsWith('0x')) {
         throw new Error('Recipient must be a valid address starting with 0x');
       }
-      
+
       try {
         // Convert values and prepare transfer struct
         const transfer = {
@@ -350,14 +366,19 @@ export function Transfer({
         setIsOpen(false);
       } catch (conversionError) {
         console.error('Error converting values:', conversionError);
-        throw new Error('Failed to convert input values. Please check all fields are valid.');
+        throw new Error(
+          'Failed to convert input values. Please check all fields are valid.'
+        );
       }
     } catch (error) {
       console.error('Error submitting transfer:', error);
       showNotification({
         type: 'error',
         title: isWithdrawal ? 'Withdrawal Failed' : 'Transfer Failed',
-        message: error instanceof Error ? error.message : `Failed to submit ${isWithdrawal ? 'withdrawal' : 'transfer'}`,
+        message:
+          error instanceof Error
+            ? error.message
+            : `Failed to submit ${isWithdrawal ? 'withdrawal' : 'transfer'}`,
       });
     }
   };
@@ -368,7 +389,7 @@ export function Transfer({
   // Initialize default expiry on mount
   useEffect(() => {
     const now = Math.floor(Date.now() / 1000);
-    setFormData(prev => ({ ...prev, expires: (now + 600).toString() })); // 10 minutes default
+    setFormData((prev) => ({ ...prev, expires: (now + 600).toString() })); // 10 minutes default
   }, []);
 
   const handleExpiryChange = (value: string) => {
@@ -395,8 +416,8 @@ export function Transfer({
     }
 
     if (newExpiry) {
-      setFormData(prev => ({ ...prev, expires: newExpiry }));
-      setFieldErrors(prev => ({ ...prev, expires: undefined }));
+      setFormData((prev) => ({ ...prev, expires: newExpiry }));
+      setFieldErrors((prev) => ({ ...prev, expires: undefined }));
     }
   };
 
@@ -447,7 +468,8 @@ export function Transfer({
                 ) : (
                   <>
                     Submit Transfer
-                    {tokenName.resourceLockName && ` - ${tokenName.resourceLockName}`}
+                    {tokenName.resourceLockName &&
+                      ` - ${tokenName.resourceLockName}`}
                   </>
                 )}
               </h2>
@@ -485,17 +507,24 @@ export function Transfer({
                           ...prev,
                           expires: validation?.message,
                         }));
-                        setFormData((prev) => ({ ...prev, expires: e.target.value }));
+                        setFormData((prev) => ({
+                          ...prev,
+                          expires: e.target.value,
+                        }));
                       }}
                       placeholder="Unix timestamp"
                       className={`w-full px-3 py-2 bg-gray-800 border ${
-                        fieldErrors.expires ? 'border-red-500' : 'border-gray-700'
+                        fieldErrors.expires
+                          ? 'border-red-500'
+                          : 'border-gray-700'
                       } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
                     />
                   )}
                 </div>
                 {fieldErrors.expires && (
-                  <p className="mt-1 text-sm text-red-500">{fieldErrors.expires}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {fieldErrors.expires}
+                  </p>
                 )}
               </div>
 
@@ -507,7 +536,10 @@ export function Transfer({
                   type="text"
                   value={formData.recipient}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, recipient: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      recipient: e.target.value,
+                    }))
                   }
                   placeholder="0x..."
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors"
@@ -518,7 +550,8 @@ export function Transfer({
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Amount
                   <span className="float-right text-gray-400">
-                    Balance: {formatUnits(BigInt(resourceLockBalance), decimals)}{' '}
+                    Balance:{' '}
+                    {formatUnits(BigInt(resourceLockBalance), decimals)}{' '}
                     {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}
                   </span>
                 </label>
@@ -530,13 +563,17 @@ export function Transfer({
                   }
                   placeholder="0.0"
                   className={`w-full px-3 py-2 bg-gray-800 border ${
-                    validateAmount()?.type === 'error' ? 'border-red-500' : 'border-gray-700'
+                    validateAmount()?.type === 'error'
+                      ? 'border-red-500'
+                      : 'border-gray-700'
                   } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
                 />
                 {validateAmount() && (
                   <p
                     className={`mt-1 text-sm ${
-                      validateAmount()?.type === 'error' ? 'text-red-500' : 'text-yellow-500'
+                      validateAmount()?.type === 'error'
+                        ? 'text-red-500'
+                        : 'text-yellow-500'
                     }`}
                   >
                     {validateAmount()?.message}
@@ -582,7 +619,9 @@ export function Transfer({
               ) : (
                 <button
                   type="submit"
-                  disabled={!isFormValid || isTransferLoading || isWithdrawalPending}
+                  disabled={
+                    !isFormValid || isTransferLoading || isWithdrawalPending
+                  }
                   className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isTransferLoading || isWithdrawalPending ? (
@@ -607,10 +646,14 @@ export function Transfer({
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                      {isWithdrawal ? 'Submitting Withdrawal...' : 'Submitting Transfer...'}
+                      {isWithdrawal
+                        ? 'Submitting Withdrawal...'
+                        : 'Submitting Transfer...'}
                     </span>
                   ) : (
-                    <>{isWithdrawal ? 'Submit Withdrawal' : 'Submit Transfer'}</>
+                    <>
+                      {isWithdrawal ? 'Submit Withdrawal' : 'Submit Transfer'}
+                    </>
                   )}
                 </button>
               )}

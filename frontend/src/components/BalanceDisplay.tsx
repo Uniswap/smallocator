@@ -49,7 +49,9 @@ const formatResetPeriod = (seconds: number): string => {
   return `${Math.floor(seconds / 86400)} days`;
 };
 
-export function BalanceDisplay({ sessionToken }: BalanceDisplayProps): JSX.Element | null {
+export function BalanceDisplay({
+  sessionToken,
+}: BalanceDisplayProps): JSX.Element | null {
   const { isConnected } = useAccount();
   const { balances, error, isLoading } = useBalances();
   const { data: resourceLocksData, isLoading: resourceLocksLoading } =
@@ -296,7 +298,8 @@ export function BalanceDisplay({ sessionToken }: BalanceDisplayProps): JSX.Eleme
                       decimals={resourceLock.resourceLock.token.decimals}
                       tokenName={{
                         resourceLockName: resourceLock.resourceLock.token.name,
-                        resourceLockSymbol: resourceLock.resourceLock.token.symbol,
+                        resourceLockSymbol:
+                          resourceLock.resourceLock.token.symbol,
                         tokenName: balance.token?.name || '',
                       }}
                       tokenSymbol={balance.token?.symbol || ''}

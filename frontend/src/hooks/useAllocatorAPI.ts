@@ -1,56 +1,60 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
 
 interface HealthCheckResponse {
-  status: string
-  allocatorAddress: string
-  signingAddress: string
-  timestamp: string
+  status: string;
+  allocatorAddress: string;
+  signingAddress: string;
+  timestamp: string;
 }
 
 interface CompactRequest {
-  chainId: string
+  chainId: string;
   compact: {
-    arbiter: string
-    sponsor: string
-    nonce: string | null
-    expires: string
-    id: string
-    amount: string
-    witnessTypeString?: string
-    witnessHash?: string
-  }
+    arbiter: string;
+    sponsor: string;
+    nonce: string | null;
+    expires: string;
+    id: string;
+    amount: string;
+    witnessTypeString?: string;
+    witnessHash?: string;
+  };
 }
 
 interface CompactResponse {
-  hash: string
-  signature: string
+  hash: string;
+  signature: string;
 }
 
 export function useAllocatorAPI() {
-  const [allocatorAddress, setAllocatorAddress] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [allocatorAddress, setAllocatorAddress] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHealthCheck = async () => {
       try {
-        const response = await fetch('/health')
+        const response = await fetch('/health');
         if (!response.ok) {
-          throw new Error('Health check failed')
+          throw new Error('Health check failed');
         }
-        const data: HealthCheckResponse = await response.json()
-        setAllocatorAddress(data.allocatorAddress)
-        setError(null)
+        const data: HealthCheckResponse = await response.json();
+        setAllocatorAddress(data.allocatorAddress);
+        setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch allocator address')
-        setAllocatorAddress(null)
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to fetch allocator address'
+        );
+        setAllocatorAddress(null);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchHealthCheck()
-  }, [])
+    fetchHealthCheck();
+  }, []);
 
   const createAllocation = async (
     sessionToken: string,
@@ -60,39 +64,46 @@ export function useAllocatorAPI() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-id': sessionToken
+        'x-session-id': sessionToken,
       },
-      body: JSON.stringify(request)
-    })
+      body: JSON.stringify(request),
+    });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-      throw new Error(errorData.error || `Failed to create allocation: ${response.statusText}`)
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: 'Unknown error' }));
+      throw new Error(
+        errorData.error || `Failed to create allocation: ${response.statusText}`
+      );
     }
 
-    return response.json()
-  }
+    return response.json();
+  };
 
-  const getResourceLockDecimals = async (chainId: string, lockId: string): Promise<number> => {
+  const getResourceLockDecimals = async (
+    chainId: string,
+    lockId: string
+  ): Promise<number> => {
     try {
       // Query the indexer for resource lock details including token decimals
-      const response = await fetch(`/resourceLock/${chainId}/${lockId}`)
+      const response = await fetch(`/resourceLock/${chainId}/${lockId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch resource lock details')
+        throw new Error('Failed to fetch resource lock details');
       }
-      const data = await response.json()
-      return data.token?.decimals || 18 // Default to 18 if not found
+      const data = await response.json();
+      return data.token?.decimals || 18; // Default to 18 if not found
     } catch (err) {
-      console.error('Error fetching resource lock decimals:', err)
-      return 18 // Default to 18 decimals on error
+      console.error('Error fetching resource lock decimals:', err);
+      return 18; // Default to 18 decimals on error
     }
-  }
+  };
 
-  return { 
-    allocatorAddress, 
-    isLoading, 
+  return {
+    allocatorAddress,
+    isLoading,
     error,
     createAllocation,
-    getResourceLockDecimals
-  }
+    getResourceLockDecimals,
+  };
 }
