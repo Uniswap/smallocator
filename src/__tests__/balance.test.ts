@@ -165,7 +165,7 @@ describe('Balance Functions', () => {
     );
 
     // Should include both active and not-fully-expired compacts (1000 + 2000)
-    expect(balance).toBe(BigInt(3000));
+    expect(balance.toString()).toBe(BigInt(3000).toString());
   });
 
   it('should exclude processed claims from allocated balance', async () => {
@@ -178,7 +178,7 @@ describe('Balance Functions', () => {
     );
 
     // Should only include the not-fully-expired compact (2000)
-    expect(balance).toBe(BigInt(2000));
+    expect(balance.toString()).toBe(BigInt(2000).toString());
   });
 
   it('should return zero for all processed or expired claims', async () => {
@@ -193,7 +193,7 @@ describe('Balance Functions', () => {
       ] // All non-expired compacts processed
     );
 
-    expect(balance).toBe(BigInt(0));
+    expect(balance.toString()).toBe(BigInt(0).toString());
   });
 
   it('should handle non-existent sponsor', async () => {
@@ -205,7 +205,7 @@ describe('Balance Functions', () => {
       []
     );
 
-    expect(balance).toBe(BigInt(0));
+    expect(balance.toString()).toBe(BigInt(0).toString());
   });
 
   it('should handle non-existent lock ID', async () => {
@@ -217,6 +217,6 @@ describe('Balance Functions', () => {
       []
     );
 
-    expect(balance).toBe(BigInt(0));
+    expect(balance.toString()).toBe(BigInt(0).toString());
   });
 });
