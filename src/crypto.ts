@@ -2,14 +2,14 @@ import {
   type Hex,
   parseCompactSignature,
   serializeCompactSignature,
-  hashTypedData,
   keccak256,
   encodeAbiParameters,
   encodePacked,
   concat,
   getAddress,
+  serializeSignature,
 } from 'viem';
-import { privateKeyToAccount, signMessage } from 'viem/accounts';
+import { privateKeyToAccount, signMessage, sign } from 'viem/accounts';
 import { type StoredCompactMessage } from './compact';
 import { type SessionPayload } from './session';
 
@@ -19,18 +19,6 @@ const DOMAIN = {
   version: '0',
   verifyingContract: '0x00000000000018DF021Ff2467dF97ff846E09f48',
 } as const;
-
-// Type definitions for EIP-712 typed data (no witness case)
-const COMPACT_TYPES = {
-  Compact: [
-    { name: 'arbiter', type: 'address' },
-    { name: 'sponsor', type: 'address' },
-    { name: 'nonce', type: 'uint256' },
-    { name: 'expires', type: 'uint256' },
-    { name: 'id', type: 'uint256' },
-    { name: 'amount', type: 'uint256' },
-  ],
-};
 
 // EIP-712 domain typehash (for witness case)
 const EIP712_DOMAIN_TYPEHASH = keccak256(
@@ -51,50 +39,47 @@ if (!privateKey) {
 const account = privateKeyToAccount(privateKey);
 
 export async function generateClaimHash(
-  compact: StoredCompactMessage,
-  chainId: bigint
+  compact: StoredCompactMessage
 ): Promise<Hex> {
   // Normalize addresses
   const normalizedArbiter = getAddress(compact.arbiter);
   const normalizedSponsor = getAddress(compact.sponsor);
 
   if (!compact.witnessTypeString || !compact.witnessHash) {
-    // Use hashTypedData for the simple case
-    return hashTypedData({
-      domain: { ...DOMAIN, chainId: Number(chainId) },
-      types: COMPACT_TYPES,
-      primaryType: 'Compact',
-      message: {
-        arbiter: normalizedArbiter,
-        sponsor: normalizedSponsor,
-        nonce: compact.nonce,
-        expires: compact.expires,
-        id: compact.id,
-        amount: BigInt(compact.amount),
-      },
-    });
-  } else {
-    // Manual EIP-712 hashing for witness case
-    // Generate domain separator
-    const domainSeparator = keccak256(
-      encodeAbiParameters(
+    // Generate type hash
+    const typeHash = keccak256(
+      encodePacked(
+        ['string'],
         [
-          { name: 'typeHash', type: 'bytes32' },
-          { name: 'name', type: 'bytes32' },
-          { name: 'version', type: 'bytes32' },
-          { name: 'chainId', type: 'uint256' },
-          { name: 'verifyingContract', type: 'address' },
-        ],
-        [
-          EIP712_DOMAIN_TYPEHASH,
-          keccak256(encodePacked(['string'], [DOMAIN.name])),
-          keccak256(encodePacked(['string'], [DOMAIN.version])),
-          chainId,
-          DOMAIN.verifyingContract,
+          'Compact(address arbiter,address sponsor,uint256 nonce,uint256 expires,uint256 id,uint256 amount)',
         ]
       )
     );
 
+    // Generate message hash
+    return keccak256(
+      encodeAbiParameters(
+        [
+          { name: 'typeHash', type: 'bytes32' },
+          { name: 'arbiter', type: 'address' },
+          { name: 'sponsor', type: 'address' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'expires', type: 'uint256' },
+          { name: 'id', type: 'uint256' },
+          { name: 'amount', type: 'uint256' },
+        ],
+        [
+          typeHash,
+          normalizedArbiter,
+          normalizedSponsor,
+          compact.nonce,
+          compact.expires,
+          compact.id,
+          BigInt(compact.amount),
+        ]
+      )
+    );
+  } else {
     // Generate type hash with witness
     const typeHash = keccak256(
       encodePacked(
@@ -107,7 +92,7 @@ export async function generateClaimHash(
     );
 
     // Generate message hash
-    const messageHash = keccak256(
+    return keccak256(
       encodeAbiParameters(
         [
           { name: 'typeHash', type: 'bytes32' },
@@ -131,22 +116,57 @@ export async function generateClaimHash(
         ]
       )
     );
-
-    // Combine with EIP-712 prefix and domain separator
-    return keccak256(concat(['0x1901', domainSeparator, messageHash]));
   }
 }
 
-export async function signCompact(hash: Hex, _chainId: bigint): Promise<Hex> {
+export function generateDomainHash(chainId: bigint): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { name: 'typeHash', type: 'bytes32' },
+        { name: 'name', type: 'bytes32' },
+        { name: 'version', type: 'bytes32' },
+        { name: 'chainId', type: 'uint256' },
+        { name: 'verifyingContract', type: 'address' },
+      ],
+      [
+        EIP712_DOMAIN_TYPEHASH,
+        keccak256(encodePacked(['string'], [DOMAIN.name])),
+        keccak256(encodePacked(['string'], [DOMAIN.version])),
+        chainId,
+        DOMAIN.verifyingContract,
+      ]
+    )
+  );
+}
+
+export function generateDigest(claimHash: Hex, domainHash: Hex): Hex {
+  return keccak256(concat(['0x1901', domainHash, claimHash]));
+}
+
+export async function signDigest(hash: Hex): Promise<Hex> {
   // Sign the hash directly using the private key
-  const signature = await signMessage({
-    message: { raw: hash },
+  const signature = await sign({
+    hash,
     privateKey,
   });
 
+  // Convert signature object to hex string
+  const signatureHex = serializeSignature(signature);
+
   // Convert to EIP2098 compact signature format
-  const parsedCompactSig = parseCompactSignature(signature);
+  const parsedCompactSig = parseCompactSignature(signatureHex);
   return serializeCompactSignature(parsedCompactSig);
+}
+
+export async function signCompact(
+  compact: StoredCompactMessage,
+  chainId: bigint
+): Promise<[Hex, Promise<Hex>]> {
+  const claimHash = await generateClaimHash(compact);
+  const domainHash = generateDomainHash(chainId);
+  const digest = generateDigest(claimHash, domainHash);
+  return [claimHash, signDigest(digest)];
 }
 
 export function getSigningAddress(): string {
