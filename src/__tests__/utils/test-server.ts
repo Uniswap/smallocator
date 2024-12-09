@@ -140,7 +140,6 @@ export async function createTestSession(
   address: string = validPayload.address
 ): Promise<string> {
   // First create a session request
-  const payload = getFreshValidPayload();
   const sessionResponse = await server.inject({
     method: 'GET',
     url: `/session/1/${address}`,
@@ -154,8 +153,8 @@ export async function createTestSession(
 
   const sessionRequest = JSON.parse(sessionResponse.payload);
 
-  // Then create the session
-  const signature = await generateSignature(payload);
+  // Then create the session with the same payload
+  const signature = await generateSignature(sessionRequest.session);
   const response = await server.inject({
     method: 'POST',
     url: '/session',
