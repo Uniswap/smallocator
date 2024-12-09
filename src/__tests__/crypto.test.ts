@@ -16,9 +16,7 @@ describe('crypto', () => {
         witnessHash: null,
       };
 
-      const chainId = BigInt(1); // mainnet
-
-      const hash = await generateClaimHash(testCompact, chainId);
+      const hash = await generateClaimHash(testCompact);
 
       // Verify it's a valid hex string of correct length (32 bytes = 64 chars + '0x')
       expect(hash).toMatch(/^0x[0-9a-f]{64}$/i);

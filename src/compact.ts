@@ -145,7 +145,7 @@ export async function submitCompact(
     });
 
     // Sign the compact and get claim hash
-    const [hash, signaturePromise] = await signCompact(
+    const { hash, signature: signaturePromise } = await signCompact(
       storedCompact,
       BigInt(submission.chainId)
     );

@@ -159,14 +159,24 @@ export async function signDigest(hash: Hex): Promise<Hex> {
   return serializeCompactSignature(parsedCompactSig);
 }
 
+export type CompactSignature = {
+  hash: Hex;
+  digest: Hex;
+  signature: Promise<Hex>;
+};
+
 export async function signCompact(
   compact: StoredCompactMessage,
   chainId: bigint
-): Promise<[Hex, Promise<Hex>]> {
-  const claimHash = await generateClaimHash(compact);
+): Promise<CompactSignature> {
+  const hash = await generateClaimHash(compact);
   const domainHash = generateDomainHash(chainId);
-  const digest = generateDigest(claimHash, domainHash);
-  return [claimHash, signDigest(digest)];
+  const digest = generateDigest(hash, domainHash);
+  return {
+    hash,
+    digest,
+    signature: signDigest(digest),
+  };
 }
 
 export function getSigningAddress(): string {
