@@ -46,8 +46,7 @@ export function ForcedWithdrawalDialog({
   const [recipientType, setRecipientType] = useState<'self' | 'custom'>('self');
   const [customAmount, setCustomAmount] = useState('');
   const [customRecipient, setCustomRecipient] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { forcedWithdrawal } = useCompact();
+  const { forcedWithdrawal, isConfirming, isConfirmed } = useCompact();
   const { showNotification } = useNotification();
 
   // Switch network when dialog opens
@@ -56,7 +55,7 @@ export function ForcedWithdrawalDialog({
       const switchToNetwork = async () => {
         try {
           showNotification({
-            type: 'success',
+            type: 'info',
             title: 'Switching Network',
             message: `Please confirm the network switch in your wallet...`,
           });
@@ -151,42 +150,47 @@ export function ForcedWithdrawalDialog({
     if (amountValidation || recipientError) return;
 
     try {
-      setIsLoading(true);
       const amount =
         amountType === 'max'
           ? BigInt(maxAmount)
           : parseUnits(customAmount, decimals);
       const recipient =
         recipientType === 'self' ? address : (customRecipient as `0x${string}`);
+      const displayAmount =
+        amountType === 'max' ? formattedMaxAmount : customAmount;
 
       await forcedWithdrawal({
         args: [BigInt(lockId), recipient, amount],
+        amount,
+        displayAmount,
+        symbol,
       });
 
-      showNotification({
-        type: 'success',
-        title: 'Forced Withdrawal Executed',
-        message: `Successfully withdrew ${amountType === 'max' ? formattedMaxAmount : customAmount} ${symbol}`,
-      });
-
-      // Reset form and close
-      setAmountType('max');
-      setRecipientType('self');
-      setCustomAmount('');
-      setCustomRecipient('');
-      onClose();
+      // Only reset form and close dialog after confirmation
+      if (isConfirmed) {
+        setAmountType('max');
+        setRecipientType('self');
+        setCustomAmount('');
+        setCustomRecipient('');
+        onClose();
+      }
     } catch (error) {
       console.error('Error executing forced withdrawal:', error);
-      showNotification({
-        type: 'error',
-        title: 'Withdrawal Failed',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to execute withdrawal',
-      });
-    } finally {
-      setIsLoading(false);
+      if (
+        !(
+          error instanceof Error &&
+          error.message.toLowerCase().includes('user rejected')
+        )
+      ) {
+        showNotification({
+          type: 'error',
+          title: 'Withdrawal Failed',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Failed to execute withdrawal',
+        });
+      }
     }
   };
 
@@ -225,7 +229,7 @@ export function ForcedWithdrawalDialog({
                   backgroundPosition: 'right 0.75rem center',
                   backgroundSize: '1rem',
                 }}
-                disabled={isLoading}
+                disabled={isConfirming}
               >
                 <option value="max">
                   Max ({formattedMaxAmount} {symbol})
@@ -244,7 +248,7 @@ export function ForcedWithdrawalDialog({
                         ? 'border-red-500'
                         : 'border-gray-700'
                     } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
-                    disabled={isLoading}
+                    disabled={isConfirming}
                   />
                   {amountValidation && (
                     <p
@@ -279,7 +283,7 @@ export function ForcedWithdrawalDialog({
                   backgroundPosition: 'right 0.75rem center',
                   backgroundSize: '1rem',
                 }}
-                disabled={isLoading}
+                disabled={isConfirming}
               >
                 <option value="self">Self ({address})</option>
                 <option value="custom">Custom Address</option>
@@ -292,7 +296,7 @@ export function ForcedWithdrawalDialog({
                     onChange={(e) => setCustomRecipient(e.target.value)}
                     placeholder="0x..."
                     className={`w-full px-3 py-2 bg-gray-800 border rounded-lg text-gray-300 focus:outline-none transition-colors ${recipientError ? 'border-red-500 focus:border-red-500' : 'border-gray-700 focus:border-[#00ff00]'}`}
-                    disabled={isLoading}
+                    disabled={isConfirming}
                   />
                   {recipientError && (
                     <div className="mt-1 text-sm text-red-500">
@@ -309,7 +313,7 @@ export function ForcedWithdrawalDialog({
               type="button"
               onClick={onClose}
               className="flex-1 py-2 px-4 bg-gray-800 text-gray-300 rounded-lg font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
-              disabled={isLoading}
+              disabled={isConfirming}
             >
               Cancel
             </button>
@@ -317,14 +321,14 @@ export function ForcedWithdrawalDialog({
               type="submit"
               className="flex-1 py-2 px-4 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={
-                isLoading ||
+                isConfirming ||
                 (amountType === 'custom' &&
                   (!customAmount || !!amountValidation)) ||
                 (recipientType === 'custom' &&
                   (!customRecipient || !!recipientError))
               }
             >
-              {isLoading ? 'Withdrawing...' : 'Execute Forced Withdrawal'}
+              {isConfirming ? 'Withdrawing...' : 'Execute Forced Withdrawal'}
             </button>
           </div>
         </form>

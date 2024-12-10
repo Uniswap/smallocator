@@ -54,6 +54,8 @@ type DepositParams = NativeDeposit | TokenDeposit;
 interface WithdrawalParams {
   args: readonly [bigint] | readonly [bigint, `0x${string}`, bigint];
   amount?: bigint;
+  displayAmount?: string;
+  symbol?: string;
 }
 
 export function useCompact() {
@@ -295,7 +297,11 @@ export function useCompact() {
     }
   };
 
-  const forcedWithdrawal = async ({ args, amount }: WithdrawalParams) => {
+  const forcedWithdrawal = async ({
+    args,
+    displayAmount,
+    symbol,
+  }: WithdrawalParams) => {
     if (!publicClient) throw new Error('Public client not available');
 
     if (!isSupportedChain(chainId)) {
@@ -344,9 +350,10 @@ export function useCompact() {
         showNotification({
           type: 'success',
           title: 'Forced Withdrawal Executed',
-          message: amount
-            ? `Successfully withdrew ${amount} ETH`
-            : 'Withdrawal successful',
+          message:
+            displayAmount && symbol
+              ? `Successfully withdrew ${displayAmount} ${symbol}`
+              : 'Withdrawal successful',
           stage: 'confirmed',
           txHash: newHash,
           autoHide: true,

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 
@@ -15,33 +14,38 @@ export function InitiateForcedWithdrawalDialog({
   lockId,
   resetPeriod,
 }: InitiateForcedWithdrawalDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { enableForcedWithdrawal } = useCompact();
+  const { enableForcedWithdrawal, isConfirming, isConfirmed } = useCompact();
   const { showNotification } = useNotification();
 
   const handleInitiateWithdrawal = async () => {
-    if (isLoading) return;
+    if (isConfirming) return;
 
     try {
-      setIsLoading(true);
-
       await enableForcedWithdrawal({
         args: [BigInt(lockId)],
       });
 
-      onClose();
+      // Only close the dialog after confirmation
+      if (isConfirmed) {
+        onClose();
+      }
     } catch (error: unknown) {
       console.error('Error initiating forced withdrawal:', error);
-      showNotification({
-        type: 'error',
-        title: 'Transaction Failed',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to initiate forced withdrawal',
-      });
-    } finally {
-      setIsLoading(false);
+      if (
+        !(
+          error instanceof Error &&
+          error.message.toLowerCase().includes('user rejected')
+        )
+      ) {
+        showNotification({
+          type: 'error',
+          title: 'Transaction Failed',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Failed to initiate forced withdrawal',
+        });
+      }
     }
   };
 
@@ -104,16 +108,16 @@ export function InitiateForcedWithdrawalDialog({
           <button
             onClick={onClose}
             className="flex-1 py-2 px-4 bg-gray-800 text-gray-300 rounded-lg font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
-            disabled={isLoading}
+            disabled={isConfirming}
           >
             Cancel
           </button>
           <button
             onClick={handleInitiateWithdrawal}
             className="flex-1 py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
+            disabled={isConfirming}
           >
-            {isLoading ? 'Initiating...' : 'Initiate'}
+            {isConfirming ? 'Initiating...' : 'Initiate'}
           </button>
         </div>
       </div>
