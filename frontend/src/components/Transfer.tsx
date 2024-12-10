@@ -69,9 +69,9 @@ export function Transfer({
     amount: '',
   });
 
-  const { allocatedTransfer, isPending: isTransferLoading } =
+  const { allocatedTransfer, isConfirming: isTransferLoading } =
     useAllocatedTransfer();
-  const { allocatedWithdrawal, isPending: isWithdrawalPending } =
+  const { allocatedWithdrawal, isConfirming: isWithdrawalConfirming } =
     useAllocatedWithdrawal();
   const { requestAllocation } = useRequestAllocation();
   const { showNotification } = useNotification();
@@ -420,14 +420,6 @@ export function Transfer({
           await allocatedTransfer(transfer);
         }
 
-        showNotification({
-          type: 'success',
-          title: isWithdrawal ? 'Withdrawal Submitted' : 'Transfer Submitted',
-          message: `Successfully submitted ${isWithdrawal ? 'withdrawal' : 'transfer'} of ${
-            formData.amount
-          } ${isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}`,
-        });
-
         // Reset form and close
         setFormData({
           expires: '',
@@ -726,11 +718,11 @@ export function Transfer({
                 <button
                   type="submit"
                   disabled={
-                    !isFormValid || isTransferLoading || isWithdrawalPending
+                    !isFormValid || isTransferLoading || isWithdrawalConfirming
                   }
                   className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isTransferLoading || isWithdrawalPending ? (
+                  {isTransferLoading || isWithdrawalConfirming ? (
                     <span className="flex items-center justify-center">
                       <svg
                         className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900"

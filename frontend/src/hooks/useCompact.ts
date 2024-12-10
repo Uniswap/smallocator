@@ -373,22 +373,9 @@ export function useCompact() {
       setHash(newHash);
 
       // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({
+      await publicClient.waitForTransactionReceipt({
         hash: newHash,
       });
-      if (receipt.status === 'success') {
-        showNotification({
-          type: 'success',
-          title: 'Forced Withdrawal Executed',
-          message:
-            displayAmount && symbol
-              ? `Successfully withdrew ${displayAmount} ${symbol}`
-              : 'Withdrawal successful',
-          stage: 'confirmed',
-          txHash: newHash,
-          autoHide: true,
-        });
-      }
 
       return newHash;
     } catch (error) {

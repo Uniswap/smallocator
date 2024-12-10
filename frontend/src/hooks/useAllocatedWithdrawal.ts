@@ -1,4 +1,10 @@
-import { useWriteContract, useChainId, useAccount } from 'wagmi';
+import {
+  useWriteContract,
+  useChainId,
+  useAccount,
+  usePublicClient,
+  useWaitForTransactionReceipt,
+} from 'wagmi';
 import { type Chain } from 'viem';
 import {
   COMPACT_ABI,
@@ -16,6 +22,7 @@ import {
   base,
   baseSepolia,
 } from 'viem/chains';
+import { useState } from 'react';
 
 const chains: Record<number, Chain> = {
   [mainnet.id]: mainnet,
@@ -30,10 +37,44 @@ const chains: Record<number, Chain> = {
 export function useAllocatedWithdrawal() {
   const chainId = useChainId();
   const { address } = useAccount();
-  const { writeContract, isPending } = useWriteContract();
+  const publicClient = usePublicClient();
+  const [hash, setHash] = useState<`0x${string}` | undefined>();
+  const { writeContractAsync } = useWriteContract({
+    mutation: {
+      onError: (error) => {
+        if (
+          error instanceof Error &&
+          !error.message.toLowerCase().includes('user rejected')
+        ) {
+          showNotification({
+            type: 'error',
+            title: 'Transaction Failed',
+            message: error.message,
+            autoHide: true,
+          });
+        }
+      },
+    },
+  });
   const { showNotification } = useNotification();
 
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash,
+      onReplaced: (replacement) => {
+        showNotification({
+          type: 'info',
+          title: 'Transaction Replaced',
+          message: `Transaction was ${replacement.reason}. Waiting for new transaction...`,
+          txHash: replacement.transaction.hash,
+          autoHide: false,
+        });
+      },
+    });
+
   const allocatedWithdrawal = async (transferPayload: BasicTransfer) => {
+    if (!publicClient) throw new Error('Public client not available');
+
     if (!isSupportedChain(chainId)) {
       throw new Error('Unsupported chain');
     }
@@ -43,41 +84,80 @@ export function useAllocatedWithdrawal() {
       throw new Error('Chain configuration not found');
     }
 
+    // Generate a temporary transaction ID for linking notifications
+    const tempTxId = `pending-${Date.now()}`;
+
+    // Format the amount for display
+    const displayAmount = transferPayload.amount
+      ? `${Number(transferPayload.amount) / 10 ** 18} ETH`
+      : 'tokens';
+
+    showNotification({
+      type: 'info',
+      title: 'Initiating Withdrawal',
+      message: `Waiting for transaction submission of ${displayAmount}...`,
+      stage: 'initiated',
+      txHash: tempTxId,
+      autoHide: false,
+    });
+
     try {
-      const hash = await writeContract({
+      const newHash = await writeContractAsync({
         address: COMPACT_ADDRESS as `0x${string}`,
         abi: [
           COMPACT_ABI.find((x) => x.name === 'allocatedWithdrawal'),
         ] as const,
         functionName: 'allocatedWithdrawal',
         args: [transferPayload],
-        account: address,
-        chain,
       });
 
       showNotification({
         type: 'success',
         title: 'Transaction Submitted',
-        message: 'Your withdrawal transaction has been submitted.',
+        message: 'Waiting for confirmation...',
+        stage: 'submitted',
+        txHash: newHash,
+        autoHide: false,
       });
 
-      return hash;
-    } catch (error) {
-      console.error('Withdrawal error:', error);
-      showNotification({
-        type: 'error',
-        title: 'Transaction Failed',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to submit withdrawal',
+      setHash(newHash);
+
+      // Wait for confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: newHash,
       });
+      if (receipt.status === 'success') {
+        showNotification({
+          type: 'success',
+          title: 'Withdrawal Confirmed',
+          message: `Successfully withdrew ${displayAmount}`,
+          stage: 'confirmed',
+          txHash: newHash,
+          autoHide: true,
+        });
+      }
+
+      return newHash;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
+        showNotification({
+          type: 'error',
+          title: 'Transaction Rejected',
+          message: 'You rejected the transaction',
+          txHash: tempTxId,
+          autoHide: true,
+        });
+      }
       throw error;
     }
   };
 
   return {
     allocatedWithdrawal,
-    isPending,
+    isConfirming,
+    isConfirmed,
   };
 }
