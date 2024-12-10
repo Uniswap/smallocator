@@ -40,13 +40,27 @@ function AppContent() {
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
       <header className="flex-none bg-[#0a0a0a] border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <h1 className="text-3xl font-black font-monaco">
-            <span className="text-white">Sm</span>
-            <span className="text-[#00ff00]">all</span>
-            <span className="text-[#00ff00]">ocator</span>
-            <span className="text-white"> 🤏</span>
-          </h1>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black font-monaco">
+              <span className="text-white">Sm</span>
+              <span className="text-[#00ff00]">all</span>
+              <span className="text-[#00ff00]">ocator</span>
+              <span className="text-white"> 🤏</span>
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">
+              A minimalistic server-based allocator for{' '}
+              <a
+                href="https://github.com/Uniswap/the-compact"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#00ff00] hover:underline"
+              >
+                The Compact
+              </a>{' '}
+              🤝
+            </p>
+          </div>
           <div className="flex items-center gap-4">
             <a
               href="https://github.com/Uniswap/smallocator"
