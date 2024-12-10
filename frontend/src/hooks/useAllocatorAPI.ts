@@ -5,6 +5,13 @@ interface HealthCheckResponse {
   allocatorAddress: string;
   signingAddress: string;
   timestamp: string;
+  chainConfig: {
+    defaultFinalizationThresholdSeconds: number;
+    supportedChains: Array<{
+      chainId: string;
+      finalizationThresholdSeconds: number;
+    }>;
+  };
 }
 
 interface CompactRequest {

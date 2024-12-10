@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useBalances } from '../hooks/useBalances';
 import { useResourceLocks } from '../hooks/useResourceLocks';
+import { useFinalizationThreshold } from '../hooks/useFinalizationThreshold';
 import { formatUnits } from 'viem';
 import { Transfer } from './Transfer';
 import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
 import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
+import { FinalizationThreshold } from './FinalizationThreshold';
 
 interface BalanceDisplayProps {
   sessionToken: string | null;
@@ -49,7 +51,7 @@ function formatTimeRemaining(
   return `${seconds}s`;
 }
 
-const formatResetPeriod = (seconds: number): string => {
+export const formatResetPeriod = (seconds: number): string => {
   if (seconds < 60) return `${seconds} seconds`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours`;
@@ -444,27 +446,20 @@ export function BalanceDisplay({
                 {balance.resourceLock?.resetPeriod &&
                   balance.resourceLock.resetPeriod > 0 && (
                     <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                      Reset Period: {balance.resetPeriodFormatted}
+                      Reset Period: {formatResetPeriod(balance.resourceLock.resetPeriod)}
                     </span>
                   )}
+                <FinalizationThreshold chainId={parseInt(balance.chainId)} />
                 {balance.resourceLock?.isMultichain && (
                   <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
                     Multichain
                   </span>
                 )}
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
-                    balance.withdrawalStatus === 0
-                      ? 'bg-[#00ff00]/10 text-[#00ff00]'
-                      : 'bg-orange-500/10 text-orange-500'
-                  }`}
-                >
-                  {balance.withdrawalStatus === 0
-                    ? 'Active'
-                    : withdrawableAt <= currentTime
-                      ? 'Forced Withdrawals Enabled'
-                      : `Forced Withdrawals Enabled in ${formatTimeRemaining(withdrawableAt, currentTime)}`}
-                </span>
+                {balance.withdrawalStatus === 0 && (
+                  <span className="px-2 py-1 text-xs rounded bg-[#00ff00]/10 text-[#00ff00]">
+                    Active
+                  </span>
+                )}
               </div>
 
               {/* Balances Grid */}
