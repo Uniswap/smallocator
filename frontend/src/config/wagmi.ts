@@ -8,11 +8,12 @@ import {
   base,
   baseSepolia,
 } from 'viem/chains';
-import { SUPPORTED_CHAINS } from '../constants/contracts';
-import { createConfig } from 'wagmi';
-import { injected } from 'wagmi/connectors';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 
-const chains = [
+// Configure supported chains
+const projectId = 'YOUR_PROJECT_ID'; // Get from WalletConnect Cloud
+
+export const chains = [
   mainnet,
   optimism,
   optimismGoerli,
@@ -22,22 +23,16 @@ const chains = [
   baseSepolia,
 ] as const;
 
-// Create wagmi config with explicit connector configuration
-export const config = createConfig({
+// Create wagmi config using RainbowKit's getDefaultConfig
+export const config = getDefaultConfig({
+  appName: 'Smallocator',
+  projectId,
   chains,
-  connectors: [
-    injected({
-      target: 'metaMask',
-    }),
-  ],
   transports: {
-    [mainnet.id]: http(SUPPORTED_CHAINS[mainnet.id].rpcUrl),
-    [optimism.id]: http(SUPPORTED_CHAINS[optimism.id].rpcUrl),
-    [optimismGoerli.id]: http(SUPPORTED_CHAINS[optimismGoerli.id].rpcUrl),
-    [sepolia.id]: http(SUPPORTED_CHAINS[sepolia.id].rpcUrl),
-    [goerli.id]: http(SUPPORTED_CHAINS[goerli.id].rpcUrl),
-    [base.id]: http(SUPPORTED_CHAINS[base.id].rpcUrl),
-    [baseSepolia.id]: http(SUPPORTED_CHAINS[baseSepolia.id].rpcUrl),
+    // Use a single transport configuration for all chains
+    ...Object.fromEntries(
+      chains.map((chain) => [chain.id, http(chain.rpcUrls.default.http[0])])
+    ),
   },
 });
 
