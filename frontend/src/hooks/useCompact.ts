@@ -1,5 +1,6 @@
-import { useWriteContract, useChainId, useAccount } from 'wagmi';
-import { type Chain } from 'viem';
+import React from 'react';
+import { useWriteContract, useChainId, useAccount, usePublicClient, useWaitForTransactionReceipt } from 'wagmi';
+import { type Chain, type Hash } from 'viem';
 import {
   COMPACT_ABI,
   COMPACT_ADDRESS,
@@ -48,8 +49,51 @@ interface WithdrawalParams {
 export function useCompact() {
   const chainId = useChainId();
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
+  const publicClient = usePublicClient();
+  const [hash, setHash] = React.useState<Hash | undefined>();
+  const { writeContractAsync } = useWriteContract({
+    mutation: {
+      onError: (error) => {
+        if (error instanceof Error && !error.message.toLowerCase().includes('user rejected')) {
+          showNotification({
+            type: 'error',
+            title: 'Transaction Failed',
+            message: error.message,
+            autoHide: true,
+          });
+        }
+      },
+    },
+  });
   const { showNotification } = useNotification();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash,
+    onReplaced: (replacement) => {
+      showNotification({
+        type: 'info',
+        title: 'Transaction Replaced',
+        message: `Transaction was ${replacement.reason}. Waiting for new transaction...`,
+        txHash: replacement.transaction.hash,
+        autoHide: false,
+      });
+    },
+  });
+
+  // Show confirmation notification when transaction is confirmed
+  React.useEffect(() => {
+    if (isConfirmed && hash) {
+      showNotification({
+        type: 'success',
+        title: 'Transaction Confirmed',
+        message: 'Your transaction has been confirmed',
+        stage: 'confirmed',
+        txHash: hash,
+        autoHide: true,
+      });
+      setHash(undefined); // Reset hash after confirmation
+    }
+  }, [isConfirmed, hash, showNotification]);
 
   const getContractAddress = () => {
     if (!isSupportedChain(chainId)) {
@@ -64,15 +108,7 @@ export function useCompact() {
     return COMPACT_ADDRESS as `0x${string}`;
   };
 
-  const deposit = async ({
-    args,
-    value,
-    isNative = false,
-  }: {
-    args: [string] | [string, string, bigint];
-    value: bigint;
-    isNative?: boolean;
-  }) => {
+  const deposit = async (params: DepositParams) => {
     const contractAddress = getContractAddress();
     if (!contractAddress) throw new Error('Contract address not found for current network');
 
@@ -84,52 +120,33 @@ export function useCompact() {
       autoHide: false,
     });
 
-    // Select the appropriate ABI fragment based on whether it's a native deposit or not
-    const abiFragment = COMPACT_ABI.find(entry => 
-      entry.name === 'deposit' && 
-      (isNative ? entry.stateMutability === 'payable' : entry.stateMutability === 'nonpayable')
-    );
-    
-    if (!abiFragment) {
-      throw new Error('ABI fragment not found for deposit function');
+    try {
+      const newHash = await writeContractAsync({
+        address: contractAddress,
+        abi: [params.isNative ? COMPACT_ABI[0] : COMPACT_ABI[1]],
+        functionName: 'deposit',
+        args: params.isNative 
+          ? [params.allocator] 
+          : [params.token, params.allocator, params.amount],
+        value: params.isNative ? params.value : 0n,
+      });
+
+      showNotification({
+        type: 'success',
+        title: 'Transaction Submitted',
+        message: 'Waiting for block inclusion...',
+        stage: 'submitted',
+        txHash: newHash,
+        autoHide: false,
+      });
+
+      setHash(newHash);
+      return newHash;
+    } catch (error) {
+      // Error handling is in the writeContract config
+      throw error;
     }
-
-    const { data } = await writeContract({
-      address: contractAddress,
-      abi: [abiFragment],
-      functionName: 'deposit',
-      args: isNative ? [args[0]] : [args[0], args[1], args[2]],
-      value,
-    });
-
-    const hash = data.hash;
-
-    showNotification({
-      type: 'success',
-      title: 'Transaction Submitted',
-      message: 'Waiting for block inclusion...',
-      stage: 'submitted',
-      txHash: hash,
-      autoHide: false,
-    });
-
-    // Wait for the transaction receipt
-    // await waitForTransaction(config, { hash })
-
-    showNotification({
-      type: 'success',
-      title: 'Transaction Confirmed',
-      message: 'Your deposit has been confirmed',
-      stage: 'confirmed',
-      txHash: hash,
-      autoHide: true,
-    });
-
-    // Trigger a balance refetch after the transaction
-    // await refetchBalance()
-    return hash;
   };
-
 
   const enableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
     showNotification({
@@ -140,39 +157,37 @@ export function useCompact() {
       autoHide: false,
     });
 
-    const { data } = await writeContract({
-      abi: COMPACT_ABI,
-      address: getContractAddress(),
-      functionName: 'enableForcedWithdrawal',
-      args,
-    });
+    try {
+      const newHash = await writeContractAsync({
+        abi: COMPACT_ABI,
+        address: getContractAddress(),
+        functionName: 'enableForcedWithdrawal',
+        args,
+      });
 
-    const hash = data.hash;
+      showNotification({
+        type: 'success',
+        title: 'Transaction Submitted',
+        message: 'Waiting for block inclusion...',
+        stage: 'submitted',
+        txHash: newHash,
+        autoHide: false,
+      });
 
-    showNotification({
-      type: 'success',
-      title: 'Transaction Submitted',
-      message: 'Waiting for block inclusion...',
-      stage: 'submitted',
-      txHash: hash,
-      autoHide: false,
-    });
-
-    // Wait for the transaction receipt
-    // await waitForTransaction(config, { hash })
-
-    showNotification({
-      type: 'success',
-      title: 'Transaction Confirmed',
-      message: 'Forced withdrawal has been enabled',
-      stage: 'confirmed',
-      txHash: hash,
-      autoHide: true,
-    });
-
-    // Trigger a balance refetch after the transaction
-    // await refetchBalance()
-    return hash;
+      setHash(newHash);
+      return newHash;
+    } catch (error) {
+      // Only show error notification if it's not a user rejection
+      if (error instanceof Error && !error.message.includes('User rejected')) {
+        showNotification({
+          type: 'error',
+          title: 'Transaction Failed',
+          message: error.message,
+          autoHide: true,
+        });
+      }
+      throw error; // Re-throw to be handled by the form
+    }
   };
 
   const disableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
@@ -184,39 +199,37 @@ export function useCompact() {
       autoHide: false,
     });
 
-    const { data } = await writeContract({
-      abi: COMPACT_ABI,
-      address: getContractAddress(),
-      functionName: 'disableForcedWithdrawal',
-      args,
-    });
+    try {
+      const newHash = await writeContractAsync({
+        abi: COMPACT_ABI,
+        address: getContractAddress(),
+        functionName: 'disableForcedWithdrawal',
+        args,
+      });
 
-    const hash = data.hash;
+      showNotification({
+        type: 'success',
+        title: 'Transaction Submitted',
+        message: 'Waiting for block inclusion...',
+        stage: 'submitted',
+        txHash: newHash,
+        autoHide: false,
+      });
 
-    showNotification({
-      type: 'success',
-      title: 'Transaction Submitted',
-      message: 'Waiting for block inclusion...',
-      stage: 'submitted',
-      txHash: hash,
-      autoHide: false,
-    });
-
-    // Wait for the transaction receipt
-    // await waitForTransaction(config, { hash })
-
-    showNotification({
-      type: 'success',
-      title: 'Transaction Confirmed',
-      message: 'Forced withdrawal has been disabled',
-      stage: 'confirmed',
-      txHash: hash,
-      autoHide: true,
-    });
-
-    // Trigger a balance refetch after the transaction
-    // await refetchBalance()
-    return hash;
+      setHash(newHash);
+      return newHash;
+    } catch (error) {
+      // Only show error notification if it's not a user rejection
+      if (error instanceof Error && !error.message.includes('User rejected')) {
+        showNotification({
+          type: 'error',
+          title: 'Transaction Failed',
+          message: error.message,
+          autoHide: true,
+        });
+      }
+      throw error; // Re-throw to be handled by the form
+    }
   };
 
   const forcedWithdrawal = async ({ args }: WithdrawalParams) => {
@@ -230,7 +243,7 @@ export function useCompact() {
     }
 
     try {
-      const { data } = await writeContract({
+      const newHash = await writeContractAsync({
         address: COMPACT_ADDRESS as `0x${string}`,
         abi: [COMPACT_ABI.find((x) => x.name === 'forcedWithdrawal')] as const,
         functionName: 'forcedWithdrawal',
@@ -239,14 +252,14 @@ export function useCompact() {
         chain,
       });
 
-      const hash = data.hash;
-
       showNotification({
         type: 'success',
         title: 'Transaction Submitted',
         message: 'Your forced withdrawal transaction has been submitted.',
       });
-      return hash;
+
+      setHash(newHash);
+      return newHash;
     } catch (error) {
       console.error('Forced withdrawal error:', error);
       showNotification({
@@ -267,5 +280,7 @@ export function useCompact() {
     disableForcedWithdrawal,
     forcedWithdrawal,
     isSupported: isSupportedChain(chainId),
+    isConfirming,
+    isConfirmed,
   };
 }

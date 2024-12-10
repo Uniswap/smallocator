@@ -6,12 +6,12 @@ import { useNotification } from '../hooks/useNotification';
 import { useERC20 } from '../hooks/useERC20';
 import { useAllocatorAPI } from '../hooks/useAllocatorAPI';
 
-const chainNames = {
+// Chain name mapping
+const chainNames: Record<string, string> = {
   '1': 'Ethereum',
   '10': 'Optimism',
   '8453': 'Base',
 };
-
 type TokenType = 'native' | 'erc20';
 
 export function DepositForm() {
@@ -21,9 +21,8 @@ export function DepositForm() {
   const [amount, setAmount] = useState('');
   const [tokenType, setTokenType] = useState<TokenType>('native');
   const [tokenAddress, setTokenAddress] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
-  const { deposit } = useCompact();
+  const { deposit, isConfirming, isConfirmed } = useCompact();
   const { showNotification } = useNotification();
   const { allocatorAddress } = useAllocatorAPI();
   const {
@@ -79,7 +78,7 @@ export function DepositForm() {
           : BigInt(0);
 
         if (rawBalance && parsedAmount > balanceBigInt) {
-          const chainName = chainNames[chainId.toString()] || `Chain ${chainId}`;
+          const chainName = chainNames[chainId] || `Chain ${chainId}`;
           return { type: 'error', message: `Insufficient ${symbol || 'token'} balance on ${chainName}` };
         }
         if (parsedAmount > allowanceBigInt) {
@@ -96,7 +95,7 @@ export function DepositForm() {
       try {
         const parsedAmount = parseEther(amount);
         if (parsedAmount > ethBalance.value) {
-          const chainName = chainNames[chainId.toString()] || `Chain ${chainId}`;
+          const chainName = chainNames[chainId] || `Chain ${chainId}`;
           return { type: 'error', message: `Insufficient native token balance on ${chainName}` };
         }
         return null;
@@ -149,7 +148,6 @@ export function DepositForm() {
     }
 
     try {
-      setIsLoading(true);
       const parsedAmount =
         tokenType === 'native'
           ? parseEther(amount)
@@ -172,26 +170,23 @@ export function DepositForm() {
             }
       );
 
-      showNotification({
-        type: 'success',
-        title: 'Deposit Submitted',
-        message: `Successfully deposited ${amount} ${tokenType === 'native' ? 'ETH' : symbol || 'tokens'}`,
-      });
-
-      // Reset form
-      setAmount('');
-      if (tokenType === 'erc20') {
-        setTokenAddress('');
+      // Reset form after confirmed
+      if (isConfirmed) {
+        setAmount('');
+        if (tokenType === 'erc20') {
+          setTokenAddress('');
+        }
       }
     } catch (error) {
       console.error('Error depositing:', error);
-      showNotification({
-        type: 'error',
-        title: 'Deposit Failed',
-        message: error instanceof Error ? error.message : 'Failed to deposit',
-      });
-    } finally {
-      setIsLoading(false);
+      // Only show notification if it's not a user rejection
+      if (!(error instanceof Error && error.message.toLowerCase().includes('user rejected'))) {
+        showNotification({
+          type: 'error',
+          title: 'Deposit Failed',
+          message: error instanceof Error ? error.message : 'Failed to deposit',
+        });
+      }
     }
   };
 
@@ -358,7 +353,7 @@ export function DepositForm() {
         <button
           onClick={handleDeposit}
           disabled={
-            isLoading ||
+            isConfirming ||
             !amount ||
             !allocatorAddress ||
             amountValidation?.type === 'error' ||
@@ -367,7 +362,7 @@ export function DepositForm() {
           }
           className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Depositing...' : 'Deposit'}
+          {isConfirming ? 'Depositing...' : 'Deposit'}
         </button>
       </div>
     </div>
