@@ -75,6 +75,7 @@ export function useBalanceDisplay() {
             title: 'Switching Network',
             message: `Please confirm the network switch in your wallet...`,
             txHash: tempTxId,
+            stage: 'initiated',
             autoHide: false,
           });
 
@@ -95,6 +96,7 @@ export function useBalanceDisplay() {
             title: 'Network Switched',
             message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
             txHash: tempTxId,
+            stage: 'confirmed',
             autoHide: true,
           });
         } catch (switchError) {
@@ -104,6 +106,7 @@ export function useBalanceDisplay() {
               title: 'Network Not Found',
               message: 'Please add this network to your wallet first.',
               txHash: tempTxId,
+              stage: 'confirmed',
               autoHide: true,
             });
           } else {
@@ -116,6 +119,7 @@ export function useBalanceDisplay() {
                   ? switchError.message
                   : 'Failed to switch network. Please switch manually.',
               txHash: tempTxId,
+              stage: 'confirmed',
               autoHide: true,
             });
           }
@@ -150,7 +154,6 @@ export function useBalanceDisplay() {
   );
 
   const handleInitiateWithdrawal = useCallback((lockId: string) => {
-    // Remove manual network switching since wagmi will handle it
     setSelectedLockId(lockId);
     setIsWithdrawalDialogOpen(true);
   }, []);
@@ -173,6 +176,7 @@ export function useBalanceDisplay() {
             title: 'Switching Network',
             message: `Please confirm the network switch in your wallet...`,
             txHash: tempTxId,
+            stage: 'initiated',
             autoHide: false,
           });
 
@@ -193,6 +197,7 @@ export function useBalanceDisplay() {
             title: 'Network Switched',
             message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
             txHash: tempTxId,
+            stage: 'confirmed',
             autoHide: true,
           });
         } catch (switchError) {
@@ -202,6 +207,7 @@ export function useBalanceDisplay() {
               title: 'Network Not Found',
               message: 'Please add this network to your wallet first.',
               txHash: tempTxId,
+              stage: 'confirmed',
               autoHide: true,
             });
           } else {
@@ -214,6 +220,7 @@ export function useBalanceDisplay() {
                   ? switchError.message
                   : 'Failed to switch network. Please switch manually.',
               txHash: tempTxId,
+              stage: 'confirmed',
               autoHide: true,
             });
           }
