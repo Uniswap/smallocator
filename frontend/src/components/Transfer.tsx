@@ -70,15 +70,32 @@ export function Transfer({
     amount: '',
   });
 
-  const { allocatedTransfer, isConfirming: isTransferLoading } =
+  const { allocatedTransfer, isConfirming: isTransferLoading, isConfirmed: isTransferConfirmed } =
     useAllocatedTransfer();
-  const { allocatedWithdrawal, isConfirming: isWithdrawalConfirming } =
+  const { allocatedWithdrawal, isConfirming: isWithdrawalConfirming, isConfirmed: isWithdrawalConfirmed } =
     useAllocatedWithdrawal();
   const { requestAllocation } = useRequestAllocation();
   const { showNotification } = useNotification();
   const [fieldErrors, setFieldErrors] = useState<{
     [key: string]: string | undefined;
   }>({});
+
+  // Reset form when transaction is confirmed
+  useEffect(() => {
+    if (isTransferConfirmed || isWithdrawalConfirmed) {
+      // Reset all form state
+      setFormData({
+        expires: '',
+        recipient: '',
+        amount: '',
+      });
+      setHasAllocation(false);
+      setCustomExpiry(false);
+      setExpiryOption('10min');
+      setFieldErrors({});
+      setIsOpen(false);
+    }
+  }, [isTransferConfirmed, isWithdrawalConfirmed]);
 
   // Check if nonce has been consumed
   const { data: isNonceConsumed } = useReadContract({
@@ -431,15 +448,6 @@ export function Transfer({
         } else {
           await allocatedTransfer(transfer);
         }
-
-        // Reset form and close
-        setFormData({
-          expires: '',
-          recipient: '',
-          amount: '',
-        });
-        setHasAllocation(false);
-        setIsOpen(false);
       } catch (conversionError) {
         console.error('Error converting values:', conversionError);
         throw new Error(

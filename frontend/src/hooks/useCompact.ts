@@ -344,7 +344,7 @@ export function useCompact() {
 
     showNotification({
       type: 'info',
-      title: `nitiating Forced Withdrawal of ${displayAmount} ${symbol}`,
+      title: `Initiating Forced Withdrawal of ${displayAmount} ${symbol}`,
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       txHash: tempTxId,
@@ -373,9 +373,19 @@ export function useCompact() {
       setHash(newHash);
 
       // Wait for confirmation
-      await publicClient.waitForTransactionReceipt({
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash: newHash,
       });
+      if (receipt.status === 'success') {
+        showNotification({
+          type: 'success',
+          title: 'Withdrawal Confirmed',
+          message: `Successfully withdrew ${displayAmount} ${symbol}`,
+          stage: 'confirmed',
+          txHash: newHash,
+          autoHide: true,
+        });
+      }
 
       return newHash;
     } catch (error) {
