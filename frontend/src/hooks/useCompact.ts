@@ -66,12 +66,15 @@ export function useCompact() {
   const { writeContractAsync } = useWriteContract({
     mutation: {
       onError: (error) => {
-        // Only show non-network-related errors
+        // Only show transaction-related errors, not network or user rejection errors
         if (
           error instanceof Error &&
           !error.message.toLowerCase().includes('user rejected') &&
           !error.message.toLowerCase().includes('network') &&
           !error.message.toLowerCase().includes('chain') &&
+          !error.message.toLowerCase().includes('invalid network') &&
+          !error.message.toLowerCase().includes('wrong network') &&
+          !error.message.toLowerCase().includes('unsupported network') &&
           error.message !== 'Unsupported chain' &&
           error.message !== 'Chain configuration not found'
         ) {

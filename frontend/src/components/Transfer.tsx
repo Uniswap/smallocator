@@ -77,10 +77,16 @@ export function Transfer({
     amount: '',
   });
 
-  const { allocatedTransfer, isConfirming: isTransferLoading, isConfirmed: isTransferConfirmed } =
-    useAllocatedTransfer();
-  const { allocatedWithdrawal, isConfirming: isWithdrawalConfirming, isConfirmed: isWithdrawalConfirmed } =
-    useAllocatedWithdrawal();
+  const {
+    allocatedTransfer,
+    isConfirming: isTransferLoading,
+    isConfirmed: isTransferConfirmed,
+  } = useAllocatedTransfer();
+  const {
+    allocatedWithdrawal,
+    isConfirming: isWithdrawalConfirming,
+    isConfirmed: isWithdrawalConfirmed,
+  } = useAllocatedWithdrawal();
   const { requestAllocation } = useRequestAllocation();
   const { showNotification } = useNotification();
   const [fieldErrors, setFieldErrors] = useState<{
@@ -542,35 +548,48 @@ export function Transfer({
       <div className="space-y-4 mb-6">
         <div className="bg-gray-800 p-6 rounded-lg space-y-4">
           <div className="flex items-start">
-            <span className="text-gray-400 text-sm w-[100px] shrink-0">Nonce:</span>
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">
+              Nonce:
+            </span>
             <span className="text-gray-200 font-mono text-sm break-all">
               {formData.nonce}
             </span>
           </div>
           <div className="flex items-start">
-            <span className="text-gray-400 text-sm w-[100px] shrink-0">Expires:</span>
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">
+              Expires:
+            </span>
             <span className="text-gray-200 text-sm">{formattedExpiry}</span>
           </div>
           <div className="flex items-start">
-            <span className="text-gray-400 text-sm w-[100px] shrink-0">Amount:</span>
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">
+              Amount:
+            </span>
             <span className="text-gray-200 text-sm">
-              {formData.amount} {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}
+              {formData.amount}{' '}
+              {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}
             </span>
           </div>
           <div className="flex items-start">
-            <span className="text-gray-400 text-sm w-[100px] shrink-0">Recipient:</span>
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">
+              Recipient:
+            </span>
             <span className="text-gray-200 font-mono text-sm break-all">
               {formData.recipient}
             </span>
           </div>
           <div className="flex items-start">
-            <span className="text-gray-400 text-sm w-[100px] shrink-0">Claim Hash:</span>
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">
+              Claim Hash:
+            </span>
             <span className="text-gray-200 font-mono text-sm break-all">
               {formData.hash}
             </span>
           </div>
           <div className="flex items-start">
-            <span className="text-gray-400 text-sm w-[100px] shrink-0">Signature:</span>
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">
+              Signature:
+            </span>
             <span className="text-gray-200 font-mono text-sm break-all">
               {formData.allocatorSignature}
             </span>
@@ -676,7 +695,10 @@ export function Transfer({
                         <option value="custom">Custom</option>
                       </select>
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                        <svg
+                          className="h-4 w-4 fill-current"
+                          viewBox="0 0 20 20"
+                        >
                           <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                         </svg>
                       </div>
@@ -698,7 +720,9 @@ export function Transfer({
                         }}
                         placeholder="Unix timestamp"
                         className={`w-full px-3 py-2 bg-gray-800 border ${
-                          fieldErrors.expires ? 'border-red-500' : 'border-gray-700'
+                          fieldErrors.expires
+                            ? 'border-red-500'
+                            : 'border-gray-700'
                         } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
                       />
                     )}
@@ -724,7 +748,9 @@ export function Transfer({
                       }
                       placeholder="0x..."
                       className={`w-full px-3 py-2 bg-gray-800 border ${
-                        fieldErrors.recipient ? 'border-red-500' : 'border-gray-700'
+                        fieldErrors.recipient
+                          ? 'border-red-500'
+                          : 'border-gray-700'
                       } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
                     />
                     {fieldErrors.recipient && (
@@ -739,8 +765,13 @@ export function Transfer({
                       Amount
                       <span className="float-right text-gray-400">
                         Balance:{' '}
-                        {formatUnits(BigInt(resourceLockBalance || '0'), decimals)}{' '}
-                        {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}{' '}
+                        {formatUnits(
+                          BigInt(resourceLockBalance || '0'),
+                          decimals
+                        )}{' '}
+                        {isWithdrawal
+                          ? tokenSymbol
+                          : tokenName.resourceLockSymbol}{' '}
                         (Available:{' '}
                         {formatUnits(
                           BigInt(balanceAvailableToAllocate || '0'),
@@ -753,7 +784,10 @@ export function Transfer({
                       type="text"
                       value={formData.amount}
                       onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, amount: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          amount: e.target.value,
+                        }))
                       }
                       placeholder="0.0"
                       className={`w-full px-3 py-2 bg-gray-800 border ${

@@ -183,7 +183,7 @@ export function BalanceDisplay({
   );
 
   const handleInitiateWithdrawal = useCallback(
-    async (chainId: string, lockId: string, resetPeriod: number) => {
+    async (chainId: string, lockId: string) => {
       const targetChainId = parseInt(chainId);
       if (targetChainId !== currentChainId) {
         const tempTxId = `network-switch-${Date.now()}`;
@@ -557,12 +557,14 @@ export function BalanceDisplay({
                       onForceWithdraw={() => {
                         handleInitiateWithdrawal(
                           balance.chainId,
-                          balance.lockId,
-                          resourceLock.resourceLock.resetPeriod
+                          balance.lockId
                         );
                       }}
                       onDisableForceWithdraw={() => {
-                        handleDisableWithdrawal(balance.chainId, balance.lockId);
+                        handleDisableWithdrawal(
+                          balance.chainId,
+                          balance.lockId
+                        );
                       }}
                       balanceAvailableToAllocate={
                         balance.balanceAvailableToAllocate
