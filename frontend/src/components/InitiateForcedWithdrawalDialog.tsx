@@ -29,12 +29,6 @@ export function InitiateForcedWithdrawalDialog({
         args: [BigInt(lockId)],
       });
 
-      showNotification({
-        type: 'success',
-        title: 'Forced Withdrawal Initiated',
-        message: 'The timelock period has started',
-      });
-
       onClose();
     } catch (error: unknown) {
       console.error('Error initiating forced withdrawal:', error);

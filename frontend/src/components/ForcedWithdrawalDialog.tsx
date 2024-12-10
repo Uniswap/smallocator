@@ -202,7 +202,9 @@ export function ForcedWithdrawalDialog({
           <div>
             {tokenName} ({symbol})
           </div>
-          <div>Chain: {chainNames[targetChainId] || `Chain ${targetChainId}`}</div>
+          <div>
+            Chain: {chainNames[targetChainId] || `Chain ${targetChainId}`}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

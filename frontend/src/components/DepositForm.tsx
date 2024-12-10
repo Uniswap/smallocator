@@ -79,7 +79,10 @@ export function DepositForm() {
 
         if (rawBalance && parsedAmount > balanceBigInt) {
           const chainName = chainNames[chainId] || `Chain ${chainId}`;
-          return { type: 'error', message: `Insufficient ${symbol || 'token'} balance on ${chainName}` };
+          return {
+            type: 'error',
+            message: `Insufficient ${symbol || 'token'} balance on ${chainName}`,
+          };
         }
         if (parsedAmount > allowanceBigInt) {
           return { type: 'warning', message: 'Insufficient Allowance' };
@@ -96,7 +99,10 @@ export function DepositForm() {
         const parsedAmount = parseEther(amount);
         if (parsedAmount > ethBalance.value) {
           const chainName = chainNames[chainId] || `Chain ${chainId}`;
-          return { type: 'error', message: `Insufficient native token balance on ${chainName}` };
+          return {
+            type: 'error',
+            message: `Insufficient native token balance on ${chainName}`,
+          };
         }
         return null;
       } catch {
@@ -148,27 +154,27 @@ export function DepositForm() {
     }
 
     try {
-      const parsedAmount =
-        tokenType === 'native'
-          ? parseEther(amount)
-          : parseUnits(amount, decimals!);
-
       const hexAllocatorAddress = allocatorAddress as `0x${string}`;
 
-      await deposit(
-        tokenType === 'native'
-          ? {
-              allocator: hexAllocatorAddress,
-              value: parsedAmount,
-              isNative: true,
-            }
-          : {
-              token: tokenAddress as `0x${string}`,
-              allocator: hexAllocatorAddress,
-              amount: parsedAmount,
-              isNative: false,
-            }
-      );
+      if (tokenType === 'native') {
+        const parsedAmount = parseEther(amount);
+        await deposit({
+          allocator: hexAllocatorAddress,
+          value: parsedAmount,
+          displayValue: amount,
+          isNative: true,
+        });
+      } else {
+        const parsedAmount = parseUnits(amount, decimals!);
+        await deposit({
+          token: tokenAddress as `0x${string}`,
+          allocator: hexAllocatorAddress,
+          amount: parsedAmount,
+          displayAmount: amount,
+          symbol: symbol || 'tokens',
+          isNative: false,
+        });
+      }
 
       // Reset form after confirmed
       if (isConfirmed) {
@@ -180,7 +186,12 @@ export function DepositForm() {
     } catch (error) {
       console.error('Error depositing:', error);
       // Only show notification if it's not a user rejection
-      if (!(error instanceof Error && error.message.toLowerCase().includes('user rejected'))) {
+      if (
+        !(
+          error instanceof Error &&
+          error.message.toLowerCase().includes('user rejected')
+        )
+      ) {
         showNotification({
           type: 'error',
           title: 'Deposit Failed',
@@ -279,17 +290,23 @@ export function DepositForm() {
               <p className="mt-1 text-sm text-red-500">Invalid token address</p>
             )}
             {isLoadingToken && isAddress(tokenAddress) && (
-              <p className="mt-1 text-sm text-yellow-500">Loading token info...</p>
+              <p className="mt-1 text-sm text-yellow-500">
+                Loading token info...
+              </p>
             )}
             {isValid && name && symbol && (
               <div className="mt-1">
                 <div className="flex justify-between items-center text-sm text-gray-400">
-                  <span>{name} ({symbol})</span>
                   <span>
-                    Allowance on The Compact: {Number(allowance || '0').toLocaleString(undefined, {
+                    {name} ({symbol})
+                  </span>
+                  <span>
+                    Allowance on The Compact:{' '}
+                    {Number(allowance || '0').toLocaleString(undefined, {
                       maximumFractionDigits: 6,
-                      minimumFractionDigits: 0
-                    })} {symbol}
+                      minimumFractionDigits: 0,
+                    })}{' '}
+                    {symbol}
                   </span>
                 </div>
               </div>

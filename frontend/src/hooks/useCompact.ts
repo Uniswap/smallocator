@@ -1,5 +1,11 @@
 import React from 'react';
-import { useWriteContract, useChainId, useAccount, usePublicClient, useWaitForTransactionReceipt } from 'wagmi';
+import {
+  useWriteContract,
+  useChainId,
+  useAccount,
+  usePublicClient,
+  useWaitForTransactionReceipt,
+} from 'wagmi';
 import { type Chain, type Hash } from 'viem';
 import {
   COMPACT_ABI,
@@ -30,6 +36,7 @@ const chains: Record<number, Chain> = {
 interface NativeDeposit {
   allocator: `0x${string}`;
   value: bigint;
+  displayValue: string;
   isNative: true;
 }
 
@@ -37,6 +44,8 @@ interface TokenDeposit {
   token: `0x${string}`;
   allocator: `0x${string}`;
   amount: bigint;
+  displayAmount: string;
+  symbol: string;
   isNative: false;
 }
 
@@ -44,6 +53,7 @@ type DepositParams = NativeDeposit | TokenDeposit;
 
 interface WithdrawalParams {
   args: readonly [bigint] | readonly [bigint, `0x${string}`, bigint];
+  amount?: bigint;
 }
 
 export function useCompact() {
@@ -54,7 +64,10 @@ export function useCompact() {
   const { writeContractAsync } = useWriteContract({
     mutation: {
       onError: (error) => {
-        if (error instanceof Error && !error.message.toLowerCase().includes('user rejected')) {
+        if (
+          error instanceof Error &&
+          !error.message.toLowerCase().includes('user rejected')
+        ) {
           showNotification({
             type: 'error',
             title: 'Transaction Failed',
@@ -67,33 +80,26 @@ export function useCompact() {
   });
   const { showNotification } = useNotification();
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-    onReplaced: (replacement) => {
-      showNotification({
-        type: 'info',
-        title: 'Transaction Replaced',
-        message: `Transaction was ${replacement.reason}. Waiting for new transaction...`,
-        txHash: replacement.transaction.hash,
-        autoHide: false,
-      });
-    },
-  });
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash,
+      onReplaced: (replacement) => {
+        showNotification({
+          type: 'info',
+          title: 'Transaction Replaced',
+          message: `Transaction was ${replacement.reason}. Waiting for new transaction...`,
+          txHash: replacement.transaction.hash,
+          autoHide: false,
+        });
+      },
+    });
 
   // Show confirmation notification when transaction is confirmed
   React.useEffect(() => {
     if (isConfirmed && hash) {
-      showNotification({
-        type: 'success',
-        title: 'Transaction Confirmed',
-        message: 'Your transaction has been confirmed',
-        stage: 'confirmed',
-        txHash: hash,
-        autoHide: true,
-      });
       setHash(undefined); // Reset hash after confirmation
     }
-  }, [isConfirmed, hash, showNotification]);
+  }, [isConfirmed, hash]);
 
   const getContractAddress = () => {
     if (!isSupportedChain(chainId)) {
@@ -109,12 +115,15 @@ export function useCompact() {
   };
 
   const deposit = async (params: DepositParams) => {
+    if (!publicClient) throw new Error('Public client not available');
+
     const contractAddress = getContractAddress();
-    if (!contractAddress) throw new Error('Contract address not found for current network');
+    if (!contractAddress)
+      throw new Error('Contract address not found for current network');
 
     showNotification({
       type: 'info',
-      title: 'Transaction Initiated',
+      title: 'Initiating Deposit',
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       autoHide: false,
@@ -125,8 +134,8 @@ export function useCompact() {
         address: contractAddress,
         abi: [params.isNative ? COMPACT_ABI[0] : COMPACT_ABI[1]],
         functionName: 'deposit',
-        args: params.isNative 
-          ? [params.allocator] 
+        args: params.isNative
+          ? [params.allocator]
           : [params.token, params.allocator, params.amount],
         value: params.isNative ? params.value : 0n,
       });
@@ -134,13 +143,31 @@ export function useCompact() {
       showNotification({
         type: 'success',
         title: 'Transaction Submitted',
-        message: 'Waiting for block inclusion...',
+        message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
         autoHide: false,
       });
 
       setHash(newHash);
+
+      // Wait for confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: newHash,
+      });
+      if (receipt.status === 'success') {
+        showNotification({
+          type: 'success',
+          title: 'Deposit Confirmed',
+          message: params.isNative
+            ? `Successfully deposited ${params.displayValue} ETH`
+            : `Successfully deposited ${params.displayAmount} ${params.symbol}`,
+          stage: 'confirmed',
+          txHash: newHash,
+          autoHide: true,
+        });
+      }
+
       return newHash;
     } catch (error) {
       // Error handling is in the writeContract config
@@ -149,9 +176,11 @@ export function useCompact() {
   };
 
   const enableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
+    if (!publicClient) throw new Error('Public client not available');
+
     showNotification({
       type: 'info',
-      title: 'Transaction Initiated',
+      title: 'Initiating Forced Withdrawal',
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       autoHide: false,
@@ -168,13 +197,29 @@ export function useCompact() {
       showNotification({
         type: 'success',
         title: 'Transaction Submitted',
-        message: 'Waiting for block inclusion...',
+        message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
         autoHide: false,
       });
 
       setHash(newHash);
+
+      // Wait for confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: newHash,
+      });
+      if (receipt.status === 'success') {
+        showNotification({
+          type: 'success',
+          title: 'Forced Withdrawal Initiated',
+          message: 'The timelock period has started',
+          stage: 'confirmed',
+          txHash: newHash,
+          autoHide: true,
+        });
+      }
+
       return newHash;
     } catch (error) {
       // Only show error notification if it's not a user rejection
@@ -191,9 +236,11 @@ export function useCompact() {
   };
 
   const disableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
+    if (!publicClient) throw new Error('Public client not available');
+
     showNotification({
       type: 'info',
-      title: 'Transaction Initiated',
+      title: 'Initiating Reactivation',
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       autoHide: false,
@@ -210,13 +257,29 @@ export function useCompact() {
       showNotification({
         type: 'success',
         title: 'Transaction Submitted',
-        message: 'Waiting for block inclusion...',
+        message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
         autoHide: false,
       });
 
       setHash(newHash);
+
+      // Wait for confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: newHash,
+      });
+      if (receipt.status === 'success') {
+        showNotification({
+          type: 'success',
+          title: 'Resource Lock Reactivated',
+          message: 'Your resource lock has been reactivated',
+          stage: 'confirmed',
+          txHash: newHash,
+          autoHide: true,
+        });
+      }
+
       return newHash;
     } catch (error) {
       // Only show error notification if it's not a user rejection
@@ -232,7 +295,9 @@ export function useCompact() {
     }
   };
 
-  const forcedWithdrawal = async ({ args }: WithdrawalParams) => {
+  const forcedWithdrawal = async ({ args, amount }: WithdrawalParams) => {
+    if (!publicClient) throw new Error('Public client not available');
+
     if (!isSupportedChain(chainId)) {
       throw new Error('Unsupported chain');
     }
@@ -241,6 +306,14 @@ export function useCompact() {
     if (!chain) {
       throw new Error('Chain configuration not found');
     }
+
+    showNotification({
+      type: 'info',
+      title: 'Initiating Forced Withdrawal',
+      message: 'Please confirm the transaction in your wallet...',
+      stage: 'initiated',
+      autoHide: false,
+    });
 
     try {
       const newHash = await writeContractAsync({
@@ -255,10 +328,31 @@ export function useCompact() {
       showNotification({
         type: 'success',
         title: 'Transaction Submitted',
-        message: 'Your forced withdrawal transaction has been submitted.',
+        message: 'Waiting for confirmation...',
+        stage: 'submitted',
+        txHash: newHash,
+        autoHide: false,
       });
 
       setHash(newHash);
+
+      // Wait for confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: newHash,
+      });
+      if (receipt.status === 'success') {
+        showNotification({
+          type: 'success',
+          title: 'Forced Withdrawal Executed',
+          message: amount
+            ? `Successfully withdrew ${amount} ETH`
+            : 'Withdrawal successful',
+          stage: 'confirmed',
+          txHash: newHash,
+          autoHide: true,
+        });
+      }
+
       return newHash;
     } catch (error) {
       console.error('Forced withdrawal error:', error);

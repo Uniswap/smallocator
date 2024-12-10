@@ -1,6 +1,10 @@
 import { Fragment, ReactNode, useState, useEffect } from 'react';
 import { Transition } from '@headlessui/react';
-import { CheckCircleIcon, XCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  ClockIcon,
+} from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/20/solid';
 import { NotificationContext } from './notification-context';
 
@@ -56,7 +60,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getIcon = (notification: Notification) => {
-    if (notification.stage === 'initiated' || notification.stage === 'submitted') {
+    if (
+      notification.stage === 'initiated' ||
+      notification.stage === 'submitted'
+    ) {
       return (
         <ClockIcon
           className="h-6 w-6 text-yellow-400 animate-spin"
@@ -75,17 +82,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         );
       case 'error':
         return (
-          <XCircleIcon
-            className="h-6 w-6 text-red-400"
-            aria-hidden="true"
-          />
+          <XCircleIcon className="h-6 w-6 text-red-400" aria-hidden="true" />
         );
       case 'warning':
         return (
-          <XCircleIcon
-            className="h-6 w-6 text-yellow-400"
-            aria-hidden="true"
-          />
+          <XCircleIcon className="h-6 w-6 text-yellow-400" aria-hidden="true" />
         );
       default:
         return (
@@ -120,9 +121,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               <div className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-[#0a0a0a] shadow-lg ring-1 ring-gray-800">
                 <div className="p-4">
                   <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      {getIcon(notification)}
-                    </div>
+                    <div className="flex-shrink-0">{getIcon(notification)}</div>
                     <div className="ml-3 w-0 flex-1 pt-0.5">
                       <p className="text-sm font-medium text-gray-100">
                         {notification.title}
@@ -132,7 +131,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                       </p>
                       {notification.txHash && (
                         <p className="mt-1 text-sm text-gray-500">
-                          Transaction: {notification.txHash.slice(0, 6)}...{notification.txHash.slice(-4)}
+                          Transaction: {notification.txHash.slice(0, 6)}...
+                          {notification.txHash.slice(-4)}
                         </p>
                       )}
                     </div>

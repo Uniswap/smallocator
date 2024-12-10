@@ -24,7 +24,10 @@ interface SelectedLockData {
 }
 
 // Helper function to format time remaining
-function formatTimeRemaining(expiryTimestamp: number, currentTime: number): string {
+function formatTimeRemaining(
+  expiryTimestamp: number,
+  currentTime: number
+): string {
   const diff = expiryTimestamp - currentTime;
 
   if (diff <= 0) return 'Ready';
@@ -85,7 +88,9 @@ export function BalanceDisplay({
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
   );
-  const [currentTime, setCurrentTime] = useState(() => Math.floor(Date.now() / 1000));
+  const [currentTime, setCurrentTime] = useState(() =>
+    Math.floor(Date.now() / 1000)
+  );
   const [isSessionIdDialogOpen, setIsSessionIdDialogOpen] = useState(false);
 
   const handleDisableWithdrawal = useCallback(
@@ -95,12 +100,6 @@ export function BalanceDisplay({
       try {
         await disableForcedWithdrawal({
           args: [BigInt(lockId)],
-        });
-
-        showNotification({
-          type: 'success',
-          title: 'Resource Lock Reactivated',
-          message: 'Your resource lock has been reactivated',
         });
       } catch (error) {
         console.error('Error disabling forced withdrawal:', error);
@@ -349,7 +348,9 @@ export function BalanceDisplay({
                         setSelectedLock(null);
                         handleDisableWithdrawal(balance.lockId);
                       }}
-                      balanceAvailableToAllocate={balance.balanceAvailableToAllocate}
+                      balanceAvailableToAllocate={
+                        balance.balanceAvailableToAllocate
+                      }
                     />
                     {canExecuteWithdrawal && (
                       <button

@@ -55,15 +55,16 @@ export function useERC20(tokenAddress?: `0x${string}`) {
     },
   });
 
-  const { data: allowanceData, isLoading: isLoadingAllowance } = useReadContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'allowance',
-    args: [address!, tokenAddress!],
-    query: {
-      enabled: shouldLoad && Boolean(address),
-    },
-  });
+  const { data: allowanceData, isLoading: isLoadingAllowance } =
+    useReadContract({
+      address: tokenAddress,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [address!, tokenAddress!],
+      query: {
+        enabled: shouldLoad && Boolean(address),
+      },
+    });
 
   // Update loading state
   useEffect(() => {
@@ -72,11 +73,11 @@ export function useERC20(tokenAddress?: `0x${string}`) {
       return;
     }
     setIsLoading(
-      isLoadingDecimals || 
-      isLoadingSymbol || 
-      isLoadingName || 
-      isLoadingBalance || 
-      isLoadingAllowance
+      isLoadingDecimals ||
+        isLoadingSymbol ||
+        isLoadingName ||
+        isLoadingBalance ||
+        isLoadingAllowance
     );
   }, [
     shouldLoad,
@@ -84,7 +85,7 @@ export function useERC20(tokenAddress?: `0x${string}`) {
     isLoadingSymbol,
     isLoadingName,
     isLoadingBalance,
-    isLoadingAllowance
+    isLoadingAllowance,
   ]);
 
   // Update state when data changes

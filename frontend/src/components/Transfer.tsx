@@ -113,7 +113,9 @@ export function Transfer({
       // Parse amounts for comparison
       const parsedAmount = parseUnits(formData.amount, decimals);
       const balanceBigInt = BigInt(resourceLockBalance || '0');
-      const availableToAllocateBigInt = BigInt(balanceAvailableToAllocate || '0');
+      const availableToAllocateBigInt = BigInt(
+        balanceAvailableToAllocate || '0'
+      );
 
       // First check if amount exceeds total balance
       if (parsedAmount > balanceBigInt) {
@@ -124,7 +126,8 @@ export function Transfer({
       if (parsedAmount > availableToAllocateBigInt) {
         return {
           type: 'error',
-          message: 'Amount exceeds balance currently available to allocate. Wait for pending allocations to clear or initiate a forced withdrawal.',
+          message:
+            'Amount exceeds balance currently available to allocate. Wait for pending allocations to clear or initiate a forced withdrawal.',
         };
       }
 
@@ -132,7 +135,12 @@ export function Transfer({
     } catch {
       return { type: 'error', message: 'Invalid amount format.' };
     }
-  }, [formData.amount, decimals, resourceLockBalance, balanceAvailableToAllocate]);
+  }, [
+    formData.amount,
+    decimals,
+    resourceLockBalance,
+    balanceAvailableToAllocate,
+  ]);
 
   const validateRecipient = useCallback(() => {
     if (!formData.recipient) return null;
@@ -190,21 +198,28 @@ export function Transfer({
 
     // Check if duration exceeds 2 hours
     if (duration > TWO_HOURS_SECONDS) {
-      return { type: 'error', message: 'Expiry cannot be more than 2 hours in the future.' };
+      return {
+        type: 'error',
+        message: 'Expiry cannot be more than 2 hours in the future.',
+      };
     }
 
     // Check if expiry would exceed when tokens could be withdrawn
     // Ensure expiry is within reset period
-    const resetPeriodSeconds = resetPeriod ? parseInt(String(resetPeriod)) : undefined;
-    const maxExpiryTime = resetPeriodSeconds 
-      ? Math.min(now + resetPeriodSeconds, now + TWO_HOURS_SECONDS) 
+    const resetPeriodSeconds = resetPeriod
+      ? parseInt(String(resetPeriod))
+      : undefined;
+    const maxExpiryTime = resetPeriodSeconds
+      ? Math.min(now + resetPeriodSeconds, now + TWO_HOURS_SECONDS)
       : now + TWO_HOURS_SECONDS;
 
     if (expiryTime > maxExpiryTime) {
-      const timeLimit = resetPeriodSeconds ? Math.min(resetPeriodSeconds, TWO_HOURS_SECONDS) : TWO_HOURS_SECONDS;
-      return { 
-        type: 'error', 
-        message: `Expiry cannot exceed ${Math.floor(timeLimit / 60)} minutes from now.`
+      const timeLimit = resetPeriodSeconds
+        ? Math.min(resetPeriodSeconds, TWO_HOURS_SECONDS)
+        : TWO_HOURS_SECONDS;
+      return {
+        type: 'error',
+        message: `Expiry cannot exceed ${Math.floor(timeLimit / 60)} minutes from now.`,
       };
     }
 
@@ -520,7 +535,9 @@ export function Transfer({
             onClick={() => handleAction('disable')}
             disabled={isWithdrawalLoading}
           >
-            {isWithdrawalLoading ? 'Reactivating...' : 'Reactivate Resource Lock'}
+            {isWithdrawalLoading
+              ? 'Reactivating...'
+              : 'Reactivate Resource Lock'}
           </button>
         )}
       </div>
@@ -565,7 +582,9 @@ export function Transfer({
                     <option value="1min">1 minute</option>
                     <option value="5min">5 minutes</option>
                     <option value="10min">10 minutes</option>
-                    {resetPeriod >= 3600 && TWO_HOURS_SECONDS >= 3600 && <option value="1hour">1 hour</option>}
+                    {resetPeriod >= 3600 && TWO_HOURS_SECONDS >= 3600 && (
+                      <option value="1hour">1 hour</option>
+                    )}
                     <option value="custom">Custom</option>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
@@ -591,9 +610,7 @@ export function Transfer({
                     }}
                     placeholder="Unix timestamp"
                     className={`w-full px-3 py-2 bg-gray-800 border ${
-                      fieldErrors.expires
-                        ? 'border-red-500'
-                        : 'border-gray-700'
+                      fieldErrors.expires ? 'border-red-500' : 'border-gray-700'
                     } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
                   />
                 )}
@@ -619,9 +636,7 @@ export function Transfer({
                   }
                   placeholder="0x..."
                   className={`w-full px-3 py-2 bg-gray-800 border ${
-                    fieldErrors.recipient
-                      ? 'border-red-500'
-                      : 'border-gray-700'
+                    fieldErrors.recipient ? 'border-red-500' : 'border-gray-700'
                   } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
                 />
                 {fieldErrors.recipient && (
@@ -635,9 +650,15 @@ export function Transfer({
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Amount
                   <span className="float-right text-gray-400">
-                    Balance: {formatUnits(BigInt(resourceLockBalance || '0'), decimals)}{' '}
+                    Balance:{' '}
+                    {formatUnits(BigInt(resourceLockBalance || '0'), decimals)}{' '}
                     {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}{' '}
-                    (Available: {formatUnits(BigInt(balanceAvailableToAllocate || '0'), decimals)})
+                    (Available:{' '}
+                    {formatUnits(
+                      BigInt(balanceAvailableToAllocate || '0'),
+                      decimals
+                    )}
+                    )
                   </span>
                 </label>
                 <input
