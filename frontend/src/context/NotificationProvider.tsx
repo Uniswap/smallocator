@@ -33,14 +33,43 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const timestamp = Date.now();
     const id = `${timestamp}-${Math.random().toString(36).slice(2, 7)}`;
 
-    // If this is a transaction update, remove previous notifications for the same transaction
-    if (notification.txHash) {
-      setNotifications((prev) =>
-        prev.filter((n) => n.txHash !== notification.txHash)
-      );
-    }
+    setNotifications((prev) => {
+      // Remove previous notifications for the same transaction
+      const filtered = prev.filter((n) => {
+        // If this is a staged notification
+        if (notification.stage) {
+          // If we have a txHash, check if it's a temp ID (starts with 'pending-')
+          const currentTxHash = notification.txHash || '';
+          const prevTxHash = n.txHash || '';
 
-    setNotifications((prev) => [...prev, { ...notification, id, timestamp }]);
+          // Consider notifications part of the same transaction if:
+          // 1. They have the same txHash, or
+          // 2. One has a temp ID and the other has a real hash
+          const isRelatedTx =
+            currentTxHash === prevTxHash ||
+            (currentTxHash.startsWith('pending-') &&
+              !prevTxHash.startsWith('pending-')) ||
+            (!currentTxHash.startsWith('pending-') &&
+              prevTxHash.startsWith('pending-'));
+
+          // Remove all previous stages of the same transaction
+          if (isRelatedTx) {
+            return false;
+          }
+
+          // Remove other staged notifications
+          if (n.stage) {
+            return false;
+          }
+        }
+
+        // For non-staged notifications, keep if no txHash match
+        return !notification.txHash || n.txHash !== notification.txHash;
+      });
+
+      // Add the new notification
+      return [...filtered, { ...notification, id, timestamp }];
+    });
   };
 
   // Remove notifications after 5 seconds if autoHide is true (default)
@@ -129,12 +158,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                       <p className="mt-1 text-sm text-gray-400">
                         {notification.message}
                       </p>
-                      {notification.txHash && (
-                        <p className="mt-1 text-sm text-gray-500">
-                          Transaction: {notification.txHash.slice(0, 6)}...
-                          {notification.txHash.slice(-4)}
-                        </p>
-                      )}
+                      {notification.txHash &&
+                        notification.txHash.startsWith('0x') && (
+                          <p className="mt-1 text-sm text-gray-500">
+                            Transaction: {notification.txHash.slice(0, 6)}...
+                            {notification.txHash.slice(-4)}
+                          </p>
+                        )}
                     </div>
                     <div className="ml-4 flex flex-shrink-0">
                       <button

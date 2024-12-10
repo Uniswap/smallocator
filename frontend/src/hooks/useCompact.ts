@@ -123,11 +123,15 @@ export function useCompact() {
     if (!contractAddress)
       throw new Error('Contract address not found for current network');
 
+    // Generate a temporary transaction ID for linking notifications
+    const tempTxId = `pending-${Date.now()}`;
+
     showNotification({
       type: 'info',
       title: 'Initiating Deposit',
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
+      txHash: tempTxId,
       autoHide: false,
     });
 
@@ -172,7 +176,18 @@ export function useCompact() {
 
       return newHash;
     } catch (error) {
-      // Error handling is in the writeContract config
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
+        showNotification({
+          type: 'error',
+          title: 'Transaction Rejected',
+          message: 'You rejected the transaction',
+          txHash: tempTxId,
+          autoHide: true,
+        });
+      }
       throw error;
     }
   };
@@ -180,11 +195,14 @@ export function useCompact() {
   const enableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
     if (!publicClient) throw new Error('Public client not available');
 
+    const tempTxId = `pending-${Date.now()}`;
+
     showNotification({
       type: 'info',
       title: 'Initiating Forced Withdrawal',
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
+      txHash: tempTxId,
       autoHide: false,
     });
 
@@ -224,27 +242,33 @@ export function useCompact() {
 
       return newHash;
     } catch (error) {
-      // Only show error notification if it's not a user rejection
-      if (error instanceof Error && !error.message.includes('User rejected')) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
         showNotification({
           type: 'error',
-          title: 'Transaction Failed',
-          message: error.message,
+          title: 'Transaction Rejected',
+          message: 'You rejected the transaction',
+          txHash: tempTxId,
           autoHide: true,
         });
       }
-      throw error; // Re-throw to be handled by the form
+      throw error;
     }
   };
 
   const disableForcedWithdrawal = async ({ args }: { args: [bigint] }) => {
     if (!publicClient) throw new Error('Public client not available');
 
+    const tempTxId = `pending-${Date.now()}`;
+
     showNotification({
       type: 'info',
       title: 'Initiating Reactivation',
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
+      txHash: tempTxId,
       autoHide: false,
     });
 
@@ -284,16 +308,19 @@ export function useCompact() {
 
       return newHash;
     } catch (error) {
-      // Only show error notification if it's not a user rejection
-      if (error instanceof Error && !error.message.includes('User rejected')) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
         showNotification({
           type: 'error',
-          title: 'Transaction Failed',
-          message: error.message,
+          title: 'Transaction Rejected',
+          message: 'You rejected the transaction',
+          txHash: tempTxId,
           autoHide: true,
         });
       }
-      throw error; // Re-throw to be handled by the form
+      throw error;
     }
   };
 
@@ -313,11 +340,14 @@ export function useCompact() {
       throw new Error('Chain configuration not found');
     }
 
+    const tempTxId = `pending-${Date.now()}`;
+
     showNotification({
       type: 'info',
       title: 'Initiating Forced Withdrawal',
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
+      txHash: tempTxId,
       autoHide: false,
     });
 
@@ -362,15 +392,18 @@ export function useCompact() {
 
       return newHash;
     } catch (error) {
-      console.error('Forced withdrawal error:', error);
-      showNotification({
-        type: 'error',
-        title: 'Error',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'Failed to execute forced withdrawal',
-      });
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
+        showNotification({
+          type: 'error',
+          title: 'Transaction Rejected',
+          message: 'You rejected the transaction',
+          txHash: tempTxId,
+          autoHide: true,
+        });
+      }
       throw error;
     }
   };
