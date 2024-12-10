@@ -32,6 +32,7 @@ interface FormData {
   amount: string;
   allocatorSignature?: string;
   nonce?: string;
+  hash?: string;
 }
 
 interface WalletError extends Error {
@@ -92,7 +93,7 @@ export function Transfer({
 
   // Validate amount
   const validateAmount = useCallback(() => {
-    if (!formData.amount) return null;
+    if (!formData.amount || hasAllocation) return null;
 
     try {
       // Check if amount is zero or negative
@@ -140,15 +141,16 @@ export function Transfer({
     decimals,
     resourceLockBalance,
     balanceAvailableToAllocate,
+    hasAllocation,
   ]);
 
   const validateRecipient = useCallback(() => {
-    if (!formData.recipient) return null;
+    if (!formData.recipient || hasAllocation) return null;
     if (!isAddress(formData.recipient)) {
       return { type: 'error', message: 'Invalid address format.' };
     }
     return null;
-  }, [formData.recipient]);
+  }, [formData.recipient, hasAllocation]);
 
   // Constants for time limits
   const TWO_HOURS_SECONDS = 7200; // 2 hours in seconds
@@ -156,7 +158,7 @@ export function Transfer({
   // Validate expiry
   const validateExpiry = useCallback(
     (value: string) => {
-      if (!value) return { type: 'error', message: 'Expiry is required.' };
+      if (!value || hasAllocation) return null;
 
       const expiryTime = parseInt(value);
       const now = Math.floor(Date.now() / 1000);
@@ -200,17 +202,19 @@ export function Transfer({
 
       return null;
     },
-    [resetPeriod]
+    [resetPeriod, hasAllocation]
   );
 
   // Update field errors when recipient changes
   useEffect(() => {
-    const recipientValidation = validateRecipient();
-    setFieldErrors((prev) => ({
-      ...prev,
-      recipient: recipientValidation?.message,
-    }));
-  }, [formData.recipient, validateRecipient]);
+    if (!hasAllocation) {
+      const recipientValidation = validateRecipient();
+      setFieldErrors((prev) => ({
+        ...prev,
+        recipient: recipientValidation?.message,
+      }));
+    }
+  }, [formData.recipient, validateRecipient, hasAllocation]);
 
   // Update error message when nonce consumption status changes
   const nonceError = useMemo(() => {
@@ -231,14 +235,18 @@ export function Transfer({
 
   // Update field errors when expiry changes
   useEffect(() => {
-    const expiryValidation = validateExpiry(formData.expires);
-    setFieldErrors((prev) => ({
-      ...prev,
-      expires: expiryValidation?.message,
-    }));
-  }, [formData.expires, validateExpiry]);
+    if (!hasAllocation) {
+      const expiryValidation = validateExpiry(formData.expires);
+      setFieldErrors((prev) => ({
+        ...prev,
+        expires: expiryValidation?.message,
+      }));
+    }
+  }, [formData.expires, validateExpiry, hasAllocation]);
 
   const isFormValid = useMemo(() => {
+    if (hasAllocation) return true;
+
     // Basic form validation
     if (!formData.expires || !formData.recipient || !formData.amount) {
       return false;
@@ -256,7 +264,7 @@ export function Transfer({
     }
 
     return true;
-  }, [formData, fieldErrors, validateAmount]);
+  }, [formData, fieldErrors, validateAmount, hasAllocation]);
 
   const handleAction = async (
     action: 'transfer' | 'withdraw' | 'force' | 'disable'
@@ -371,6 +379,7 @@ export function Transfer({
         ...prev,
         allocatorSignature: response.signature,
         nonce: response.nonce,
+        hash: response.hash,
       }));
 
       setHasAllocation(true);
@@ -491,6 +500,54 @@ export function Transfer({
     }
   };
 
+  const renderAllocationDetails = () => {
+    if (!hasAllocation) return null;
+
+    const expiryDate = new Date(parseInt(formData.expires) * 1000);
+    const formattedExpiry = expiryDate.toLocaleString();
+
+    return (
+      <div className="space-y-4 mb-6">
+        <div className="bg-gray-800 p-6 rounded-lg space-y-4">
+          <div className="flex items-start">
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">Nonce:</span>
+            <span className="text-gray-200 font-mono text-sm break-all">
+              {formData.nonce}
+            </span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">Expires:</span>
+            <span className="text-gray-200 text-sm">{formattedExpiry}</span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">Amount:</span>
+            <span className="text-gray-200 text-sm">
+              {formData.amount} {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}
+            </span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">Recipient:</span>
+            <span className="text-gray-200 font-mono text-sm break-all">
+              {formData.recipient}
+            </span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">Claim Hash:</span>
+            <span className="text-gray-200 font-mono text-sm break-all">
+              {formData.hash}
+            </span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-gray-400 text-sm w-[100px] shrink-0">Signature:</span>
+            <span className="text-gray-200 font-mono text-sm break-all">
+              {formData.allocatorSignature}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="inline-block">
       <div className="flex gap-2">
@@ -539,7 +596,7 @@ export function Transfer({
 
       {isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-gray-900 p-6 rounded-lg shadow-xl max-w-3xl w-full mx-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-100">
                 {isWithdrawal ? (
@@ -564,123 +621,129 @@ export function Transfer({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Expires
-                </label>
-                <div className="relative flex-1">
-                  <select
-                    value={expiryOption}
-                    onChange={(e) => handleExpiryChange(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors appearance-none pr-10"
-                  >
-                    <option value="1min">1 minute</option>
-                    <option value="5min">5 minutes</option>
-                    <option value="10min">10 minutes</option>
-                    {resetPeriod >= 3600 && TWO_HOURS_SECONDS >= 3600 && (
-                      <option value="1hour">1 hour</option>
+              {renderAllocationDetails()}
+
+              {!hasAllocation && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Expires
+                    </label>
+                    <div className="relative flex-1">
+                      <select
+                        value={expiryOption}
+                        onChange={(e) => handleExpiryChange(e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors appearance-none pr-10"
+                      >
+                        <option value="1min">1 minute</option>
+                        <option value="5min">5 minutes</option>
+                        <option value="10min">10 minutes</option>
+                        {resetPeriod >= 3600 && TWO_HOURS_SECONDS >= 3600 && (
+                          <option value="1hour">1 hour</option>
+                        )}
+                        <option value="custom">Custom</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                        <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                        </svg>
+                      </div>
+                    </div>
+                    {customExpiry && (
+                      <input
+                        type="text"
+                        value={formData.expires}
+                        onChange={(e) => {
+                          const validation = validateExpiry(e.target.value);
+                          setFieldErrors((prev) => ({
+                            ...prev,
+                            expires: validation?.message,
+                          }));
+                          setFormData((prev) => ({
+                            ...prev,
+                            expires: e.target.value,
+                          }));
+                        }}
+                        placeholder="Unix timestamp"
+                        className={`w-full px-3 py-2 bg-gray-800 border ${
+                          fieldErrors.expires ? 'border-red-500' : 'border-gray-700'
+                        } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
+                      />
                     )}
-                    <option value="custom">Custom</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                    <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
+                    {fieldErrors.expires && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {fieldErrors.expires}
+                      </p>
+                    )}
                   </div>
-                </div>
-                {customExpiry && (
-                  <input
-                    type="text"
-                    value={formData.expires}
-                    onChange={(e) => {
-                      const validation = validateExpiry(e.target.value);
-                      setFieldErrors((prev) => ({
-                        ...prev,
-                        expires: validation?.message,
-                      }));
-                      setFormData((prev) => ({
-                        ...prev,
-                        expires: e.target.value,
-                      }));
-                    }}
-                    placeholder="Unix timestamp"
-                    className={`w-full px-3 py-2 bg-gray-800 border ${
-                      fieldErrors.expires ? 'border-red-500' : 'border-gray-700'
-                    } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
-                  />
-                )}
-                {fieldErrors.expires && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {fieldErrors.expires}
-                  </p>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Recipient Address
-                </label>
-                <input
-                  type="text"
-                  value={formData.recipient}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      recipient: e.target.value,
-                    }))
-                  }
-                  placeholder="0x..."
-                  className={`w-full px-3 py-2 bg-gray-800 border ${
-                    fieldErrors.recipient ? 'border-red-500' : 'border-gray-700'
-                  } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
-                />
-                {fieldErrors.recipient && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {fieldErrors.recipient}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Amount
-                  <span className="float-right text-gray-400">
-                    Balance:{' '}
-                    {formatUnits(BigInt(resourceLockBalance || '0'), decimals)}{' '}
-                    {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}{' '}
-                    (Available:{' '}
-                    {formatUnits(
-                      BigInt(balanceAvailableToAllocate || '0'),
-                      decimals
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Recipient Address
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.recipient}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          recipient: e.target.value,
+                        }))
+                      }
+                      placeholder="0x..."
+                      className={`w-full px-3 py-2 bg-gray-800 border ${
+                        fieldErrors.recipient ? 'border-red-500' : 'border-gray-700'
+                      } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
+                    />
+                    {fieldErrors.recipient && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {fieldErrors.recipient}
+                      </p>
                     )}
-                    )
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.amount}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, amount: e.target.value }))
-                  }
-                  placeholder="0.0"
-                  className={`w-full px-3 py-2 bg-gray-800 border ${
-                    validateAmount()?.type === 'error'
-                      ? 'border-red-500'
-                      : 'border-gray-700'
-                  } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
-                />
-                {validateAmount() && (
-                  <p
-                    className={`mt-1 text-sm ${
-                      validateAmount()?.type === 'error'
-                        ? 'text-red-500'
-                        : 'text-yellow-500'
-                    }`}
-                  >
-                    {validateAmount()?.message}
-                  </p>
-                )}
-              </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Amount
+                      <span className="float-right text-gray-400">
+                        Balance:{' '}
+                        {formatUnits(BigInt(resourceLockBalance || '0'), decimals)}{' '}
+                        {isWithdrawal ? tokenSymbol : tokenName.resourceLockSymbol}{' '}
+                        (Available:{' '}
+                        {formatUnits(
+                          BigInt(balanceAvailableToAllocate || '0'),
+                          decimals
+                        )}
+                        )
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.amount}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, amount: e.target.value }))
+                      }
+                      placeholder="0.0"
+                      className={`w-full px-3 py-2 bg-gray-800 border ${
+                        validateAmount()?.type === 'error'
+                          ? 'border-red-500'
+                          : 'border-gray-700'
+                      } rounded-lg text-gray-300 focus:outline-none focus:border-[#00ff00] transition-colors`}
+                    />
+                    {validateAmount() && (
+                      <p
+                        className={`mt-1 text-sm ${
+                          validateAmount()?.type === 'error'
+                            ? 'text-red-500'
+                            : 'text-yellow-500'
+                        }`}
+                      >
+                        {validateAmount()?.message}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
 
               {!hasAllocation ? (
                 <button
