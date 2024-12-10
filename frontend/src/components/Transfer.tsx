@@ -43,6 +43,13 @@ interface EthereumProvider {
   request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
 }
 
+// Chain name mapping
+const chainNames: Record<string, string> = {
+  '1': 'Ethereum',
+  '10': 'Optimism',
+  '8453': 'Base',
+};
+
 export function Transfer({
   chainId: targetChainId,
   resourceLockBalance,
@@ -290,10 +297,13 @@ export function Transfer({
     const targetChainIdNumber = parseInt(targetChainId);
     if (targetChainIdNumber !== currentChainId) {
       try {
+        const tempTxId = `network-switch-${Date.now()}`;
         showNotification({
-          type: 'success',
+          type: 'info',
           title: 'Switching Network',
           message: `Please confirm the network switch in your wallet...`,
+          txHash: tempTxId,
+          autoHide: false,
         });
 
         // Request network switch through the wallet
@@ -309,6 +319,14 @@ export function Transfer({
 
         // Wait a bit for the network switch to complete
         await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        showNotification({
+          type: 'success',
+          title: 'Network Switched',
+          message: `Successfully switched to ${chainNames[targetChainId] || `Chain ${targetChainId}`}`,
+          txHash: tempTxId,
+          autoHide: true,
+        });
       } catch (switchError) {
         // This error code indicates that the chain has not been added to MetaMask
         if ((switchError as WalletError).code === 4902) {
@@ -318,6 +336,7 @@ export function Transfer({
             message: 'Please add this network to your wallet first.',
           });
         } else {
+          console.error('Error switching network:', switchError);
           showNotification({
             type: 'error',
             title: 'Network Switch Failed',

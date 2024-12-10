@@ -1,4 +1,3 @@
-{/* Previous imports remain unchanged */}
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useBalances } from '../hooks/useBalances';
@@ -10,7 +9,6 @@ import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 
-{/* Previous interfaces and helper functions remain unchanged */}
 interface BalanceDisplayProps {
   sessionToken: string | null;
 }
@@ -96,8 +94,62 @@ export function BalanceDisplay({
   const [isSessionIdDialogOpen, setIsSessionIdDialogOpen] = useState(false);
 
   const handleDisableWithdrawal = useCallback(
-    async (lockId: string) => {
+    async (chainId: string, lockId: string) => {
       if (!lockId) return;
+
+      const targetChainId = parseInt(chainId);
+      if (targetChainId !== currentChainId) {
+        try {
+          const tempTxId = `network-switch-${Date.now()}`;
+          showNotification({
+            type: 'info',
+            title: 'Switching Network',
+            message: `Please confirm the network switch in your wallet...`,
+            txHash: tempTxId,
+            autoHide: false,
+          });
+
+          const ethereum = window.ethereum as EthereumProvider | undefined;
+          if (!ethereum) {
+            throw new Error('No wallet detected');
+          }
+
+          await ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+          });
+
+          // Wait a bit for the network switch to complete
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          showNotification({
+            type: 'success',
+            title: 'Network Switched',
+            message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
+            txHash: tempTxId,
+            autoHide: true,
+          });
+        } catch (switchError) {
+          if ((switchError as WalletError).code === 4902) {
+            showNotification({
+              type: 'error',
+              title: 'Network Not Found',
+              message: 'Please add this network to your wallet first.',
+            });
+          } else {
+            console.error('Error switching network:', switchError);
+            showNotification({
+              type: 'error',
+              title: 'Network Switch Failed',
+              message:
+                switchError instanceof Error
+                  ? switchError.message
+                  : 'Failed to switch network. Please switch manually.',
+            });
+          }
+          return;
+        }
+      }
 
       try {
         await disableForcedWithdrawal({
@@ -105,17 +157,86 @@ export function BalanceDisplay({
         });
       } catch (error) {
         console.error('Error disabling forced withdrawal:', error);
-        showNotification({
-          type: 'error',
-          title: 'Error',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Failed to disable forced withdrawal',
-        });
+        if (
+          !(
+            error instanceof Error &&
+            error.message.toLowerCase().includes('user rejected')
+          )
+        ) {
+          showNotification({
+            type: 'error',
+            title: 'Error',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Failed to disable forced withdrawal',
+          });
+        }
       }
     },
-    [disableForcedWithdrawal, showNotification]
+    [currentChainId, disableForcedWithdrawal, showNotification]
+  );
+
+  const handleInitiateWithdrawal = useCallback(
+    async (chainId: string, lockId: string, resetPeriod: number) => {
+      const targetChainId = parseInt(chainId);
+      if (targetChainId !== currentChainId) {
+        try {
+          const tempTxId = `network-switch-${Date.now()}`;
+          showNotification({
+            type: 'info',
+            title: 'Switching Network',
+            message: `Please confirm the network switch in your wallet...`,
+            txHash: tempTxId,
+            autoHide: false,
+          });
+
+          const ethereum = window.ethereum as EthereumProvider | undefined;
+          if (!ethereum) {
+            throw new Error('No wallet detected');
+          }
+
+          await ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+          });
+
+          // Wait a bit for the network switch to complete
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          showNotification({
+            type: 'success',
+            title: 'Network Switched',
+            message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
+            txHash: tempTxId,
+            autoHide: true,
+          });
+        } catch (switchError) {
+          if ((switchError as WalletError).code === 4902) {
+            showNotification({
+              type: 'error',
+              title: 'Network Not Found',
+              message: 'Please add this network to your wallet first.',
+            });
+          } else {
+            console.error('Error switching network:', switchError);
+            showNotification({
+              type: 'error',
+              title: 'Network Switch Failed',
+              message:
+                switchError instanceof Error
+                  ? switchError.message
+                  : 'Failed to switch network. Please switch manually.',
+            });
+          }
+          return;
+        }
+      }
+
+      setSelectedLockId(lockId);
+      setIsWithdrawalDialogOpen(true);
+    },
+    [currentChainId, showNotification]
   );
 
   const handleExecuteWithdrawal = useCallback(
@@ -419,13 +540,14 @@ export function BalanceDisplay({
                       sessionToken={sessionToken}
                       resetPeriod={resourceLock.resourceLock.resetPeriod}
                       onForceWithdraw={() => {
-                        setSelectedLockId(balance.lockId);
-                        setIsWithdrawalDialogOpen(true);
+                        handleInitiateWithdrawal(
+                          balance.chainId,
+                          balance.lockId,
+                          resourceLock.resourceLock.resetPeriod
+                        );
                       }}
                       onDisableForceWithdraw={() => {
-                        setSelectedLockId(balance.lockId);
-                        setSelectedLock(null);
-                        handleDisableWithdrawal(balance.lockId);
+                        handleDisableWithdrawal(balance.chainId, balance.lockId);
                       }}
                       balanceAvailableToAllocate={
                         balance.balanceAvailableToAllocate
