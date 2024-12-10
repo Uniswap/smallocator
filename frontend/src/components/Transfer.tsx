@@ -296,8 +296,8 @@ export function Transfer({
     // Check if we need to switch networks
     const targetChainIdNumber = parseInt(targetChainId);
     if (targetChainIdNumber !== currentChainId) {
+      const tempTxId = `network-switch-${Date.now()}`;
       try {
-        const tempTxId = `network-switch-${Date.now()}`;
         showNotification({
           type: 'info',
           title: 'Switching Network',
@@ -320,6 +320,7 @@ export function Transfer({
         // Wait a bit for the network switch to complete
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
+        // Replace the switching notification with switched
         showNotification({
           type: 'success',
           title: 'Network Switched',
@@ -334,6 +335,8 @@ export function Transfer({
             type: 'error',
             title: 'Network Not Found',
             message: 'Please add this network to your wallet first.',
+            txHash: tempTxId,
+            autoHide: true,
           });
         } else {
           console.error('Error switching network:', switchError);
@@ -344,6 +347,8 @@ export function Transfer({
               switchError instanceof Error
                 ? switchError.message
                 : 'Failed to switch network. Please switch manually.',
+            txHash: tempTxId,
+            autoHide: true,
           });
         }
         return;
