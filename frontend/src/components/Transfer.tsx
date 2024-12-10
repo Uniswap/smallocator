@@ -150,6 +150,59 @@ export function Transfer({
     return null;
   }, [formData.recipient]);
 
+  // Constants for time limits
+  const TWO_HOURS_SECONDS = 7200; // 2 hours in seconds
+
+  // Validate expiry
+  const validateExpiry = useCallback(
+    (value: string) => {
+      if (!value) return { type: 'error', message: 'Expiry is required.' };
+
+      const expiryTime = parseInt(value);
+      const now = Math.floor(Date.now() / 1000);
+
+      if (isNaN(expiryTime)) {
+        return { type: 'error', message: 'Invalid expiry time.' };
+      }
+
+      if (expiryTime <= now) {
+        return { type: 'error', message: 'Expiry time must be in the future.' };
+      }
+
+      const duration = expiryTime - now;
+
+      // Check if duration exceeds 2 hours
+      if (duration > TWO_HOURS_SECONDS) {
+        return {
+          type: 'error',
+          message: 'Expiry cannot be more than 2 hours in the future.',
+        };
+      }
+
+      // Check if expiry would exceed when tokens could be withdrawn
+      // Ensure expiry is within reset period
+      const resetPeriodSeconds = resetPeriod
+        ? parseInt(String(resetPeriod))
+        : undefined;
+      const maxExpiryTime = resetPeriodSeconds
+        ? Math.min(now + resetPeriodSeconds, now + TWO_HOURS_SECONDS)
+        : now + TWO_HOURS_SECONDS;
+
+      if (expiryTime > maxExpiryTime) {
+        const timeLimit = resetPeriodSeconds
+          ? Math.min(resetPeriodSeconds, TWO_HOURS_SECONDS)
+          : TWO_HOURS_SECONDS;
+        return {
+          type: 'error',
+          message: `Expiry cannot exceed ${Math.floor(timeLimit / 60)} minutes from now.`,
+        };
+      }
+
+      return null;
+    },
+    [resetPeriod]
+  );
+
   // Update field errors when recipient changes
   useEffect(() => {
     const recipientValidation = validateRecipient();
@@ -176,56 +229,6 @@ export function Transfer({
     }));
   }, [nonceError]);
 
-  // Constants for time limits
-  const TWO_HOURS_SECONDS = 7200; // 2 hours in seconds
-
-  // Validate expiry
-  const validateExpiry = (value: string) => {
-    if (!value) return { type: 'error', message: 'Expiry is required.' };
-
-    const expiryTime = parseInt(value);
-    const now = Math.floor(Date.now() / 1000);
-
-    if (isNaN(expiryTime)) {
-      return { type: 'error', message: 'Invalid expiry time.' };
-    }
-
-    if (expiryTime <= now) {
-      return { type: 'error', message: 'Expiry time must be in the future.' };
-    }
-
-    const duration = expiryTime - now;
-
-    // Check if duration exceeds 2 hours
-    if (duration > TWO_HOURS_SECONDS) {
-      return {
-        type: 'error',
-        message: 'Expiry cannot be more than 2 hours in the future.',
-      };
-    }
-
-    // Check if expiry would exceed when tokens could be withdrawn
-    // Ensure expiry is within reset period
-    const resetPeriodSeconds = resetPeriod
-      ? parseInt(String(resetPeriod))
-      : undefined;
-    const maxExpiryTime = resetPeriodSeconds
-      ? Math.min(now + resetPeriodSeconds, now + TWO_HOURS_SECONDS)
-      : now + TWO_HOURS_SECONDS;
-
-    if (expiryTime > maxExpiryTime) {
-      const timeLimit = resetPeriodSeconds
-        ? Math.min(resetPeriodSeconds, TWO_HOURS_SECONDS)
-        : TWO_HOURS_SECONDS;
-      return {
-        type: 'error',
-        message: `Expiry cannot exceed ${Math.floor(timeLimit / 60)} minutes from now.`,
-      };
-    }
-
-    return null;
-  };
-
   // Update field errors when expiry changes
   useEffect(() => {
     const expiryValidation = validateExpiry(formData.expires);
@@ -233,7 +236,7 @@ export function Transfer({
       ...prev,
       expires: expiryValidation?.message,
     }));
-  }, [formData.expires]);
+  }, [formData.expires, validateExpiry]);
 
   const isFormValid = useMemo(() => {
     // Basic form validation

@@ -344,7 +344,7 @@ export function useCompact() {
 
     showNotification({
       type: 'info',
-      title: 'Initiating Forced Withdrawal',
+      title: `nitiating Forced Withdrawal of ${displayAmount} ${symbol}`,
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       txHash: tempTxId,

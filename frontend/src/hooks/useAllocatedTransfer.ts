@@ -1,7 +1,6 @@
 import {
   useWriteContract,
   useChainId,
-  useAccount,
   usePublicClient,
   useWaitForTransactionReceipt,
 } from 'wagmi';
@@ -36,7 +35,6 @@ const chains: Record<number, Chain> = {
 
 export function useAllocatedTransfer() {
   const chainId = useChainId();
-  const { address } = useAccount();
   const publicClient = usePublicClient();
   const [hash, setHash] = useState<`0x${string}` | undefined>();
   const { writeContractAsync } = useWriteContract({

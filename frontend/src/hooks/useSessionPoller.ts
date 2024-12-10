@@ -80,7 +80,7 @@ export function useSessionPoller(
 
         // Session is valid, set it
         onSessionUpdate(sessionId);
-      } catch (error) {
+      } catch {
         // For network errors or server issues, just set session to null but keep localStorage
         onSessionUpdate(null);
       }
@@ -134,7 +134,7 @@ export function useSessionPoller(
           onSessionUpdate(null);
           return;
         }
-      } catch (error) {
+      } catch {
         // For network errors or server issues, just set session to null but keep localStorage
         onSessionUpdate(null);
       }

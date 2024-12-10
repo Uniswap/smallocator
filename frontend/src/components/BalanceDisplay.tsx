@@ -127,7 +127,7 @@ export function BalanceDisplay({
         title: 'Copied',
         message: 'Session ID copied to clipboard',
       });
-    } catch (error) {
+    } catch {
       showNotification({
         type: 'error',
         title: 'Error',
