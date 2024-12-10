@@ -1,5 +1,6 @@
+{/* Previous imports remain unchanged */}
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
 import { useBalances } from '../hooks/useBalances';
 import { useResourceLocks } from '../hooks/useResourceLocks';
 import { formatUnits } from 'viem';
@@ -9,11 +10,11 @@ import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 
+{/* Previous interfaces and helper functions remain unchanged */}
 interface BalanceDisplayProps {
   sessionToken: string | null;
 }
 
-// Interface for the selected lock data needed by ForcedWithdrawalDialog
 interface SelectedLockData {
   chainId: string;
   lockId: string;
@@ -23,7 +24,14 @@ interface SelectedLockData {
   symbol: string;
 }
 
-// Helper function to format time remaining
+interface WalletError extends Error {
+  code: number;
+}
+
+interface EthereumProvider {
+  request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
+}
+
 function formatTimeRemaining(
   expiryTimestamp: number,
   currentTime: number
@@ -43,7 +51,6 @@ function formatTimeRemaining(
   return `${seconds}s`;
 }
 
-// Utility function to format reset period
 const formatResetPeriod = (seconds: number): string => {
   if (seconds < 60) return `${seconds} seconds`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`;
@@ -51,25 +58,19 @@ const formatResetPeriod = (seconds: number): string => {
   return `${Math.floor(seconds / 86400)} days`;
 };
 
-// Chain name mapping
 const chainNames: Record<string, string> = {
   '1': 'Ethereum',
   '10': 'Optimism',
   '8453': 'Base',
 };
 
-// Helper function to get chain name
 function getChainName(chainId: string): string {
   return chainNames[chainId] || `Chain ${chainId}`;
 }
 
-// Helper function to format lock ID as 32-byte hex string
 function formatLockId(lockId: string): string {
-  // Convert to BigInt to handle large numbers
   const id = BigInt(lockId);
-  // Convert to hex and remove '0x' prefix
   const hex = id.toString(16);
-  // Pad with leading zeros to make it 64 characters (32 bytes)
   return '0x' + hex.padStart(64, '0');
 }
 
@@ -77,6 +78,7 @@ export function BalanceDisplay({
   sessionToken,
 }: BalanceDisplayProps): JSX.Element | null {
   const { address, isConnected } = useAccount();
+  const currentChainId = useChainId();
   const { balances, error, isLoading } = useBalances();
   const { data: resourceLocksData, isLoading: resourceLocksLoading } =
     useResourceLocks();
@@ -114,6 +116,83 @@ export function BalanceDisplay({
       }
     },
     [disableForcedWithdrawal, showNotification]
+  );
+
+  const handleExecuteWithdrawal = useCallback(
+    async (
+      chainId: string,
+      lockId: string,
+      balance: string,
+      tokenName: string,
+      decimals: number,
+      symbol: string
+    ) => {
+      const targetChainId = parseInt(chainId);
+      if (targetChainId !== currentChainId) {
+        try {
+          const tempTxId = `network-switch-${Date.now()}`;
+          showNotification({
+            type: 'info',
+            title: 'Switching Network',
+            message: `Please confirm the network switch in your wallet...`,
+            txHash: tempTxId,
+            autoHide: false,
+          });
+
+          const ethereum = window.ethereum as EthereumProvider | undefined;
+          if (!ethereum) {
+            throw new Error('No wallet detected');
+          }
+
+          await ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+          });
+
+          // Wait a bit for the network switch to complete
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          showNotification({
+            type: 'success',
+            title: 'Network Switched',
+            message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
+            txHash: tempTxId,
+            autoHide: true,
+          });
+        } catch (switchError) {
+          if ((switchError as WalletError).code === 4902) {
+            showNotification({
+              type: 'error',
+              title: 'Network Not Found',
+              message: 'Please add this network to your wallet first.',
+            });
+          } else {
+            console.error('Error switching network:', switchError);
+            showNotification({
+              type: 'error',
+              title: 'Network Switch Failed',
+              message:
+                switchError instanceof Error
+                  ? switchError.message
+                  : 'Failed to switch network. Please switch manually.',
+            });
+          }
+          return;
+        }
+      }
+
+      setSelectedLockId(lockId);
+      setSelectedLock({
+        chainId,
+        lockId,
+        balance,
+        tokenName,
+        decimals,
+        symbol,
+      });
+      setIsExecuteDialogOpen(true);
+    },
+    [currentChainId, showNotification]
   );
 
   const handleCopySessionId = useCallback(async () => {
@@ -354,18 +433,16 @@ export function BalanceDisplay({
                     />
                     {canExecuteWithdrawal && (
                       <button
-                        onClick={() => {
-                          setSelectedLockId(balance.lockId);
-                          setSelectedLock({
-                            chainId: balance.chainId,
-                            lockId: balance.lockId,
-                            balance: resourceLock?.balance || '0',
-                            tokenName: balance.token?.name || 'Token',
-                            decimals: balance.token?.decimals || 18,
-                            symbol: balance.token?.symbol || '',
-                          });
-                          setIsExecuteDialogOpen(true);
-                        }}
+                        onClick={() =>
+                          handleExecuteWithdrawal(
+                            balance.chainId,
+                            balance.lockId,
+                            resourceLock?.balance || '0',
+                            balance.token?.name || 'Token',
+                            balance.token?.decimals || 18,
+                            balance.token?.symbol || ''
+                          )
+                        }
                         className="mt-2 py-2 px-4 bg-[#F97316] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
                       >
                         Execute Forced Withdrawal

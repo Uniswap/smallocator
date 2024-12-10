@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { formatUnits, parseUnits, isAddress } from 'viem';
-import { useAccount, useChainId } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 
@@ -22,14 +22,6 @@ interface ForcedWithdrawalDialogProps {
   chainId: number;
 }
 
-interface WalletError extends Error {
-  code: number;
-}
-
-interface EthereumProvider {
-  request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
-}
-
 export function ForcedWithdrawalDialog({
   isOpen,
   onClose,
@@ -41,63 +33,12 @@ export function ForcedWithdrawalDialog({
   chainId: targetChainId,
 }: ForcedWithdrawalDialogProps) {
   const { address } = useAccount();
-  const currentChainId = useChainId();
   const [amountType, setAmountType] = useState<'max' | 'custom'>('max');
   const [recipientType, setRecipientType] = useState<'self' | 'custom'>('self');
   const [customAmount, setCustomAmount] = useState('');
   const [customRecipient, setCustomRecipient] = useState('');
   const { forcedWithdrawal, isConfirming, isConfirmed } = useCompact();
   const { showNotification } = useNotification();
-
-  // Switch network when dialog opens
-  useEffect(() => {
-    if (isOpen && targetChainId !== currentChainId) {
-      const switchToNetwork = async () => {
-        try {
-          showNotification({
-            type: 'info',
-            title: 'Switching Network',
-            message: `Please confirm the network switch in your wallet...`,
-          });
-
-          const ethereum = window.ethereum as EthereumProvider | undefined;
-          if (!ethereum) {
-            throw new Error('No wallet detected');
-          }
-
-          await ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-          });
-
-          // Wait a bit for the network switch to complete
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        } catch (switchError) {
-          // This error code indicates that the chain has not been added to MetaMask
-          if ((switchError as WalletError).code === 4902) {
-            showNotification({
-              type: 'error',
-              title: 'Network Not Found',
-              message: 'Please add this network to your wallet first.',
-            });
-          } else {
-            console.error('Error switching network:', switchError);
-            showNotification({
-              type: 'error',
-              title: 'Network Switch Failed',
-              message:
-                switchError instanceof Error
-                  ? switchError.message
-                  : 'Failed to switch network. Please switch manually.',
-            });
-          }
-          onClose();
-        }
-      };
-
-      switchToNetwork();
-    }
-  }, [isOpen, targetChainId, currentChainId, showNotification, onClose]);
 
   const formattedMaxAmount = formatUnits(BigInt(maxAmount), decimals);
 
