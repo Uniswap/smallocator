@@ -209,10 +209,7 @@ export function BalanceDisplay({
                       sessionToken={sessionToken}
                       resetPeriod={resourceLock.resourceLock.resetPeriod}
                       onForceWithdraw={() => {
-                        handleInitiateWithdrawal(
-                          balance.chainId,
-                          balance.lockId
-                        );
+                        handleInitiateWithdrawal(balance.lockId);
                       }}
                       onDisableForceWithdraw={() => {
                         handleDisableWithdrawal(

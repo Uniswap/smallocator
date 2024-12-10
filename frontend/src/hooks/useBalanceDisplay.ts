@@ -149,70 +149,11 @@ export function useBalanceDisplay() {
     [currentChainId, disableForcedWithdrawal, showNotification]
   );
 
-  const handleInitiateWithdrawal = useCallback(
-    async (chainId: string, lockId: string) => {
-      const targetChainId = parseInt(chainId);
-      if (targetChainId !== currentChainId) {
-        const tempTxId = `network-switch-${Date.now()}`;
-        try {
-          showNotification({
-            type: 'info',
-            title: 'Switching Network',
-            message: `Please confirm the network switch in your wallet...`,
-            txHash: tempTxId,
-            autoHide: false,
-          });
-
-          const ethereum = window.ethereum as EthereumProvider | undefined;
-          if (!ethereum) {
-            throw new Error('No wallet detected');
-          }
-
-          await ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          showNotification({
-            type: 'success',
-            title: 'Network Switched',
-            message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
-            txHash: tempTxId,
-            autoHide: true,
-          });
-        } catch (switchError) {
-          if ((switchError as WalletError).code === 4902) {
-            showNotification({
-              type: 'error',
-              title: 'Network Not Found',
-              message: 'Please add this network to your wallet first.',
-              txHash: tempTxId,
-              autoHide: true,
-            });
-          } else {
-            console.error('Error switching network:', switchError);
-            showNotification({
-              type: 'error',
-              title: 'Network Switch Failed',
-              message:
-                switchError instanceof Error
-                  ? switchError.message
-                  : 'Failed to switch network. Please switch manually.',
-              txHash: tempTxId,
-              autoHide: true,
-            });
-          }
-          return;
-        }
-      }
-
-      setSelectedLockId(lockId);
-      setIsWithdrawalDialogOpen(true);
-    },
-    [currentChainId, showNotification]
-  );
+  const handleInitiateWithdrawal = useCallback((lockId: string) => {
+    // Remove manual network switching since wagmi will handle it
+    setSelectedLockId(lockId);
+    setIsWithdrawalDialogOpen(true);
+  }, []);
 
   const handleExecuteWithdrawal = useCallback(
     async (
