@@ -26,6 +26,30 @@ describe('Health Routes', () => {
       expect(body).toHaveProperty('allocatorAddress');
       expect(body).toHaveProperty('signingAddress');
       expect(body).toHaveProperty('timestamp');
+      expect(body).toHaveProperty('chainConfig');
+
+      // Verify chain config structure and values
+      expect(body.chainConfig).toHaveProperty(
+        'defaultFinalizationThresholdSeconds',
+        3
+      );
+      expect(body.chainConfig).toHaveProperty('supportedChains');
+      expect(Array.isArray(body.chainConfig.supportedChains)).toBe(true);
+
+      // Verify specific chain configurations
+      const chainConfigs = new Map(
+        body.chainConfig.supportedChains.map(
+          (chain: {
+            chainId: string;
+            finalizationThresholdSeconds: number;
+          }) => [chain.chainId, chain.finalizationThresholdSeconds]
+        )
+      );
+
+      expect(chainConfigs.get('1')).toBe(25); // Ethereum Mainnet
+      expect(chainConfigs.get('10')).toBe(10); // Optimism
+      expect(chainConfigs.get('8453')).toBe(2); // Base
+      expect(chainConfigs.size).toBe(3); // Ensure no unexpected chains
 
       // Verify timestamp is a valid ISO 8601 date
       expect(new Date(body.timestamp).toISOString()).toBe(body.timestamp);
