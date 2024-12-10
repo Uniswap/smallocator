@@ -5,6 +5,9 @@ import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 import { useERC20 } from '../hooks/useERC20';
 import { useAllocatorAPI } from '../hooks/useAllocatorAPI';
+import { useChainConfig } from '../hooks/use-chain-config';
+import { formatResetPeriod } from '../utils/formatting';
+import { ChainConfig } from '../types/chain';
 
 // Chain name mapping
 const chainNames: Record<string, string> = {
@@ -18,6 +21,7 @@ export function DepositForm() {
   const { address, isConnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
   const chainId = useChainId();
+  const { chainConfig } = useChainConfig();
   const [amount, setAmount] = useState('');
   const [tokenType, setTokenType] = useState<TokenType>('native');
   const [tokenAddress, setTokenAddress] = useState('');
@@ -240,6 +244,20 @@ export function DepositForm() {
         <p className="mt-1 text-sm text-gray-400">
           Deposit Ether or ERC20 tokens into a reusable resource lock.
         </p>
+        {chainConfig && (
+          <p className="mt-1 text-sm text-gray-400">
+            Deposits on {chainNames[chainId.toString()] || `Chain ${chainId}`}{' '}
+            will be considered finalized and available to allocate{' '}
+            {formatResetPeriod(
+              chainConfig.supportedChains.find(
+                (chain: ChainConfig['supportedChains'][0]) =>
+                  chain.chainId === chainId.toString()
+              )?.finalizationThresholdSeconds ??
+                chainConfig.defaultFinalizationThresholdSeconds
+            )}{' '}
+            after a successful deposit transaction.
+          </p>
+        )}
       </div>
 
       <div className="space-y-6">

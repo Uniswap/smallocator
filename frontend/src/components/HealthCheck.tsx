@@ -1,17 +1,24 @@
 import React, { useEffect, useState } from 'react';
+import { ChainConfigProvider } from '../contexts/ChainConfigContext';
+import { ChainConfig } from '../types/chain';
 
 interface HealthStatus {
   status: string;
   allocatorAddress: string;
   signingAddress: string;
   timestamp: string;
+  chainConfig: ChainConfig;
 }
 
 interface HealthCheckProps {
   onHealthStatusChange?: (isHealthy: boolean) => void;
+  onChainConfigUpdate?: (chainConfig: ChainConfig) => void;
 }
 
-const HealthCheck: React.FC<HealthCheckProps> = ({ onHealthStatusChange }) => {
+const HealthCheck: React.FC<HealthCheckProps> = ({
+  onHealthStatusChange,
+  onChainConfigUpdate,
+}) => {
   const [healthData, setHealthData] = useState<HealthStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,6 +31,7 @@ const HealthCheck: React.FC<HealthCheckProps> = ({ onHealthStatusChange }) => {
         setHealthData(data);
         setError(null);
         onHealthStatusChange?.(data.status === 'healthy');
+        onChainConfigUpdate?.(data.chainConfig);
       } catch (error) {
         console.error('Error fetching health status:', error);
         setError('Allocator server unavailable');
@@ -36,7 +44,7 @@ const HealthCheck: React.FC<HealthCheckProps> = ({ onHealthStatusChange }) => {
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
-  }, [onHealthStatusChange]);
+  }, [onHealthStatusChange, onChainConfigUpdate]);
 
   if (error) {
     return (
@@ -50,15 +58,13 @@ const HealthCheck: React.FC<HealthCheckProps> = ({ onHealthStatusChange }) => {
             >
               <path
                 fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                 clipRule="evenodd"
               />
             </svg>
           </div>
           <div className="ml-3">
-            <div className="text-sm text-red-400">
-              <p>{error}</p>
-            </div>
+            <h3 className="text-sm font-medium text-red-800">{error}</h3>
           </div>
         </div>
       </div>
@@ -74,51 +80,55 @@ const HealthCheck: React.FC<HealthCheckProps> = ({ onHealthStatusChange }) => {
   }
 
   return (
-    <div className="space-y-2">
-      {/* Allocator Address and Status */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">Allocator:</span>
-          <span className="text-lg font-mono text-[#00ff00]">
-            {healthData.allocatorAddress}
-          </span>
+    <ChainConfigProvider
+      value={{ chainConfig: healthData?.chainConfig || null }}
+    >
+      <div className="space-y-2">
+        {/* Allocator Address and Status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">Allocator:</span>
+            <span className="text-lg font-mono text-[#00ff00]">
+              {healthData.allocatorAddress}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 w-[180px] justify-end">
+            <span className="text-gray-400 text-sm pr-2">Status:</span>
+            <span
+              className={`px-2 py-0.5 text-xs rounded ${
+                healthData.status === 'healthy'
+                  ? 'bg-[#00ff00]/10 text-[#00ff00]'
+                  : 'bg-red-500/10 text-red-500'
+              }`}
+            >
+              {healthData.status.charAt(0).toUpperCase() +
+                healthData.status.slice(1)}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 w-[180px] justify-end">
-          <span className="text-gray-400 text-sm pr-2">Status:</span>
-          <span
-            className={`px-2 py-0.5 text-xs rounded ${
-              healthData.status === 'healthy'
-                ? 'bg-[#00ff00]/10 text-[#00ff00]'
-                : 'bg-red-500/10 text-red-500'
-            }`}
-          >
-            {healthData.status.charAt(0).toUpperCase() +
-              healthData.status.slice(1)}
-          </span>
-        </div>
-      </div>
 
-      {/* Signer and Last Checked */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-gray-400">Signer:</span>
-          <span className="font-mono text-[#00ff00]">
-            {healthData.signingAddress}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 w-[180px] justify-end whitespace-nowrap">
-          <span className="text-gray-400">Last Checked:</span>
-          <span className="font-mono text-[#00ff00]">
-            {new Date(healthData.timestamp).toLocaleTimeString(undefined, {
-              hour12: false,
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-            })}
-          </span>
+        {/* Signer and Last Checked */}
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400">Signer:</span>
+            <span className="font-mono text-[#00ff00]">
+              {healthData.signingAddress}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 w-[180px] justify-end whitespace-nowrap">
+            <span className="text-gray-400">Last Checked:</span>
+            <span className="font-mono text-[#00ff00]">
+              {new Date(healthData.timestamp).toLocaleTimeString(undefined, {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+    </ChainConfigProvider>
   );
 };
 

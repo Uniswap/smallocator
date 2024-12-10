@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useBalances } from '../hooks/useBalances';
 import { useResourceLocks } from '../hooks/useResourceLocks';
-import { useFinalizationThreshold } from '../hooks/useFinalizationThreshold';
 import { formatUnits } from 'viem';
 import { Transfer } from './Transfer';
 import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
@@ -10,6 +9,7 @@ import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 import { FinalizationThreshold } from './FinalizationThreshold';
+import { formatTimeRemaining, formatResetPeriod } from '../utils/formatting';
 
 interface BalanceDisplayProps {
   sessionToken: string | null;
@@ -31,32 +31,6 @@ interface WalletError extends Error {
 interface EthereumProvider {
   request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
 }
-
-function formatTimeRemaining(
-  expiryTimestamp: number,
-  currentTime: number
-): string {
-  const diff = expiryTimestamp - currentTime;
-
-  if (diff <= 0) return 'Ready';
-
-  const days = Math.floor(diff / (24 * 60 * 60));
-  const hours = Math.floor((diff % (24 * 60 * 60)) / (60 * 60));
-  const minutes = Math.floor((diff % (60 * 60)) / 60);
-  const seconds = diff % 60;
-
-  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-}
-
-export const formatResetPeriod = (seconds: number): string => {
-  if (seconds < 60) return `${seconds} seconds`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours`;
-  return `${Math.floor(seconds / 86400)} days`;
-};
 
 const chainNames: Record<string, string> = {
   '1': 'Ethereum',
@@ -446,7 +420,8 @@ export function BalanceDisplay({
                 {balance.resourceLock?.resetPeriod &&
                   balance.resourceLock.resetPeriod > 0 && (
                     <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                      Reset Period: {formatResetPeriod(balance.resourceLock.resetPeriod)}
+                      Reset Period:{' '}
+                      {formatResetPeriod(balance.resourceLock.resetPeriod)}
                     </span>
                   )}
                 <FinalizationThreshold chainId={parseInt(balance.chainId)} />
