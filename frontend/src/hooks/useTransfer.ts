@@ -69,16 +69,10 @@ export function useTransfer(
     amount: '',
   });
 
-  const {
-    allocatedTransfer,
-    isConfirming: isTransferLoading,
-    isConfirmed: isTransferConfirmed,
-  } = useAllocatedTransfer();
-  const {
-    allocatedWithdrawal,
-    isConfirming: isWithdrawalConfirming,
-    isConfirmed: isWithdrawalConfirmed,
-  } = useAllocatedWithdrawal();
+  const { allocatedTransfer, isConfirming: isTransferLoading } =
+    useAllocatedTransfer();
+  const { allocatedWithdrawal, isConfirming: isWithdrawalConfirming } =
+    useAllocatedWithdrawal();
   const { requestAllocation } = useRequestAllocation();
   const { showNotification } = useNotification();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
