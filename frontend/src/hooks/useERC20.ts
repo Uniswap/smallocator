@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useReadContract, useWriteContract, useAccount } from 'wagmi';
-import { formatUnits, parseUnits, isAddress, type Hash } from 'viem';
-import { ERC20_ABI } from '../constants/contracts';
+import { useReadContract, useWriteContract, useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
+import { formatUnits, isAddress, type Hash } from 'viem';
+import { ERC20_ABI, COMPACT_ADDRESS } from '../constants/contracts';
+import { useNotification } from './useNotification';
+
+// Max uint256 value for infinite approval
+const MAX_UINT256 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 export function useERC20(tokenAddress?: `0x${string}`) {
   const { address } = useAccount();
+  const chainId = useChainId();
+  const { showNotification } = useNotification();
   const [isValid, setIsValid] = useState(false);
   const [decimals, setDecimals] = useState<number>();
   const [symbol, setSymbol] = useState<string>();
@@ -14,8 +20,10 @@ export function useERC20(tokenAddress?: `0x${string}`) {
   const [rawBalance, setRawBalance] = useState<bigint>();
   const [rawAllowance, setRawAllowance] = useState<bigint>();
   const [isLoading, setIsLoading] = useState(false);
+  const [hash, setHash] = useState<Hash>();
 
   const shouldLoad = Boolean(tokenAddress && isAddress(tokenAddress));
+  const compactAddress = COMPACT_ADDRESS as `0x${string}`;
 
   // Read token info
   const { data: decimalsData, isLoading: isLoadingDecimals } = useReadContract({
@@ -60,11 +68,28 @@ export function useERC20(tokenAddress?: `0x${string}`) {
       address: tokenAddress,
       abi: ERC20_ABI,
       functionName: 'allowance',
-      args: [address!, tokenAddress!],
+      args: [address!, compactAddress],
       query: {
         enabled: shouldLoad && Boolean(address),
       },
     });
+
+  // Watch for transaction confirmation
+  useWaitForTransactionReceipt({
+    hash,
+    onSuccess(data) {
+      if (data.status === 'success') {
+        showNotification({
+          type: 'success',
+          title: 'Approval Confirmed',
+          message: `Successfully approved ${symbol || 'token'} for The Compact`,
+          txHash: hash,
+          chainId,
+          autoHide: false,
+        });
+      }
+    },
+  });
 
   // Update loading state
   useEffect(() => {
@@ -121,12 +146,15 @@ export function useERC20(tokenAddress?: `0x${string}`) {
   const approve = async (): Promise<Hash> => {
     if (!tokenAddress || !address) throw new Error('Not ready');
 
-    return writeContractAsync({
+    const newHash = await writeContractAsync({
       address: tokenAddress,
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [tokenAddress, parseUnits('1000000', decimals || 18)],
+      args: [compactAddress, MAX_UINT256 as `0x${string}`],
     });
+
+    setHash(newHash);
+    return newHash;
   };
 
   return {

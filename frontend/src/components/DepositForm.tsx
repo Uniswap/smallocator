@@ -344,7 +344,7 @@ export function DepositForm() {
                   </span>
                   <span>
                     Allowance on The Compact:{' '}
-                    {Number(allowance || '0').toLocaleString(undefined, {
+                    {Number(allowance || '0') > 1e59 ? "Unlimited" : Number(allowance || '0').toLocaleString(undefined, {
                       maximumFractionDigits: 6,
                       minimumFractionDigits: 0,
                     })}{' '}

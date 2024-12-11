@@ -10,7 +10,7 @@ import {
 
 // The Compact is deployed at the same address on all networks
 export const COMPACT_ADDRESS =
-  '0x00000000000018df021ff2467df97ff846e09f48' as const;
+  '0x00000000000018DF021Ff2467dF97ff846E09f48' as const;
 
 // Chain configurations
 export const SUPPORTED_CHAINS = {
