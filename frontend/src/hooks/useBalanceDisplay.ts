@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useBalances } from './useBalances';
 import { useResourceLocks } from './useResourceLocks';
@@ -58,69 +58,76 @@ export function useBalanceDisplay() {
   );
   const [isSessionIdDialogOpen, setIsSessionIdDialogOpen] = useState(false);
 
+  // Memoize the network switching logic
+  const switchNetwork = useCallback(async (targetChainId: number, chainId: string) => {
+    const tempTxId = `network-switch-${Date.now()}`;
+    try {
+      showNotification({
+        type: 'info',
+        title: 'Switching Network',
+        message: `Please confirm the network switch in your wallet...`,
+        txHash: tempTxId,
+        stage: 'initiated',
+        autoHide: false,
+      });
+
+      const ethereum = window.ethereum as EthereumProvider | undefined;
+      if (!ethereum) {
+        throw new Error('No wallet detected');
+      }
+
+      await ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      showNotification({
+        type: 'success',
+        title: 'Network Switched',
+        message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
+        txHash: tempTxId,
+        stage: 'confirmed',
+        autoHide: true,
+      });
+      return true;
+    } catch (switchError) {
+      if ((switchError as WalletError).code === 4902) {
+        showNotification({
+          type: 'error',
+          title: 'Network Not Found',
+          message: 'Please add this network to your wallet first.',
+          txHash: tempTxId,
+          stage: 'confirmed',
+          autoHide: true,
+        });
+      } else {
+        console.error('Error switching network:', switchError);
+        showNotification({
+          type: 'error',
+          title: 'Network Switch Failed',
+          message:
+            switchError instanceof Error
+              ? switchError.message
+              : 'Failed to switch network. Please switch manually.',
+          txHash: tempTxId,
+          stage: 'confirmed',
+          autoHide: true,
+        });
+      }
+      return false;
+    }
+  }, [showNotification]);
+
   const handleDisableWithdrawal = useCallback(
     async (chainId: string, lockId: string) => {
       if (!lockId) return;
 
       const targetChainId = parseInt(chainId);
       if (targetChainId !== currentChainId) {
-        const tempTxId = `network-switch-${Date.now()}`;
-        try {
-          showNotification({
-            type: 'info',
-            title: 'Switching Network',
-            message: `Please confirm the network switch in your wallet...`,
-            txHash: tempTxId,
-            stage: 'initiated',
-            autoHide: false,
-          });
-
-          const ethereum = window.ethereum as EthereumProvider | undefined;
-          if (!ethereum) {
-            throw new Error('No wallet detected');
-          }
-
-          await ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          showNotification({
-            type: 'success',
-            title: 'Network Switched',
-            message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
-            txHash: tempTxId,
-            stage: 'confirmed',
-            autoHide: true,
-          });
-        } catch (switchError) {
-          if ((switchError as WalletError).code === 4902) {
-            showNotification({
-              type: 'error',
-              title: 'Network Not Found',
-              message: 'Please add this network to your wallet first.',
-              txHash: tempTxId,
-              stage: 'confirmed',
-              autoHide: true,
-            });
-          } else {
-            console.error('Error switching network:', switchError);
-            showNotification({
-              type: 'error',
-              title: 'Network Switch Failed',
-              message:
-                switchError instanceof Error
-                  ? switchError.message
-                  : 'Failed to switch network. Please switch manually.',
-              txHash: tempTxId,
-              stage: 'confirmed',
-              autoHide: true,
-            });
-          }
-          return;
-        }
+        const success = await switchNetwork(targetChainId, chainId);
+        if (!success) return;
       }
 
       try {
@@ -146,7 +153,7 @@ export function useBalanceDisplay() {
         }
       }
     },
-    [currentChainId, disableForcedWithdrawal, showNotification]
+    [currentChainId, disableForcedWithdrawal, showNotification, switchNetwork]
   );
 
   const handleInitiateWithdrawal = useCallback((lockId: string) => {
@@ -165,63 +172,8 @@ export function useBalanceDisplay() {
     ) => {
       const targetChainId = parseInt(chainId);
       if (targetChainId !== currentChainId) {
-        const tempTxId = `network-switch-${Date.now()}`;
-        try {
-          showNotification({
-            type: 'info',
-            title: 'Switching Network',
-            message: `Please confirm the network switch in your wallet...`,
-            txHash: tempTxId,
-            stage: 'initiated',
-            autoHide: false,
-          });
-
-          const ethereum = window.ethereum as EthereumProvider | undefined;
-          if (!ethereum) {
-            throw new Error('No wallet detected');
-          }
-
-          await ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          showNotification({
-            type: 'success',
-            title: 'Network Switched',
-            message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
-            txHash: tempTxId,
-            stage: 'confirmed',
-            autoHide: true,
-          });
-        } catch (switchError) {
-          if ((switchError as WalletError).code === 4902) {
-            showNotification({
-              type: 'error',
-              title: 'Network Not Found',
-              message: 'Please add this network to your wallet first.',
-              txHash: tempTxId,
-              stage: 'confirmed',
-              autoHide: true,
-            });
-          } else {
-            console.error('Error switching network:', switchError);
-            showNotification({
-              type: 'error',
-              title: 'Network Switch Failed',
-              message:
-                switchError instanceof Error
-                  ? switchError.message
-                  : 'Failed to switch network. Please switch manually.',
-              txHash: tempTxId,
-              stage: 'confirmed',
-              autoHide: true,
-            });
-          }
-          return;
-        }
+        const success = await switchNetwork(targetChainId, chainId);
+        if (!success) return;
       }
 
       setSelectedLockId(lockId);
@@ -235,7 +187,7 @@ export function useBalanceDisplay() {
       });
       setIsExecuteDialogOpen(true);
     },
-    [currentChainId, showNotification]
+    [currentChainId, switchNetwork]
   );
 
   const handleCopySessionId = useCallback(async () => {
@@ -258,7 +210,8 @@ export function useBalanceDisplay() {
     }
   }, [address, showNotification]);
 
-  return {
+  // Memoize the return value to prevent unnecessary rerenders
+  const returnValue = useMemo(() => ({
     isConnected,
     isLoading,
     resourceLocksLoading,
@@ -278,5 +231,24 @@ export function useBalanceDisplay() {
     handleExecuteWithdrawal,
     handleCopySessionId,
     address,
-  };
+  }), [
+    isConnected,
+    isLoading,
+    resourceLocksLoading,
+    error,
+    balances,
+    resourceLocksData,
+    isWithdrawalDialogOpen,
+    isExecuteDialogOpen,
+    selectedLockId,
+    selectedLock,
+    isSessionIdDialogOpen,
+    handleDisableWithdrawal,
+    handleInitiateWithdrawal,
+    handleExecuteWithdrawal,
+    handleCopySessionId,
+    address,
+  ]);
+
+  return returnValue;
 }

@@ -1,4 +1,4 @@
-import { Fragment, ReactNode, useState, useEffect } from 'react';
+import { Fragment, ReactNode, useState, useEffect, useCallback } from 'react';
 import { Transition } from '@headlessui/react';
 import {
   CheckCircleIcon,
@@ -22,7 +22,7 @@ interface Notification {
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const showNotification = (notification: {
+  const showNotification = useCallback((notification: {
     type: 'success' | 'error' | 'warning' | 'info';
     title: string;
     message: string;
@@ -70,7 +70,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       // Add the new notification
       return [...filtered, { ...notification, id, timestamp }];
     });
-  };
+  }, []); // Memoize showNotification
 
   // Remove notifications after 5 seconds if autoHide is true (default)
   useEffect(() => {

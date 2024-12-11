@@ -1,5 +1,5 @@
 import { formatUnits } from 'viem';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { Transfer } from './Transfer';
 import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
 import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
@@ -13,14 +13,8 @@ import {
 } from '../hooks/useBalanceDisplay';
 import { formatResetPeriod } from '../utils/formatting';
 
-const BalanceItem = memo(function BalanceItem({
-  balance,
-  resourceLock,
-  onInitiateWithdrawal,
-  onDisableWithdrawal,
-  onExecuteWithdrawal,
-  sessionToken,
-}: {
+// Extract BalanceItemProps interface
+interface BalanceItemProps {
   balance: any;
   resourceLock: any;
   onInitiateWithdrawal: (lockId: string) => void;
@@ -34,12 +28,58 @@ const BalanceItem = memo(function BalanceItem({
     symbol: string
   ) => void;
   sessionToken: string | null;
-}) {
+}
+
+const BalanceItem = memo(function BalanceItem({
+  balance,
+  resourceLock,
+  onInitiateWithdrawal,
+  onDisableWithdrawal,
+  onExecuteWithdrawal,
+  sessionToken,
+}: BalanceItemProps) {
   const withdrawableAt = parseInt(balance.withdrawableAt || '0');
   const canExecuteWithdrawal = useMemo(() => {
     const currentTime = Math.floor(Date.now() / 1000);
     return parseInt(balance.withdrawalStatus.toString()) !== 0 && withdrawableAt <= currentTime;
   }, [balance.withdrawalStatus, withdrawableAt]);
+
+  // Memoize handlers
+  const handleForceWithdraw = useCallback(() => {
+    onInitiateWithdrawal(balance.lockId);
+  }, [balance.lockId, onInitiateWithdrawal]);
+
+  const handleDisableForceWithdraw = useCallback(() => {
+    onDisableWithdrawal(balance.chainId, balance.lockId);
+  }, [balance.chainId, balance.lockId, onDisableWithdrawal]);
+
+  const handleExecuteWithdrawal = useCallback(() => {
+    onExecuteWithdrawal(
+      balance.chainId,
+      balance.lockId,
+      resourceLock?.balance || '0',
+      balance.token?.name || 'Token',
+      balance.token?.decimals || 18,
+      balance.token?.symbol || ''
+    );
+  }, [
+    balance.chainId,
+    balance.lockId,
+    balance.token?.decimals,
+    balance.token?.name,
+    balance.token?.symbol,
+    onExecuteWithdrawal,
+    resourceLock?.balance,
+  ]);
+
+  // Memoize formatted values
+  const formattedBalance = useMemo(() => {
+    if (!resourceLock) return null;
+    return formatUnits(
+      BigInt(resourceLock.balance),
+      resourceLock.resourceLock.token.decimals
+    );
+  }, [resourceLock]);
 
   return (
     <div className="p-4 bg-gray-800 rounded-lg">
@@ -91,11 +131,7 @@ const BalanceItem = memo(function BalanceItem({
           <div>
             <div className="text-xs text-gray-400">Current Balance</div>
             <div className="mt-1 text-sm text-[#00ff00] font-mono">
-              {resourceLock &&
-                formatUnits(
-                  BigInt(resourceLock.balance),
-                  resourceLock.resourceLock.token.decimals
-                )}
+              {formattedBalance}
               {balance.token?.symbol && (
                 <span className="ml-1 text-gray-400">
                   {balance.token.symbol}
@@ -163,26 +199,13 @@ const BalanceItem = memo(function BalanceItem({
               withdrawalStatus={balance.withdrawalStatus}
               sessionToken={sessionToken}
               resetPeriod={resourceLock.resourceLock.resetPeriod}
-              onForceWithdraw={() => {
-                onInitiateWithdrawal(balance.lockId);
-              }}
-              onDisableForceWithdraw={() => {
-                onDisableWithdrawal(balance.chainId, balance.lockId);
-              }}
+              onForceWithdraw={handleForceWithdraw}
+              onDisableForceWithdraw={handleDisableForceWithdraw}
               balanceAvailableToAllocate={balance.balanceAvailableToAllocate}
             />
             {canExecuteWithdrawal && (
               <button
-                onClick={() =>
-                  onExecuteWithdrawal(
-                    balance.chainId,
-                    balance.lockId,
-                    resourceLock?.balance || '0',
-                    balance.token?.name || 'Token',
-                    balance.token?.decimals || 18,
-                    balance.token?.symbol || ''
-                  )
-                }
+                onClick={handleExecuteWithdrawal}
                 className="mt-2 py-2 px-4 bg-[#F97316] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
               >
                 Execute Forced Withdrawal
@@ -192,6 +215,16 @@ const BalanceItem = memo(function BalanceItem({
         </div>
       )}
     </div>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo
+  return (
+    prevProps.balance.lockId === nextProps.balance.lockId &&
+    prevProps.balance.chainId === nextProps.balance.chainId &&
+    prevProps.balance.withdrawalStatus === nextProps.balance.withdrawalStatus &&
+    prevProps.balance.withdrawableAt === nextProps.balance.withdrawableAt &&
+    prevProps.resourceLock?.balance === nextProps.resourceLock?.balance &&
+    prevProps.sessionToken === nextProps.sessionToken
   );
 });
 
