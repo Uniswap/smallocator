@@ -123,21 +123,23 @@ export function useAllocatedTransfer() {
 
       setHash(newHash);
 
-      // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({
+      // Start watching for confirmation but don't wait for it
+      void publicClient.waitForTransactionReceipt({
         hash: newHash,
+      }).then((receipt) => {
+        if (receipt.status === 'success') {
+          showNotification({
+            type: 'success',
+            title: 'Transfer Confirmed',
+            message: `Successfully transferred ${displayAmount}`,
+            stage: 'confirmed',
+            txHash: newHash,
+            autoHide: false,
+          });
+        }
       });
-      if (receipt.status === 'success') {
-        showNotification({
-          type: 'success',
-          title: 'Transfer Confirmed',
-          message: `Successfully transferred ${displayAmount}`,
-          stage: 'confirmed',
-          txHash: newHash,
-          autoHide: false,
-        });
-      }
 
+      // Return the hash immediately after submission
       return newHash;
     } catch (error) {
       if (

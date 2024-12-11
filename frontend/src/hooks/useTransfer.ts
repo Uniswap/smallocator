@@ -97,7 +97,30 @@ export function useTransfer(
         : undefined,
   });
 
-  // Validate amount
+  // Reset form state
+  const resetForm = useCallback(() => {
+    setFormData({
+      expires: '',
+      recipient: '',
+      amount: '',
+    });
+    setHasAllocation(false);
+    setCustomExpiry(false);
+    setExpiryOption('10min');
+    setFieldErrors({});
+    setIsOpen(false);
+  }, []);
+
+  // Initialize default expiry on mount
+  useEffect(() => {
+    const now = Math.floor(Date.now() / 1000);
+    setFormData((prev: FormData) => ({
+      ...prev,
+      expires: (now + 600).toString(),
+    })); // 10 minutes default
+  }, []);
+
+  // Validation functions
   const validateAmount = useCallback(() => {
     if (!formData.amount || hasAllocation) return null;
 
@@ -158,7 +181,6 @@ export function useTransfer(
     return null;
   }, [formData.recipient, hasAllocation]);
 
-  // Validate expiry
   const validateExpiry = useCallback(
     (value: string) => {
       if (!value || hasAllocation) return null;
@@ -268,32 +290,6 @@ export function useTransfer(
 
     return true;
   }, [formData, fieldErrors, validateAmount, hasAllocation]);
-
-  // Reset form when transaction is confirmed
-  useEffect(() => {
-    if (isTransferConfirmed || isWithdrawalConfirmed) {
-      // Reset all form state
-      setFormData({
-        expires: '',
-        recipient: '',
-        amount: '',
-      });
-      setHasAllocation(false);
-      setCustomExpiry(false);
-      setExpiryOption('10min');
-      setFieldErrors({});
-      setIsOpen(false);
-    }
-  }, [isTransferConfirmed, isWithdrawalConfirmed]);
-
-  // Initialize default expiry on mount
-  useEffect(() => {
-    const now = Math.floor(Date.now() / 1000);
-    setFormData((prev: FormData) => ({
-      ...prev,
-      expires: (now + 600).toString(),
-    })); // 10 minutes default
-  }, []);
 
   const handleAction = async (
     action: 'transfer' | 'withdraw' | 'force' | 'disable'
@@ -479,9 +475,11 @@ export function useTransfer(
 
         // Submit transfer or withdrawal
         if (isWithdrawal) {
-          await allocatedWithdrawal(transfer, tokenInfo);
+          const hash = await allocatedWithdrawal(transfer, tokenInfo);
+          if (hash) resetForm(); // Reset form immediately after getting transaction hash
         } else {
-          await allocatedTransfer(transfer, tokenInfo);
+          const hash = await allocatedTransfer(transfer, tokenInfo);
+          if (hash) resetForm(); // Reset form immediately after getting transaction hash
         }
       } catch (conversionError) {
         console.error('Error converting values:', conversionError);
