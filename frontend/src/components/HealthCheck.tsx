@@ -11,9 +11,7 @@ interface HealthCheckProps {
   onHealthStatusChange?: (isHealthy: boolean) => void;
 }
 
-const HealthCheck: React.FC<HealthCheckProps> = ({
-  onHealthStatusChange,
-}) => {
+const HealthCheck: React.FC<HealthCheckProps> = ({ onHealthStatusChange }) => {
   const [healthData, setHealthData] = useState<HealthStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 

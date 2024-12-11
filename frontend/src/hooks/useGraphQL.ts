@@ -12,7 +12,7 @@ const responseCache = new Map<string, unknown>();
 // Simple deep equality check
 function isDeepEqual(obj1: unknown, obj2: unknown): boolean {
   if (obj1 === obj2) return true;
-  
+
   if (
     typeof obj1 !== 'object' ||
     typeof obj2 !== 'object' ||
@@ -29,7 +29,7 @@ function isDeepEqual(obj1: unknown, obj2: unknown): boolean {
 
   if (keys1.length !== keys2.length) return false;
 
-  return keys1.every(key => 
+  return keys1.every((key) =>
     isDeepEqual(
       (obj1 as Record<string, unknown>)[key],
       (obj2 as Record<string, unknown>)[key]
@@ -170,7 +170,9 @@ export function useGraphQLQuery<T>(
     // Use cached data and only trigger rerender if data actually changed
     placeholderData: (previousData) => previousData,
     select: (data) => {
-      const previousData = responseCache.get(JSON.stringify({ query, variables })) as T;
+      const previousData = responseCache.get(
+        JSON.stringify({ query, variables })
+      ) as T;
       return isDeepEqual(data, previousData) ? previousData : data;
     },
     enabled,

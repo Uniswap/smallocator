@@ -59,66 +59,69 @@ export function useBalanceDisplay() {
   const [isSessionIdDialogOpen, setIsSessionIdDialogOpen] = useState(false);
 
   // Memoize the network switching logic
-  const switchNetwork = useCallback(async (targetChainId: number, chainId: string) => {
-    const tempTxId = `network-switch-${Date.now()}`;
-    try {
-      showNotification({
-        type: 'info',
-        title: 'Switching Network',
-        message: `Please confirm the network switch in your wallet...`,
-        txHash: tempTxId,
-        stage: 'initiated',
-        autoHide: false,
-      });
-
-      const ethereum = window.ethereum as EthereumProvider | undefined;
-      if (!ethereum) {
-        throw new Error('No wallet detected');
-      }
-
-      await ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      showNotification({
-        type: 'success',
-        title: 'Network Switched',
-        message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
-        txHash: tempTxId,
-        stage: 'confirmed',
-        autoHide: true,
-      });
-      return true;
-    } catch (switchError) {
-      if ((switchError as WalletError).code === 4902) {
+  const switchNetwork = useCallback(
+    async (targetChainId: number, chainId: string) => {
+      const tempTxId = `network-switch-${Date.now()}`;
+      try {
         showNotification({
-          type: 'error',
-          title: 'Network Not Found',
-          message: 'Please add this network to your wallet first.',
+          type: 'info',
+          title: 'Switching Network',
+          message: `Please confirm the network switch in your wallet...`,
+          txHash: tempTxId,
+          stage: 'initiated',
+          autoHide: false,
+        });
+
+        const ethereum = window.ethereum as EthereumProvider | undefined;
+        if (!ethereum) {
+          throw new Error('No wallet detected');
+        }
+
+        await ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        showNotification({
+          type: 'success',
+          title: 'Network Switched',
+          message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
           txHash: tempTxId,
           stage: 'confirmed',
           autoHide: true,
         });
-      } else {
-        console.error('Error switching network:', switchError);
-        showNotification({
-          type: 'error',
-          title: 'Network Switch Failed',
-          message:
-            switchError instanceof Error
-              ? switchError.message
-              : 'Failed to switch network. Please switch manually.',
-          txHash: tempTxId,
-          stage: 'confirmed',
-          autoHide: true,
-        });
+        return true;
+      } catch (switchError) {
+        if ((switchError as WalletError).code === 4902) {
+          showNotification({
+            type: 'error',
+            title: 'Network Not Found',
+            message: 'Please add this network to your wallet first.',
+            txHash: tempTxId,
+            stage: 'confirmed',
+            autoHide: true,
+          });
+        } else {
+          console.error('Error switching network:', switchError);
+          showNotification({
+            type: 'error',
+            title: 'Network Switch Failed',
+            message:
+              switchError instanceof Error
+                ? switchError.message
+                : 'Failed to switch network. Please switch manually.',
+            txHash: tempTxId,
+            stage: 'confirmed',
+            autoHide: true,
+          });
+        }
+        return false;
       }
-      return false;
-    }
-  }, [showNotification]);
+    },
+    [showNotification]
+  );
 
   const handleDisableWithdrawal = useCallback(
     async (chainId: string, lockId: string) => {
@@ -211,44 +214,47 @@ export function useBalanceDisplay() {
   }, [address, showNotification]);
 
   // Memoize the return value to prevent unnecessary rerenders
-  const returnValue = useMemo(() => ({
-    isConnected,
-    isLoading,
-    resourceLocksLoading,
-    error,
-    formattedBalances: balances,
-    resourceLocksData,
-    isWithdrawalDialogOpen,
-    setIsWithdrawalDialogOpen,
-    isExecuteDialogOpen,
-    setIsExecuteDialogOpen,
-    selectedLockId,
-    selectedLock,
-    isSessionIdDialogOpen,
-    setIsSessionIdDialogOpen,
-    handleDisableWithdrawal,
-    handleInitiateWithdrawal,
-    handleExecuteWithdrawal,
-    handleCopySessionId,
-    address,
-  }), [
-    isConnected,
-    isLoading,
-    resourceLocksLoading,
-    error,
-    balances,
-    resourceLocksData,
-    isWithdrawalDialogOpen,
-    isExecuteDialogOpen,
-    selectedLockId,
-    selectedLock,
-    isSessionIdDialogOpen,
-    handleDisableWithdrawal,
-    handleInitiateWithdrawal,
-    handleExecuteWithdrawal,
-    handleCopySessionId,
-    address,
-  ]);
+  const returnValue = useMemo(
+    () => ({
+      isConnected,
+      isLoading,
+      resourceLocksLoading,
+      error,
+      formattedBalances: balances,
+      resourceLocksData,
+      isWithdrawalDialogOpen,
+      setIsWithdrawalDialogOpen,
+      isExecuteDialogOpen,
+      setIsExecuteDialogOpen,
+      selectedLockId,
+      selectedLock,
+      isSessionIdDialogOpen,
+      setIsSessionIdDialogOpen,
+      handleDisableWithdrawal,
+      handleInitiateWithdrawal,
+      handleExecuteWithdrawal,
+      handleCopySessionId,
+      address,
+    }),
+    [
+      isConnected,
+      isLoading,
+      resourceLocksLoading,
+      error,
+      balances,
+      resourceLocksData,
+      isWithdrawalDialogOpen,
+      isExecuteDialogOpen,
+      selectedLockId,
+      selectedLock,
+      isSessionIdDialogOpen,
+      handleDisableWithdrawal,
+      handleInitiateWithdrawal,
+      handleExecuteWithdrawal,
+      handleCopySessionId,
+      address,
+    ]
+  );
 
   return returnValue;
 }

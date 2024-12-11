@@ -7,7 +7,9 @@ interface FinalizationThresholdProps {
   chainId: number;
 }
 
-function FinalizationThresholdComponent({ chainId }: FinalizationThresholdProps) {
+function FinalizationThresholdComponent({
+  chainId,
+}: FinalizationThresholdProps) {
   const { supportedChains } = useChainConfig();
 
   if (!supportedChains) return null;

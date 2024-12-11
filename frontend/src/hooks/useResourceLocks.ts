@@ -36,14 +36,14 @@ const RESOURCE_LOCKS_QUERY = `
   }
 `;
 
-interface Token {
+export interface Token {
   tokenAddress: string;
   name: string;
   symbol: string;
   decimals: number;
 }
 
-interface ResourceLock {
+export interface ResourceLock {
   lockId: string;
   allocator: {
     account: string;
@@ -54,7 +54,7 @@ interface ResourceLock {
   totalSupply: string;
 }
 
-interface ResourceLockBalance {
+export interface ResourceLockBalance {
   chainId: string;
   resourceLock: ResourceLock;
   balance: string;

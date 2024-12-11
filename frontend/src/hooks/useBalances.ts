@@ -3,19 +3,19 @@ import { useAccount } from 'wagmi';
 import { useResourceLocks } from './useResourceLocks';
 import { formatUnits } from 'viem';
 
-interface Token {
+export interface Token {
   tokenAddress: string;
   name: string;
   symbol: string;
   decimals: number;
 }
 
-interface ResourceLock {
+export interface ResourceLock {
   resetPeriod: number;
   isMultichain: boolean;
 }
 
-interface Balance {
+export interface Balance {
   chainId: string;
   lockId: string;
   allocatableBalance: string;

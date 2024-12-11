@@ -64,7 +64,7 @@ export function useCompact() {
   const publicClient = usePublicClient();
   const { showNotification } = useNotification();
   const [hash, setHash] = React.useState<Hash | undefined>();
-  
+
   const { writeContractAsync } = useWriteContract({
     mutation: {
       onError: (error) => {

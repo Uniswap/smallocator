@@ -94,9 +94,7 @@ function AppContent() {
           <div className="space-y-6">
             {/* Health Check Status */}
             <div className="mx-auto p-4 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
-              <HealthCheck
-                onHealthStatusChange={setIsHealthy}
-              />
+              <HealthCheck onHealthStatusChange={setIsHealthy} />
             </div>
 
             {/* Only show these components if the server is healthy */}

@@ -22,55 +22,58 @@ interface Notification {
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const showNotification = useCallback((notification: {
-    type: 'success' | 'error' | 'warning' | 'info';
-    title: string;
-    message: string;
-    stage?: 'initiated' | 'submitted' | 'confirmed';
-    txHash?: string;
-    autoHide?: boolean;
-  }) => {
-    const timestamp = Date.now();
-    const id = `${timestamp}-${Math.random().toString(36).slice(2, 7)}`;
+  const showNotification = useCallback(
+    (notification: {
+      type: 'success' | 'error' | 'warning' | 'info';
+      title: string;
+      message: string;
+      stage?: 'initiated' | 'submitted' | 'confirmed';
+      txHash?: string;
+      autoHide?: boolean;
+    }) => {
+      const timestamp = Date.now();
+      const id = `${timestamp}-${Math.random().toString(36).slice(2, 7)}`;
 
-    setNotifications((prev) => {
-      // Remove previous notifications for the same transaction
-      const filtered = prev.filter((n) => {
-        // If this is a staged notification
-        if (notification.stage) {
-          // If we have a txHash, check if it's a temp ID (starts with 'pending-')
-          const currentTxHash = notification.txHash || '';
-          const prevTxHash = n.txHash || '';
+      setNotifications((prev) => {
+        // Remove previous notifications for the same transaction
+        const filtered = prev.filter((n) => {
+          // If this is a staged notification
+          if (notification.stage) {
+            // If we have a txHash, check if it's a temp ID (starts with 'pending-')
+            const currentTxHash = notification.txHash || '';
+            const prevTxHash = n.txHash || '';
 
-          // Consider notifications part of the same transaction if:
-          // 1. They have the same txHash, or
-          // 2. One has a temp ID and the other has a real hash
-          const isRelatedTx =
-            currentTxHash === prevTxHash ||
-            (currentTxHash.startsWith('pending-') &&
-              !prevTxHash.startsWith('pending-')) ||
-            (!currentTxHash.startsWith('pending-') &&
-              prevTxHash.startsWith('pending-'));
+            // Consider notifications part of the same transaction if:
+            // 1. They have the same txHash, or
+            // 2. One has a temp ID and the other has a real hash
+            const isRelatedTx =
+              currentTxHash === prevTxHash ||
+              (currentTxHash.startsWith('pending-') &&
+                !prevTxHash.startsWith('pending-')) ||
+              (!currentTxHash.startsWith('pending-') &&
+                prevTxHash.startsWith('pending-'));
 
-          // Remove all previous stages of the same transaction
-          if (isRelatedTx) {
-            return false;
+            // Remove all previous stages of the same transaction
+            if (isRelatedTx) {
+              return false;
+            }
+
+            // Remove other staged notifications
+            if (n.stage) {
+              return false;
+            }
           }
 
-          // Remove other staged notifications
-          if (n.stage) {
-            return false;
-          }
-        }
+          // For non-staged notifications, keep if no txHash match
+          return !notification.txHash || n.txHash !== notification.txHash;
+        });
 
-        // For non-staged notifications, keep if no txHash match
-        return !notification.txHash || n.txHash !== notification.txHash;
+        // Add the new notification
+        return [...filtered, { ...notification, id, timestamp }];
       });
-
-      // Add the new notification
-      return [...filtered, { ...notification, id, timestamp }];
-    });
-  }, []); // Memoize showNotification
+    },
+    []
+  ); // Memoize showNotification
 
   // Remove notifications after 5 seconds if autoHide is true (default)
   useEffect(() => {
