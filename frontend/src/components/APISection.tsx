@@ -14,8 +14,8 @@ const APISection: React.FC = () => {
       '{domain, address, uri, statement, version, chainId: number, nonce, issuedAt, expirationTime}',
     Compact:
       '{arbiter, sponsor, nonce?, expires, id, amount, witnessTypeString?, witnessHash?}',
-    ChainConfig:
-      '{defaultFinalizationThresholdSeconds: number, supportedChains: [{chainId, finalizationThresholdSeconds: number}]}',
+    SupportedChains:
+      '[{chainId, allocatorId, finalizationThresholdSeconds: number}]',
   };
 
   const endpoints: Record<string, APIEndpoint[]> = {
@@ -24,7 +24,7 @@ const APISection: React.FC = () => {
         method: 'GET',
         path: '/health',
         response:
-          '{status, timestamp, allocatorAddress, signingAddress, chainConfig: ChainConfig}',
+          '{status, timestamp, allocatorAddress, signingAddress, supportedChains: SupportedChains}',
       },
       {
         method: 'GET',
