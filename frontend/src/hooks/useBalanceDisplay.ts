@@ -4,6 +4,7 @@ import { useBalances } from './useBalances';
 import { useResourceLocks } from './useResourceLocks';
 import { useCompact } from './useCompact';
 import { useNotification } from './useNotification';
+import { getChainName } from '../utils/chains';
 
 export interface BalanceDisplayProps {
   sessionToken: string | null;
@@ -26,15 +27,7 @@ interface EthereumProvider {
   request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
 }
 
-const chainNames: Record<string, string> = {
-  '1': 'Ethereum',
-  '10': 'Optimism',
-  '8453': 'Base',
-};
-
-export function getChainName(chainId: string): string {
-  return chainNames[chainId] || `Chain ${chainId}`;
-}
+export { getChainName };
 
 export function formatLockId(lockId: string): string {
   const id = BigInt(lockId);
@@ -87,7 +80,7 @@ export function useBalanceDisplay() {
         showNotification({
           type: 'success',
           title: 'Network Switched',
-          message: `Successfully switched to ${chainNames[chainId] || `Chain ${chainId}`}`,
+          message: `Successfully switched to ${getChainName(chainId)}`,
           txHash: tempTxId,
           stage: 'confirmed',
           autoHide: true,

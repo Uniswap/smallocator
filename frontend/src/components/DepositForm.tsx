@@ -7,14 +7,9 @@ import { useERC20 } from '../hooks/useERC20';
 import { useAllocatorAPI } from '../hooks/useAllocatorAPI';
 import { useChainConfig } from '../hooks/use-chain-config';
 import { formatResetPeriod } from '../utils/formatting';
+import { getChainName } from '../utils/chains';
 import { SupportedChain } from '../types/chain';
 
-// Chain name mapping
-const chainNames: Record<string, string> = {
-  '1': 'Ethereum',
-  '10': 'Optimism',
-  '8453': 'Base',
-};
 type TokenType = 'native' | 'erc20';
 
 export function DepositForm() {
@@ -82,10 +77,9 @@ export function DepositForm() {
           : BigInt(0);
 
         if (rawBalance && parsedAmount > balanceBigInt) {
-          const chainName = chainNames[chainId] || `Chain ${chainId}`;
           return {
             type: 'error',
-            message: `Insufficient ${symbol || 'token'} balance on ${chainName}`,
+            message: `Insufficient ${symbol || 'token'} balance on ${getChainName(chainId)}`,
           };
         }
         if (parsedAmount > allowanceBigInt) {
@@ -102,10 +96,9 @@ export function DepositForm() {
       try {
         const parsedAmount = parseEther(amount);
         if (parsedAmount > ethBalance.value) {
-          const chainName = chainNames[chainId] || `Chain ${chainId}`;
           return {
             type: 'error',
-            message: `Insufficient native token balance on ${chainName}`,
+            message: `Insufficient native token balance on ${getChainName(chainId)}`,
           };
         }
         return null;
@@ -250,7 +243,7 @@ export function DepositForm() {
         </p>
         {chainSpecific && (
           <p className="mt-1 text-sm text-gray-400">
-            Deposits on {chainNames[chainId.toString()] || `Chain ${chainId}`}{' '}
+            Deposits on {getChainName(chainId)}{' '}
             will be considered finalized and available to allocate{' '}
             {formatResetPeriod(chainSpecific.finalizationThresholdSeconds)}{' '}
             after a successful deposit transaction.

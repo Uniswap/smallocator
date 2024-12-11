@@ -3,13 +3,7 @@ import { formatUnits, parseUnits, isAddress } from 'viem';
 import { useAccount } from 'wagmi';
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
-
-// Chain name mapping
-const chainNames: Record<number, string> = {
-  1: 'Ethereum',
-  10: 'Optimism',
-  8453: 'Base',
-};
+import { getChainName } from '../utils/chains';
 
 interface ForcedWithdrawalDialogProps {
   isOpen: boolean;
@@ -148,9 +142,7 @@ export function ForcedWithdrawalDialog({
           <div>
             {tokenName} ({symbol})
           </div>
-          <div>
-            Chain: {chainNames[targetChainId] || `Chain ${targetChainId}`}
-          </div>
+          <div>Chain: {getChainName(targetChainId)}</div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

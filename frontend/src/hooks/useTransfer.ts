@@ -6,6 +6,7 @@ import { useAllocatedTransfer } from '../hooks/useAllocatedTransfer';
 import { useAllocatedWithdrawal } from '../hooks/useAllocatedWithdrawal';
 import { useRequestAllocation } from '../hooks/useRequestAllocation';
 import { COMPACT_ADDRESS, COMPACT_ABI } from '../constants/contracts';
+import { getChainName } from '../utils/chains';
 
 interface FormData {
   expires: string;
@@ -27,13 +28,6 @@ interface EthereumProvider {
 interface FieldErrors {
   [key: string]: string | undefined;
 }
-
-// Chain name mapping
-const chainNames: Record<string, string> = {
-  '1': 'Ethereum',
-  '10': 'Optimism',
-  '8453': 'Base',
-};
 
 // Constants for time limits
 const TWO_HOURS_SECONDS = 7200; // 2 hours in seconds
@@ -319,7 +313,7 @@ export function useTransfer(
         showNotification({
           type: 'success',
           title: 'Network Switched',
-          message: `Successfully switched to ${chainNames[targetChainId] || `Chain ${targetChainId}`}`,
+          message: `Successfully switched to ${getChainName(targetChainId)}`,
           txHash: tempTxId,
           autoHide: true,
         });
