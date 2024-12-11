@@ -119,6 +119,19 @@ export function BalanceDisplay({
                       Active
                     </span>
                   )}
+                  {balance.withdrawalStatus !== 0 && (
+                    <span
+                      className={`px-2 py-1 text-xs rounded ${
+                        canExecuteWithdrawal
+                          ? 'bg-[#F97316]/10 text-[#F97316]'
+                          : 'bg-yellow-500/10 text-yellow-500'
+                      }`}
+                    >
+                      {canExecuteWithdrawal
+                        ? 'Forced Withdrawal Ready'
+                        : `Forced Withdrawal Ready in ${balance.timeRemaining}`}
+                    </span>
+                  )}
                 </div>
 
                 {/* Balances Grid */}

@@ -36,7 +36,8 @@ const customTheme = darkTheme({
 function AppContent() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isHealthy, setIsHealthy] = useState(true);
-  const [supportedChains, setSupportedChains] = useState<SupportedChains | null>(null);
+  const [supportedChains, setSupportedChains] =
+    useState<SupportedChains | null>(null);
 
   return (
     <ChainConfigProvider value={{ supportedChains }}>
