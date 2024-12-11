@@ -70,6 +70,7 @@ export function useAllocatedTransfer() {
           title: 'Transaction Replaced',
           message: `Transaction was ${replacement.reason}. Waiting for new transaction...`,
           txHash: replacement.transaction.hash,
+          chainId,
           autoHide: false,
         });
       },
@@ -104,6 +105,7 @@ export function useAllocatedTransfer() {
       message: `Waiting for transaction submission of ${displayAmount}...`,
       stage: 'initiated',
       txHash: tempTxId,
+      chainId,
       autoHide: false,
     });
 
@@ -121,6 +123,7 @@ export function useAllocatedTransfer() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
+        chainId,
         autoHide: true,
       });
 
@@ -139,6 +142,7 @@ export function useAllocatedTransfer() {
               message: `Successfully transferred ${displayAmount}`,
               stage: 'confirmed',
               txHash: newHash,
+              chainId,
               autoHide: false,
             });
           }
@@ -156,6 +160,7 @@ export function useAllocatedTransfer() {
           title: 'Transaction Rejected',
           message: 'You rejected the transaction',
           txHash: tempTxId,
+          chainId,
           autoHide: true,
         });
       }
