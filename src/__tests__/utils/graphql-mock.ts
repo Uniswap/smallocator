@@ -1,5 +1,9 @@
 import { graphqlClient } from '../../graphql';
 
+// Extract allocator ID from lockId (matches the calculation in balance.ts)
+const TEST_LOCK_ID = BigInt('0x7000000000000000000000010000000000000000000000000000000000000000');
+const ALLOCATOR_ID = ((TEST_LOCK_ID >> BigInt(160)) & ((BigInt(1) << BigInt(92)) - BigInt(1))).toString();
+
 // Mock response for supported chains query
 const mockSupportedChainsResponse = {
   allocator: {
@@ -7,15 +11,15 @@ const mockSupportedChainsResponse = {
       items: [
         {
           chainId: '1',
-          allocatorId: '0x1234567890123456789012345678901234567890',
+          allocatorId: ALLOCATOR_ID,
         },
         {
           chainId: '10',
-          allocatorId: '0x2345678901234567890123456789012345678901',
+          allocatorId: ALLOCATOR_ID,
         },
         {
           chainId: '8453',
-          allocatorId: '0x3456789012345678901234567890123456789012',
+          allocatorId: ALLOCATOR_ID,
         },
       ],
     },
@@ -51,13 +55,26 @@ const mockAccountDeltasResponse = {
   },
 };
 
+// Track request calls
+let requestCallCount = 0;
+let shouldFail = false;
+
 // Setup GraphQL mocks
 export function setupGraphQLMocks(): void {
+  requestCallCount = 0;
+  shouldFail = false;
+  
   // Override the request method of the GraphQL client
   (graphqlClient as any).request = async (
     query: string,
     variables: Record<string, any>
   ) => {
+    requestCallCount++;
+    
+    if (shouldFail) {
+      throw new Error('Network error');
+    }
+
     // Return appropriate mock based on the query
     if (query.includes('GetSupportedChains')) {
       return mockSupportedChainsResponse;
@@ -76,6 +93,16 @@ export function setupGraphQLMocks(): void {
     }
     throw new Error(`Unhandled GraphQL query: ${query}`);
   };
+}
+
+// Get the number of times request was called
+export function getRequestCallCount(): number {
+  return requestCallCount;
+}
+
+// Set the mock to fail on next request
+export function setMockToFail(fail: boolean = true): void {
+  shouldFail = fail;
 }
 
 // Export mock responses for assertions

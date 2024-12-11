@@ -9,9 +9,9 @@ import {
 } from '../utils/test-server';
 import {
   graphqlClient,
-  AllocatorResponse,
   AccountDeltasResponse,
   AccountResponse,
+  fetchAndCacheSupportedChains,
 } from '../../graphql';
 import { RequestDocument, Variables, RequestOptions } from 'graphql-request';
 import { hexToBytes } from 'viem/utils';
@@ -27,21 +27,17 @@ describe('Compact Routes', () => {
     // Store original function
     originalRequest = graphqlClient.request;
 
+    // Initialize chain config cache
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
+
     // Mock GraphQL response
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+      T = AccountDeltasResponse & AccountResponse,
     >(
       _documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
-    ): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }],
-        },
-      },
+    ): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },

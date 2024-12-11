@@ -7,10 +7,11 @@ import {
 } from '../utils/test-server';
 import {
   graphqlClient,
-  AllocatorResponse,
   AccountDeltasResponse,
   AccountResponse,
   AllResourceLocksResponse,
+  getCachedSupportedChains,
+  fetchAndCacheSupportedChains,
 } from '../../graphql';
 import { RequestDocument, Variables, RequestOptions } from 'graphql-request';
 
@@ -28,18 +29,11 @@ describe('Protected Routes', () => {
     // Mock GraphQL response
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+      T = AccountDeltasResponse & AccountResponse,
     >(
       _documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
-    ): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }], // Match the allocatorId in test compact
-        },
-      },
+    ): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -57,6 +51,9 @@ describe('Protected Routes', () => {
         },
       },
     });
+
+    // Cache the supported chains data
+    await fetchAndCacheSupportedChains('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
 
     // First get a session request
     const address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
@@ -147,18 +144,11 @@ describe('Protected Routes', () => {
       // Mock GraphQL response with no resource lock
       graphqlClient.request = async <
         V extends Variables = Variables,
-        T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+        T = AccountDeltasResponse & AccountResponse,
       >(
         _documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<
-        AllocatorResponse & AccountDeltasResponse & AccountResponse
-      > => ({
-        allocator: {
-          supportedChains: {
-            items: [],
-          },
-        },
+      ): Promise<AccountDeltasResponse & AccountResponse> => ({
         accountDeltas: {
           items: [],
         },
@@ -195,18 +185,11 @@ describe('Protected Routes', () => {
       // Mock GraphQL response with withdrawal status = 1
       graphqlClient.request = async <
         V extends Variables = Variables,
-        T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+        T = AccountDeltasResponse & AccountResponse,
       >(
         _documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<
-        AllocatorResponse & AccountDeltasResponse & AccountResponse
-      > => ({
-        allocator: {
-          supportedChains: {
-            items: [{ allocatorId: '1' }],
-          },
-        },
+      ): Promise<AccountDeltasResponse & AccountResponse> => ({
         accountDeltas: {
           items: [],
         },
@@ -257,16 +240,11 @@ describe('Protected Routes', () => {
       let requestCount = 0;
       graphqlClient.request = async <
         V extends Variables = Variables,
-        T =
-          | AllResourceLocksResponse
-          | (AllocatorResponse & AccountDeltasResponse & AccountResponse),
+        T = AllResourceLocksResponse | (AccountDeltasResponse & AccountResponse),
       >(
         _documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<
-        | AllResourceLocksResponse
-        | (AllocatorResponse & AccountDeltasResponse & AccountResponse)
-      > => {
+      ): Promise<AllResourceLocksResponse | (AccountDeltasResponse & AccountResponse)> => {
         requestCount++;
         if (requestCount === 1) {
           // First request - getAllResourceLocks
@@ -295,11 +273,6 @@ describe('Protected Routes', () => {
         } else {
           // Subsequent requests - getCompactDetails
           return {
-            allocator: {
-              supportedChains: {
-                items: [{ allocatorId: '1' }],
-              },
-            },
             accountDeltas: {
               items: [],
             },

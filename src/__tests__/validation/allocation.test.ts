@@ -4,9 +4,9 @@ import { PGlite } from '@electric-sql/pglite';
 import { hexToBytes } from 'viem/utils';
 import {
   graphqlClient,
-  AllocatorResponse,
   AccountDeltasResponse,
   AccountResponse,
+  fetchAndCacheSupportedChains,
 } from '../../graphql';
 
 describe('Allocation Validation', () => {
@@ -49,15 +49,11 @@ describe('Allocation Validation', () => {
     // Store original function
     originalRequest = graphqlClient.request;
 
+    // Initialize chain config cache
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
+
     // Mock GraphQL response with sufficient balance
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }], // Match the test compact ID
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -96,14 +92,7 @@ describe('Allocation Validation', () => {
     const compact = getFreshCompact();
 
     // Mock GraphQL response with insufficient balance
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }], // Match the test compact ID
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -164,14 +153,7 @@ describe('Allocation Validation', () => {
     );
 
     // Mock GraphQL response with balance just enough for one compact
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }], // Match the test compact ID
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -231,14 +213,7 @@ describe('Allocation Validation', () => {
     );
 
     // Mock GraphQL response with processed claim
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }], // Match the test compact ID
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -269,14 +244,7 @@ describe('Allocation Validation', () => {
     const compact = getFreshCompact();
 
     // Mock GraphQL response with withdrawal enabled
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }], // Match the test compact ID
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -300,70 +268,11 @@ describe('Allocation Validation', () => {
     expect(result.error).toContain('forced withdrawals enabled');
   });
 
-  it('should reject when allocatorId from GraphQL does not match compact ID', async (): Promise<void> => {
+  it('should reject when allocatorId from chain config does not match compact ID', async (): Promise<void> => {
     const compact = getFreshCompact();
 
-    // Mock GraphQL response with different allocatorId
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '999' }], // Different from the one encoded in compact ID
-        },
-      },
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: '1000000000000000000000',
-            },
-          ],
-        },
-        claims: {
-          items: [],
-        },
-      },
-    });
-
-    const result = await validateAllocation(compact, chainId, db);
-    expect(result.isValid).toBe(false);
-    expect(result.error).toBe('Invalid allocator ID');
-  });
-
-  it('should reject when allocatorId is missing from GraphQL response', async (): Promise<void> => {
-    const compact = getFreshCompact();
-
-    // Mock GraphQL response with missing allocatorId
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [], // Empty array, no allocatorId
-        },
-      },
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: '1000000000000000000000',
-            },
-          ],
-        },
-        claims: {
-          items: [],
-        },
-      },
-    });
+    // Mock different allocator address to get different allocator ID in chain config
+    await fetchAndCacheSupportedChains('0x1234567890123456789012345678901234567890');
 
     const result = await validateAllocation(compact, chainId, db);
     expect(result.isValid).toBe(false);

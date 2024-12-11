@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAddress } from 'viem/utils';
 import { getAllocatedBalance } from '../balance';
-import { getCompactDetails, getAllResourceLocks } from '../graphql';
+import { getCompactDetails, getAllResourceLocks, getCachedSupportedChains } from '../graphql';
 import { createAuthMiddleware } from './session';
 import { toBigInt } from '../utils/encoding';
 
@@ -233,13 +233,13 @@ export async function setupBalanceRoutes(
             (lockIdBigInt >> BigInt(160)) &
             ((BigInt(1) << BigInt(92)) - BigInt(1));
 
+          // Get the cached chain config to verify allocatorId
+          const chainConfig = getCachedSupportedChains()?.find(
+            (chain) => chain.chainId === chainId
+          );
+
           // Verify allocatorId matches
-          const graphqlAllocatorId =
-            response.allocator.supportedChains.items[0]?.allocatorId;
-          if (
-            !graphqlAllocatorId ||
-            BigInt(graphqlAllocatorId) !== allocatorId
-          ) {
+          if (!chainConfig || BigInt(chainConfig.allocatorId) !== allocatorId) {
             reply.code(400);
             return { error: 'Invalid allocator ID' };
           }

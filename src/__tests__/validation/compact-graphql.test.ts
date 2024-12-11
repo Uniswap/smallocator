@@ -3,13 +3,14 @@ import { getFreshCompact, compactToAPI } from '../utils/test-server';
 import { PGlite } from '@electric-sql/pglite';
 import {
   graphqlClient,
-  AllocatorResponse,
   AccountDeltasResponse,
   AccountResponse,
+  fetchAndCacheSupportedChains,
 } from '../../graphql';
 import {
   setupCompactTestDb,
   cleanupCompactTestDb,
+  setupGraphQLMocks,
 } from './utils/compact-test-setup';
 
 describe('Compact GraphQL Validation', () => {
@@ -24,8 +25,11 @@ describe('Compact GraphQL Validation', () => {
     await cleanupCompactTestDb(db);
   });
 
-  beforeEach((): void => {
+  beforeEach(async (): Promise<void> => {
     originalRequest = graphqlClient.request;
+    setupGraphQLMocks();
+    // Initialize chain config cache
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
   });
 
   afterEach((): void => {
@@ -33,14 +37,7 @@ describe('Compact GraphQL Validation', () => {
   });
 
   it('should validate with sufficient balance', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }],
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -68,14 +65,7 @@ describe('Compact GraphQL Validation', () => {
   });
 
   it('should reject with insufficient balance', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }],
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -104,14 +94,7 @@ describe('Compact GraphQL Validation', () => {
   });
 
   it('should reject when withdrawal is enabled', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '1' }],
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },
@@ -140,50 +123,11 @@ describe('Compact GraphQL Validation', () => {
   });
 
   it('should reject when allocator ID does not match', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '999' }], // Different allocator ID
-        },
-      },
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: '1000000000000000000000',
-            },
-          ],
-        },
-        claims: {
-          items: [],
-        },
-      },
-    });
+    // Mock a different allocator ID in the chain config cache
+    setupGraphQLMocks();
+    await fetchAndCacheSupportedChains('0x1234567890123456789012345678901234567890');
 
-    const result = await validateCompact(
-      compactToAPI(getFreshCompact()),
-      '1',
-      db
-    );
-    expect(result.isValid).toBe(false);
-    expect(result.error).toContain('Invalid allocator ID');
-  });
-
-  it('should reject when no supported chains are found', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<
-      AllocatorResponse & AccountDeltasResponse & AccountResponse
-    > => ({
-      allocator: {
-        supportedChains: {
-          items: [], // Empty supported chains
-        },
-      },
+    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
       accountDeltas: {
         items: [],
       },

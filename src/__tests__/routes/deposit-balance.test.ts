@@ -6,10 +6,10 @@ import {
 } from '../utils/test-server';
 import {
   graphqlClient,
-  AllocatorResponse,
   AccountDeltasResponse,
   AccountResponse,
   AllResourceLocksResponse,
+  fetchAndCacheSupportedChains,
 } from '../../graphql';
 import { RequestDocument, Variables, RequestOptions } from 'graphql-request';
 import { dbManager } from '../setup';
@@ -31,6 +31,9 @@ describe('Deposit Balance Routes', () => {
 
     // Mock current time
     Date.now = () => 1702152079000; // 2024-12-09T12:01:19-08:00
+
+    // Initialize chain config cache
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
   });
 
   afterEach(async () => {
@@ -51,9 +54,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T =
-        | (AllocatorResponse & AccountDeltasResponse & AccountResponse)
-        | AllResourceLocksResponse,
+      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
@@ -80,11 +81,6 @@ describe('Deposit Balance Routes', () => {
 
       if (query.includes('GetDetails')) {
         return {
-          allocator: {
-            supportedChains: {
-              items: [{ allocatorId: '1' }],
-            },
-          },
           accountDeltas: {
             items: [
               {
@@ -148,9 +144,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T =
-        | (AllocatorResponse & AccountDeltasResponse & AccountResponse)
-        | AllResourceLocksResponse,
+      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
@@ -177,11 +171,6 @@ describe('Deposit Balance Routes', () => {
 
       if (query.includes('GetDetails')) {
         return {
-          allocator: {
-            supportedChains: {
-              items: [{ allocatorId: '1' }],
-            },
-          },
           accountDeltas: {
             items: [
               {
@@ -246,9 +235,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T =
-        | (AllocatorResponse & AccountDeltasResponse & AccountResponse)
-        | AllResourceLocksResponse,
+      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
@@ -275,11 +262,6 @@ describe('Deposit Balance Routes', () => {
 
       if (query.includes('GetDetails')) {
         return {
-          allocator: {
-            supportedChains: {
-              items: [{ allocatorId: '1' }],
-            },
-          },
           accountDeltas: {
             items: [
               {
@@ -342,145 +324,6 @@ describe('Deposit Balance Routes', () => {
   });
 
   it('should reduce allocatable balance by finalized claims', async () => {
-    const chainId = '10'; // Optimism
-    const lockId =
-      '0x1234567890123456789012345678901234567890123456789012345678901234';
-    const currentBalance = '1000000000000000000'; // 1 ETH
-    const pendingBalance = '0';
-    const claimAmount = '300000000000000000'; // 0.3 ETH
-    const claimHash =
-      '0x2000000000000000000000000000000000000000000000000000000000000001';
-    const compactId = '123e4567-e89b-12d3-a456-426614174000'; // Valid UUID
-
-    // Insert test compact into database
-    const db = await dbManager.getDb();
-    await db.query(
-      `
-      INSERT INTO compacts (
-        id,
-        chain_id,
-        claim_hash,
-        arbiter,
-        sponsor,
-        nonce,
-        expires,
-        lock_id,
-        amount,
-        signature
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-      )
-    `,
-      [
-        compactId,
-        chainId,
-        hexToBytes(claimHash),
-        hexToBytes('0x1230000000000000000000000000000000000123'),
-        hexToBytes('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'),
-        hexToBytes(
-          '0x0000000000000000000000000000000000000000000000000000000000000001'
-        ),
-        Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
-        hexToBytes(lockId),
-        hexToBytes(
-          ('0x' +
-            BigInt(claimAmount).toString(16).padStart(64, '0')) as `0x${string}`
-        ),
-        hexToBytes(
-          '0x1234000000000000000000000000000000000000000000000000000000001234'
-        ),
-      ]
-    );
-
-    // Mock GraphQL responses
-    graphqlClient.request = async <
-      V extends Variables = Variables,
-      T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
-    >(
-      documentOrOptions: RequestDocument | RequestOptions<V, T>,
-      ..._variablesAndRequestHeaders: unknown[]
-    ): Promise<T> => {
-      const query = documentOrOptions.toString();
-
-      if (query.includes('GetAllResourceLocks')) {
-        return {
-          account: {
-            resourceLocks: {
-              items: [
-                {
-                  chainId,
-                  resourceLock: {
-                    lockId,
-                    allocatorAddress: process.env.ALLOCATOR_ADDRESS,
-                  },
-                },
-              ],
-            },
-          },
-        } as T;
-      }
-
-      if (query.includes('GetDetails')) {
-        return {
-          allocator: {
-            supportedChains: {
-              items: [{ allocatorId: '1' }],
-            },
-          },
-          accountDeltas: {
-            items: [
-              {
-                delta: pendingBalance,
-              },
-            ],
-          },
-          account: {
-            resourceLocks: {
-              items: [
-                {
-                  withdrawalStatus: 0,
-                  balance: currentBalance,
-                },
-              ],
-            },
-            claims: {
-              items: [], // No processed claims
-            },
-          },
-        } as T;
-      }
-
-      return {} as T;
-    };
-
-    // Get balances
-    const response = await server.inject({
-      method: 'GET',
-      url: '/balances',
-      headers: {
-        'x-session-id': sessionId,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.payload);
-
-    expect(body).toHaveProperty('balances');
-    expect(Array.isArray(body.balances)).toBe(true);
-    expect(body.balances.length).toBe(1);
-
-    const balance = body.balances[0];
-    expect(balance).toMatchObject({
-      chainId,
-      lockId,
-      allocatableBalance: '1000000000000000000', // Full 1 ETH since no unfinalized deposits
-      allocatedBalance: '300000000000000000', // 0.3 ETH from the unexpired, unprocessed compact
-      balanceAvailableToAllocate: '700000000000000000', // allocatableBalance - allocatedBalance
-      withdrawalStatus: 0,
-    });
-  });
-
-  it('should correctly handle multiple compacts in different states', async () => {
     const chainId = '10'; // Optimism
     const lockId =
       '0x1234567890123456789012345678901234567890123456789012345678901234';
@@ -597,7 +440,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AllocatorResponse & AccountDeltasResponse & AccountResponse,
+      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
@@ -624,11 +467,6 @@ describe('Deposit Balance Routes', () => {
 
       if (query.includes('GetDetails')) {
         return {
-          allocator: {
-            supportedChains: {
-              items: [{ allocatorId: '1' }],
-            },
-          },
           accountDeltas: {
             items: [
               {

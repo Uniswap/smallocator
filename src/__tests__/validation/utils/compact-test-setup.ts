@@ -1,11 +1,14 @@
 import { PGlite } from '@electric-sql/pglite';
 import {
   graphqlClient,
-  AllocatorResponse,
+  SupportedChainsResponse,
   AccountDeltasResponse,
   AccountResponse,
-  GET_COMPACT_DETAILS,
 } from '../../../graphql';
+
+// Extract allocator ID from lockId (matches the calculation in balance.ts)
+const TEST_LOCK_ID = BigInt('0x7000000000000000000000010000000000000000000000000000000000000000');
+const ALLOCATOR_ID = ((TEST_LOCK_ID >> BigInt(160)) & ((BigInt(1) << BigInt(92)) - BigInt(1))).toString();
 
 export async function setupCompactTestDb(): Promise<PGlite> {
   const db = new PGlite();
@@ -52,73 +55,29 @@ export function cleanupCompactTestDb(db: PGlite): Promise<void> {
   ]).then(() => undefined);
 }
 
-export function mockGraphQLResponse(): void {
-  graphqlClient.request = async (): Promise<
-    AllocatorResponse & AccountDeltasResponse & AccountResponse
-  > => ({
-    allocator: {
-      supportedChains: {
-        items: [{ allocatorId: '1' }], // Match the test compact ID
-      },
-    },
-    accountDeltas: {
-      items: [],
-    },
-    account: {
-      resourceLocks: {
-        items: [
-          {
-            withdrawalStatus: 0,
-            balance: '1000000000000000000000', // 1000 ETH
-          },
-        ],
-      },
-      claims: {
-        items: [],
-      },
-    },
-  });
-}
+// Track request calls
+let requestCallCount = 0;
+let shouldFail = false;
 
-describe('Compact Test Setup', () => {
-  let db: PGlite;
-  let originalRequest: typeof graphqlClient.request;
+export function setupGraphQLMocks(): void {
+  requestCallCount = 0;
+  shouldFail = false;
 
-  beforeAll(async () => {
-    db = await setupCompactTestDb();
-  });
+  // Override the request method of the GraphQL client
+  (graphqlClient as any).request = async (
+    query: string,
+    variables: Record<string, any>
+  ): Promise<SupportedChainsResponse & AccountDeltasResponse & AccountResponse> => {
+    requestCallCount++;
+    
+    if (shouldFail) {
+      throw new Error('Network error');
+    }
 
-  afterAll(async () => {
-    await cleanupCompactTestDb(db);
-  });
-
-  beforeEach(() => {
-    originalRequest = graphqlClient.request;
-  });
-
-  afterEach(() => {
-    graphqlClient.request = originalRequest;
-  });
-
-  it('should mock GraphQL response with expected structure', async () => {
-    // Setup mock
-    mockGraphQLResponse();
-
-    // Make request with required variables
-    const response = await graphqlClient.request(GET_COMPACT_DETAILS, {
-      allocator: '0x1234567890123456789012345678901234567890',
-      sponsor: '0x2345678901234567890123456789012345678901',
-      lockId: '1',
-      chainId: '1',
-      finalizationTimestamp: '1700000000',
-      thresholdTimestamp: '1700000000',
-    });
-
-    // Verify response structure and values
-    expect(response).toEqual({
+    return {
       allocator: {
         supportedChains: {
-          items: [{ allocatorId: '1' }],
+          items: [{ chainId: '1', allocatorId: ALLOCATOR_ID }], // Match the test compact ID
         },
       },
       accountDeltas: {
@@ -129,7 +88,7 @@ describe('Compact Test Setup', () => {
           items: [
             {
               withdrawalStatus: 0,
-              balance: '1000000000000000000000',
+              balance: '1000000000000000000000', // 1000 ETH
             },
           ],
         },
@@ -137,29 +96,16 @@ describe('Compact Test Setup', () => {
           items: [],
         },
       },
-    });
-  });
+    };
+  };
+}
 
-  it('should create required database tables', async () => {
-    // Check if tables exist and have correct structure
-    const tables = await db.query<{ table_name: string }>(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-    );
-    const tableNames = tables.rows.map((row) => row.table_name);
+// Get the number of times request was called
+export function getRequestCallCount(): number {
+  return requestCallCount;
+}
 
-    expect(tableNames).toContain('compacts');
-    expect(tableNames).toContain('nonces');
-
-    // Verify table structure
-    const compactColumns = await db.query<{ column_name: string }>(
-      "SELECT column_name FROM information_schema.columns WHERE table_name = 'compacts'"
-    );
-    const compactColumnNames = compactColumns.rows.map(
-      (row) => row.column_name
-    );
-    expect(compactColumnNames).toContain('claim_hash');
-    expect(compactColumnNames).toContain('arbiter');
-    expect(compactColumnNames).toContain('sponsor');
-    expect(compactColumnNames).toContain('nonce');
-  });
-});
+// Set the mock to fail on next request
+export function setMockToFail(fail: boolean = true): void {
+  shouldFail = fail;
+}

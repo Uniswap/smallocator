@@ -5,7 +5,7 @@ import { graphqlClient } from '../../graphql';
 import {
   setupCompactTestDb,
   cleanupCompactTestDb,
-  mockGraphQLResponse,
+  setupGraphQLMocks,
 } from './utils/compact-test-setup';
 
 describe('Compact Basic Validation', () => {
@@ -22,7 +22,7 @@ describe('Compact Basic Validation', () => {
 
   beforeEach((): void => {
     originalRequest = graphqlClient.request;
-    mockGraphQLResponse();
+    setupGraphQLMocks();
   });
 
   afterEach((): void => {

@@ -1,6 +1,6 @@
 import { getAddress } from 'viem/utils';
 import { PGlite } from '@electric-sql/pglite';
-import { getCompactDetails } from '../graphql';
+import { getCompactDetails, getCachedSupportedChains } from '../graphql';
 import { getAllocatedBalance } from '../balance';
 import { ValidationResult, ValidatedCompactMessage } from './types';
 
@@ -34,10 +34,13 @@ export async function validateAllocation(
       };
     }
 
-    // Verify allocatorId matches the one from GraphQL
-    const graphqlAllocatorId =
-      response.allocator.supportedChains.items[0]?.allocatorId;
-    if (!graphqlAllocatorId || BigInt(graphqlAllocatorId) !== allocatorId) {
+    // Get the cached chain config to verify allocatorId
+    const chainConfig = getCachedSupportedChains()?.find(
+      (chain) => chain.chainId === chainId
+    );
+
+    // Verify allocatorId matches
+    if (!chainConfig || BigInt(chainConfig.allocatorId) !== allocatorId) {
       return { isValid: false, error: 'Invalid allocator ID' };
     }
 

@@ -9,9 +9,9 @@ import {
 } from '../utils/test-server';
 import {
   graphqlClient,
-  AllocatorResponse,
   AccountDeltasResponse,
   AccountResponse,
+  fetchAndCacheSupportedChains,
 } from '../../graphql';
 
 describe('Integration Tests', () => {
@@ -21,6 +21,9 @@ describe('Integration Tests', () => {
   beforeEach(async () => {
     server = await createTestServer();
     originalRequest = graphqlClient.request;
+
+    // Initialize chain config cache
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
   });
 
   afterEach(async () => {
@@ -31,14 +34,7 @@ describe('Integration Tests', () => {
   describe('Allocation Flow', () => {
     it('should handle complete allocation flow: session -> compact -> balance -> nonce', async () => {
       // Mock GraphQL response with zero allocated balance
-      graphqlClient.request = async (): Promise<
-        AllocatorResponse & AccountDeltasResponse & AccountResponse
-      > => ({
-        allocator: {
-          supportedChains: {
-            items: [{ allocatorId: '1' }],
-          },
-        },
+      graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
         accountDeltas: {
           items: [],
         },

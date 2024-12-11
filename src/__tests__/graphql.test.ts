@@ -8,6 +8,8 @@ import {
 import {
   setupGraphQLMocks,
   mockSupportedChainsResponse,
+  getRequestCallCount,
+  setMockToFail,
 } from './utils/graphql-mock';
 import { getFinalizationThreshold } from '../chain-config';
 
@@ -45,12 +47,10 @@ describe('GraphQL Client', () => {
     });
 
     it('should refresh supported chains data on interval', async () => {
-      // Setup spy on graphqlClient.request
-      const requestSpy = jest.spyOn(graphqlClient, 'request');
-
       // Initial fetch
       await fetchAndCacheSupportedChains(testAllocatorAddress);
-      expect(requestSpy).toHaveBeenCalledTimes(1);
+      const initialCallCount = getRequestCallCount();
+      expect(initialCallCount).toBe(1);
 
       // Start refresh with 100ms interval
       startSupportedChainsRefresh(testAllocatorAddress, 0.1); // 100ms
@@ -59,11 +59,11 @@ describe('GraphQL Client', () => {
       await new Promise((resolve) => setTimeout(resolve, 250));
 
       // Should have been called at least 2 more times
-      expect(requestSpy.mock.calls.length).toBeGreaterThanOrEqual(3);
+      const finalCallCount = getRequestCallCount();
+      expect(finalCallCount).toBeGreaterThanOrEqual(3);
 
       // Cleanup
       stopSupportedChainsRefresh();
-      requestSpy.mockRestore();
     });
 
     it('should preserve cache on failed refresh', async () => {
@@ -71,16 +71,17 @@ describe('GraphQL Client', () => {
       await fetchAndCacheSupportedChains(testAllocatorAddress);
       const initialCache = getCachedSupportedChains();
 
-      // Mock a failed request
-      (graphqlClient as any).request = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Network error'));
+      // Set mock to fail on next request
+      setMockToFail(true);
 
       // Attempt refresh
       await fetchAndCacheSupportedChains(testAllocatorAddress);
 
       // Cache should remain unchanged
       expect(getCachedSupportedChains()).toEqual(initialCache);
+
+      // Reset mock
+      setMockToFail(false);
     });
 
     it('should handle stopping refresh when no interval is running', () => {
@@ -89,26 +90,22 @@ describe('GraphQL Client', () => {
     });
 
     it('should handle multiple start/stop cycles', async () => {
-      const requestSpy = jest.spyOn(graphqlClient, 'request');
-
       // First cycle
       startSupportedChainsRefresh(testAllocatorAddress, 0.1);
       await new Promise((resolve) => setTimeout(resolve, 150));
       stopSupportedChainsRefresh();
 
-      const firstCount = requestSpy.mock.calls.length;
+      const firstCount = getRequestCallCount();
 
       // Second cycle
       startSupportedChainsRefresh(testAllocatorAddress, 0.1);
       await new Promise((resolve) => setTimeout(resolve, 150));
       stopSupportedChainsRefresh();
 
-      const secondCount = requestSpy.mock.calls.length;
+      const secondCount = getRequestCallCount();
 
       // Should have more calls in second count
       expect(secondCount).toBeGreaterThan(firstCount);
-
-      requestSpy.mockRestore();
     });
   });
 });
