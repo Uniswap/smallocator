@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useReadContract, useWriteContract, useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
+import { useReadContract, useWriteContract, useAccount, useChainId, usePublicClient } from 'wagmi';
 import { formatUnits, isAddress, type Hash } from 'viem';
 import { ERC20_ABI, COMPACT_ADDRESS } from '../constants/contracts';
 import { useNotification } from './useNotification';
@@ -10,6 +10,7 @@ const MAX_UINT256 = '0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 export function useERC20(tokenAddress?: `0x${string}`) {
   const { address } = useAccount();
   const chainId = useChainId();
+  const publicClient = usePublicClient();
   const { showNotification } = useNotification();
   const [isValid, setIsValid] = useState(false);
   const [decimals, setDecimals] = useState<number>();
@@ -20,7 +21,7 @@ export function useERC20(tokenAddress?: `0x${string}`) {
   const [rawBalance, setRawBalance] = useState<bigint>();
   const [rawAllowance, setRawAllowance] = useState<bigint>();
   const [isLoading, setIsLoading] = useState(false);
-  const [hash, setHash] = useState<Hash>();
+  const [, setHash] = useState<Hash | undefined>();
 
   const shouldLoad = Boolean(tokenAddress && isAddress(tokenAddress));
   const compactAddress = COMPACT_ADDRESS as `0x${string}`;
@@ -73,23 +74,6 @@ export function useERC20(tokenAddress?: `0x${string}`) {
         enabled: shouldLoad && Boolean(address),
       },
     });
-
-  // Watch for transaction confirmation
-  useWaitForTransactionReceipt({
-    hash,
-    onSuccess(data) {
-      if (data.status === 'success') {
-        showNotification({
-          type: 'success',
-          title: 'Approval Confirmed',
-          message: `Successfully approved ${symbol || 'token'} for The Compact`,
-          txHash: hash,
-          chainId,
-          autoHide: false,
-        });
-      }
-    },
-  });
 
   // Update loading state
   useEffect(() => {
@@ -145,16 +129,77 @@ export function useERC20(tokenAddress?: `0x${string}`) {
 
   const approve = async (): Promise<Hash> => {
     if (!tokenAddress || !address) throw new Error('Not ready');
+    if (!publicClient) throw new Error('Public client not available');
 
-    const newHash = await writeContractAsync({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [compactAddress, MAX_UINT256 as `0x${string}`],
+    // Generate a temporary transaction ID for linking notifications
+    const tempTxId = `pending-${Date.now()}`;
+
+    showNotification({
+      type: 'info',
+      title: 'Initiating Approval',
+      message: 'Please confirm the transaction in your wallet...',
+      stage: 'initiated',
+      txHash: tempTxId,
+      chainId,
+      autoHide: false,
     });
 
-    setHash(newHash);
-    return newHash;
+    try {
+      const newHash = await writeContractAsync({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [compactAddress, MAX_UINT256 as `0x${string}`],
+      });
+
+      showNotification({
+        type: 'success',
+        title: 'Approval Submitted',
+        message: 'Waiting for confirmation...',
+        stage: 'submitted',
+        txHash: newHash,
+        chainId,
+        autoHide: true,
+      });
+
+      setHash(newHash);
+
+      // Start watching for confirmation but don't wait for it
+      void publicClient
+        .waitForTransactionReceipt({
+          hash: newHash,
+        })
+        .then((receipt) => {
+          if (receipt.status === 'success') {
+            showNotification({
+              type: 'success',
+              title: 'Approval Confirmed',
+              message: `Successfully approved ${symbol || 'token'} for The Compact`,
+              stage: 'confirmed',
+              txHash: newHash,
+              chainId,
+              autoHide: false,
+            });
+          }
+        });
+
+      return newHash;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.toLowerCase().includes('user rejected')
+      ) {
+        showNotification({
+          type: 'error',
+          title: 'Transaction Rejected',
+          message: 'You rejected the transaction',
+          txHash: tempTxId,
+          chainId,
+          autoHide: true,
+        });
+      }
+      throw error;
+    }
   };
 
   return {

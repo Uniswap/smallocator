@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useBalance, useChainId } from 'wagmi';
 import { formatEther, parseEther, parseUnits, isAddress } from 'viem';
 import { useCompact } from '../hooks/useCompact';
@@ -44,6 +44,16 @@ export function DepositForm() {
       ? (tokenAddress as `0x${string}`)
       : undefined
   );
+
+  // Reset form when deposit is confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      setAmount('');
+      if (tokenType === 'erc20') {
+        setTokenAddress('');
+      }
+    }
+  }, [isConfirmed, tokenType]);
 
   const validateAmount = () => {
     if (!amount) return null;
@@ -198,14 +208,6 @@ export function DepositForm() {
           chainId,
           autoHide: true,
         });
-      }
-
-      // Reset form after confirmed
-      if (isConfirmed) {
-        setAmount('');
-        if (tokenType === 'erc20') {
-          setTokenAddress('');
-        }
       }
     } catch (error) {
       console.error('Error depositing:', error);
