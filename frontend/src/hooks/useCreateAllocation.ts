@@ -90,14 +90,6 @@ export function useCreateAllocation(sessionToken: string) {
   }, [address, generateNewNonce]);
 
   useEffect(() => {
-    const tenMinutesFromNow = Math.floor(Date.now() / 1000) + 600;
-    setFormData((prev) => ({
-      ...prev,
-      expiration: tenMinutesFromNow.toString(),
-    }));
-  }, []);
-
-  useEffect(() => {
     if (selectedLock) {
       getResourceLockDecimals(selectedLock.chainId, selectedLock.lockId)
         .then((decimals) => setLockDecimals(decimals))
@@ -130,7 +122,6 @@ export function useCreateAllocation(sessionToken: string) {
 
   const handleExpiryChange = (value: string) => {
     setExpiryOption(value);
-    const now = Math.floor(Date.now() / 1000);
 
     if (value === 'custom') {
       setCustomExpiry(true);
@@ -138,14 +129,22 @@ export function useCreateAllocation(sessionToken: string) {
     }
 
     setCustomExpiry(false);
-    const option = EXPIRY_OPTIONS.find((opt) => opt.value === value);
-    if (option) {
-      setFormData((prev) => ({
-        ...prev,
-        expiration: (now + option.seconds).toString(),
-      }));
-      setErrors((prev) => ({ ...prev, expiration: '' }));
+    // For non-custom options, we'll calculate the expiration at submission time
+    setFormData((prev) => ({
+      ...prev,
+      expiration: '', // Clear any custom expiration
+    }));
+    setErrors((prev) => ({ ...prev, expiration: '' }));
+  };
+
+  const getExpirationTime = () => {
+    if (customExpiry) {
+      return formData.expiration;
     }
+
+    const now = Math.floor(Date.now() / 1000);
+    const option = EXPIRY_OPTIONS.find((opt) => opt.value === expiryOption);
+    return option ? (now + option.seconds).toString() : '';
   };
 
   const validateForm = () => {
@@ -185,12 +184,13 @@ export function useCreateAllocation(sessionToken: string) {
       newErrors.nonce = 'Nonce is required';
     }
 
-    if (!formData.expiration) {
+    const expirationTime = customExpiry ? formData.expiration : getExpirationTime();
+    if (!expirationTime) {
       newErrors.expiration = 'Expiration is required';
     } else {
-      const expirationTime = parseInt(formData.expiration);
+      const expTime = parseInt(expirationTime);
       const now = Math.floor(Date.now() / 1000);
-      if (isNaN(expirationTime) || expirationTime <= now) {
+      if (isNaN(expTime) || expTime <= now) {
         newErrors.expiration = 'Expiration must be in the future';
       }
     }
@@ -212,7 +212,7 @@ export function useCreateAllocation(sessionToken: string) {
           arbiter: formData.arbiterAddress as `0x${string}`,
           sponsor: address,
           nonce: formData.nonce,
-          expires: formData.expiration,
+          expires: getExpirationTime(), // Calculate fresh expiration time at submission
           id: selectedLock.lockId,
           amount: parseUnits(formData.amount, lockDecimals).toString(),
           ...(showWitnessFields && {
