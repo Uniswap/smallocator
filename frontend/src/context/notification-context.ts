@@ -7,6 +7,7 @@ interface NotificationContextType {
     message: string;
     stage?: 'initiated' | 'submitted' | 'confirmed';
     txHash?: string;
+    chainId?: number | string;
     autoHide?: boolean;
   }) => void;
 }

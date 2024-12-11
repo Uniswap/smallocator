@@ -1,5 +1,6 @@
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
+import { useChainId } from 'wagmi';
 
 interface InitiateForcedWithdrawalDialogProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export function InitiateForcedWithdrawalDialog({
 }: InitiateForcedWithdrawalDialogProps) {
   const { enableForcedWithdrawal, isConfirming } = useCompact();
   const { showNotification } = useNotification();
+  const chainId = useChainId();
 
   const handleInitiateWithdrawal = async () => {
     if (isConfirming) return;
@@ -44,6 +46,7 @@ export function InitiateForcedWithdrawalDialog({
             error instanceof Error
               ? error.message
               : 'Failed to initiate forced withdrawal',
+          chainId,
         });
       }
     }

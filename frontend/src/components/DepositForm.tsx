@@ -12,6 +12,10 @@ import { SupportedChain } from '../types/chain';
 
 type TokenType = 'native' | 'erc20';
 
+interface TransactionResponse {
+  hash: `0x${string}`;
+}
+
 export function DepositForm() {
   const { address, isConnected } = useAccount();
   const { data: ethBalance } = useBalance({ address });
@@ -118,6 +122,7 @@ export function DepositForm() {
         type: 'error',
         title: 'Invalid Amount',
         message: 'Please enter a valid amount',
+        chainId,
       });
       return;
     }
@@ -127,6 +132,7 @@ export function DepositForm() {
         type: 'error',
         title: 'No Allocator Available',
         message: 'Unable to get allocator address',
+        chainId,
       });
       return;
     }
@@ -136,6 +142,7 @@ export function DepositForm() {
         type: 'error',
         title: 'Wallet Not Connected',
         message: 'Please connect your wallet',
+        chainId,
       });
       return;
     }
@@ -146,6 +153,7 @@ export function DepositForm() {
         type: 'error',
         title: 'Not Signed In',
         message: 'Please sign in with your Ethereum account',
+        chainId,
       });
       return;
     }
@@ -153,9 +161,10 @@ export function DepositForm() {
     try {
       const hexAllocatorAddress = allocatorAddress as `0x${string}`;
 
+      let depositResult;
       if (tokenType === 'native') {
         const parsedAmount = parseEther(amount);
-        await deposit({
+        depositResult = await deposit({
           allocator: hexAllocatorAddress,
           value: parsedAmount,
           displayValue: amount,
@@ -163,13 +172,31 @@ export function DepositForm() {
         });
       } else {
         const parsedAmount = parseUnits(amount, decimals!);
-        await deposit({
+        depositResult = await deposit({
           token: tokenAddress as `0x${string}`,
           allocator: hexAllocatorAddress,
           amount: parsedAmount,
           displayAmount: amount,
           symbol: symbol || 'tokens',
           isNative: false,
+        });
+      }
+
+      // Handle both object with hash and direct hash string
+      const txHash = typeof depositResult === 'object' && depositResult !== null
+        ? (depositResult as TransactionResponse).hash
+        : typeof depositResult === 'string'
+          ? depositResult as `0x${string}`
+          : undefined;
+
+      if (txHash) {
+        showNotification({
+          type: 'success',
+          title: 'Deposit Submitted',
+          message: 'Your deposit has been submitted successfully.',
+          txHash,
+          chainId,
+          autoHide: true,
         });
       }
 
@@ -193,6 +220,7 @@ export function DepositForm() {
           type: 'error',
           title: 'Deposit Failed',
           message: error instanceof Error ? error.message : 'Failed to deposit',
+          chainId,
         });
       }
     }
@@ -203,14 +231,18 @@ export function DepositForm() {
 
     try {
       setIsApproving(true);
-      await approve();
-
-      showNotification({
-        type: 'success',
-        title: 'Approval Submitted',
-        message:
-          'Please wait while the approval transaction is being confirmed...',
-      });
+      const hash = await approve();
+      
+      if (hash) {
+        showNotification({
+          type: 'success',
+          title: 'Approval Submitted',
+          message: 'Please wait while the approval transaction is being confirmed...',
+          txHash: hash,
+          chainId,
+          autoHide: true,
+        });
+      }
     } catch (error) {
       console.error('Error approving:', error);
       showNotification({
@@ -220,6 +252,7 @@ export function DepositForm() {
           error instanceof Error
             ? `Approval failed: ${error.message}`
             : 'Failed to approve token',
+        chainId,
       });
     } finally {
       setIsApproving(false);

@@ -16,6 +16,10 @@ interface ForcedWithdrawalDialogProps {
   chainId: number;
 }
 
+interface TransactionResponse {
+  hash: `0x${string}`;
+}
+
 export function ForcedWithdrawalDialog({
   isOpen,
   onClose,
@@ -94,15 +98,30 @@ export function ForcedWithdrawalDialog({
       const displayAmount =
         amountType === 'max' ? formattedMaxAmount : customAmount;
 
-      const hash = await forcedWithdrawal({
+      const result = await forcedWithdrawal({
         args: [BigInt(lockId), recipient, amount],
         amount,
         displayAmount,
         symbol,
       });
 
-      // Close dialog as soon as we get the transaction hash
-      if (hash) {
+      // Handle both object with hash and direct hash string
+      const txHash = typeof result === 'object' && result !== null
+        ? (result as TransactionResponse).hash
+        : typeof result === 'string'
+          ? result as `0x${string}`
+          : undefined;
+
+      if (txHash) {
+        showNotification({
+          type: 'success',
+          title: 'Withdrawal Submitted',
+          message: 'Your forced withdrawal has been submitted successfully.',
+          txHash,
+          chainId: targetChainId,
+          autoHide: true,
+        });
+
         // Reset form state
         setAmountType('max');
         setRecipientType('self');
@@ -125,6 +144,7 @@ export function ForcedWithdrawalDialog({
             error instanceof Error
               ? error.message
               : 'Failed to execute withdrawal',
+          chainId: targetChainId,
         });
       }
     }

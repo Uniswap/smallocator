@@ -7,6 +7,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/20/solid';
 import { NotificationContext } from './notification-context';
+import { getBlockExplorerTxUrl } from '../utils/chains';
 
 interface Notification {
   id: string;
@@ -16,6 +17,7 @@ interface Notification {
   timestamp: number;
   stage?: 'initiated' | 'submitted' | 'confirmed';
   txHash?: string;
+  chainId?: number | string;
   autoHide?: boolean;
 }
 
@@ -29,6 +31,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       message: string;
       stage?: 'initiated' | 'submitted' | 'confirmed';
       txHash?: string;
+      chainId?: number | string;
       autoHide?: boolean;
     }) => {
       const timestamp = Date.now();
@@ -130,6 +133,40 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const renderTransactionHash = (notification: Notification) => {
+    if (!notification.txHash || !notification.txHash.startsWith('0x')) {
+      return null;
+    }
+
+    const shortHash = `${notification.txHash.slice(0, 6)}...${notification.txHash.slice(-4)}`;
+    
+    if (notification.chainId) {
+      const explorerUrl = getBlockExplorerTxUrl(notification.chainId, notification.txHash);
+      if (explorerUrl) {
+        return (
+          <p className="mt-1 text-sm text-gray-500">
+            Transaction:{' '}
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#00ff00] hover:text-[#00dd00] transition-colors"
+            >
+              {shortHash}
+            </a>
+          </p>
+        );
+      }
+    }
+
+    // Fallback to non-linked hash if no explorer URL is available
+    return (
+      <p className="mt-1 text-sm text-gray-500">
+        Transaction: {shortHash}
+      </p>
+    );
+  };
+
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
@@ -161,13 +198,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                       <p className="mt-1 text-sm text-gray-400">
                         {notification.message}
                       </p>
-                      {notification.txHash &&
-                        notification.txHash.startsWith('0x') && (
-                          <p className="mt-1 text-sm text-gray-500">
-                            Transaction: {notification.txHash.slice(0, 6)}...
-                            {notification.txHash.slice(-4)}
-                          </p>
-                        )}
+                      {renderTransactionHash(notification)}
                     </div>
                     <div className="ml-4 flex flex-shrink-0">
                       <button

@@ -100,6 +100,7 @@ export function useCompact() {
           title: 'Transaction Replaced',
           message: `Transaction was ${replacement.reason}. Waiting for new transaction...`,
           txHash: replacement.transaction.hash,
+          chainId,
           autoHide: false,
         });
       },
@@ -134,6 +135,7 @@ export function useCompact() {
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       txHash: tempTxId,
+      chainId,
       autoHide: false,
     });
 
@@ -154,6 +156,7 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
+        chainId,
         autoHide: true,
       });
 
@@ -174,6 +177,7 @@ export function useCompact() {
                 : `Successfully deposited ${params.displayAmount} ${params.symbol}`,
               stage: 'confirmed',
               txHash: newHash,
+              chainId,
               autoHide: false,
             });
           }
@@ -190,6 +194,7 @@ export function useCompact() {
           title: 'Transaction Rejected',
           message: 'You rejected the transaction',
           txHash: tempTxId,
+          chainId,
           autoHide: true,
         });
       }
@@ -208,6 +213,7 @@ export function useCompact() {
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       txHash: tempTxId,
+      chainId,
       autoHide: false,
     });
 
@@ -225,6 +231,7 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
+        chainId,
         autoHide: true,
       });
 
@@ -243,6 +250,7 @@ export function useCompact() {
               message: 'The timelock period has started',
               stage: 'confirmed',
               txHash: newHash,
+              chainId,
               autoHide: false,
             });
           }
@@ -259,6 +267,7 @@ export function useCompact() {
           title: 'Transaction Rejected',
           message: 'You rejected the transaction',
           txHash: tempTxId,
+          chainId,
           autoHide: true,
         });
       }
@@ -277,6 +286,7 @@ export function useCompact() {
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       txHash: tempTxId,
+      chainId,
       autoHide: false,
     });
 
@@ -294,6 +304,7 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
+        chainId,
         autoHide: true,
       });
 
@@ -312,6 +323,7 @@ export function useCompact() {
               message: 'Your resource lock has been reactivated',
               stage: 'confirmed',
               txHash: newHash,
+              chainId,
               autoHide: false,
             });
           }
@@ -328,6 +340,7 @@ export function useCompact() {
           title: 'Transaction Rejected',
           message: 'You rejected the transaction',
           txHash: tempTxId,
+          chainId,
           autoHide: true,
         });
       }
@@ -359,6 +372,7 @@ export function useCompact() {
       message: 'Please confirm the transaction in your wallet...',
       stage: 'initiated',
       txHash: tempTxId,
+      chainId,
       autoHide: false,
     });
 
@@ -378,6 +392,7 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
+        chainId,
         autoHide: true,
       });
 
@@ -396,6 +411,7 @@ export function useCompact() {
               message: `Successfully withdrew ${displayAmount} ${symbol}`,
               stage: 'confirmed',
               txHash: newHash,
+              chainId,
               autoHide: false,
             });
           }
@@ -412,6 +428,7 @@ export function useCompact() {
           title: 'Transaction Rejected',
           message: 'You rejected the transaction',
           txHash: tempTxId,
+          chainId,
           autoHide: true,
         });
       }

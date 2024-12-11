@@ -27,6 +27,10 @@ interface EthereumProvider {
   request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
 }
 
+type TransactionResponse = {
+  hash: `0x${string}`;
+} | `0x${string}`;
+
 export { getChainName };
 
 export function formatLockId(lockId: string): string {
@@ -61,6 +65,7 @@ export function useBalanceDisplay() {
           title: 'Switching Network',
           message: `Please confirm the network switch in your wallet...`,
           txHash: tempTxId,
+          chainId: targetChainId,
           stage: 'initiated',
           autoHide: false,
         });
@@ -82,6 +87,7 @@ export function useBalanceDisplay() {
           title: 'Network Switched',
           message: `Successfully switched to ${getChainName(chainId)}`,
           txHash: tempTxId,
+          chainId: targetChainId,
           stage: 'confirmed',
           autoHide: true,
         });
@@ -93,6 +99,7 @@ export function useBalanceDisplay() {
             title: 'Network Not Found',
             message: 'Please add this network to your wallet first.',
             txHash: tempTxId,
+            chainId: targetChainId,
             stage: 'confirmed',
             autoHide: true,
           });
@@ -106,6 +113,7 @@ export function useBalanceDisplay() {
                 ? switchError.message
                 : 'Failed to switch network. Please switch manually.',
             txHash: tempTxId,
+            chainId: targetChainId,
             stage: 'confirmed',
             autoHide: true,
           });
@@ -127,9 +135,22 @@ export function useBalanceDisplay() {
       }
 
       try {
-        await disableForcedWithdrawal({
+        const result = await disableForcedWithdrawal({
           args: [BigInt(lockId)],
-        });
+        }) as TransactionResponse;
+        
+        // Get the transaction hash whether it's returned directly or as part of an object
+        const txHash = typeof result === 'object' ? result.hash : result;
+        
+        if (txHash) {
+          showNotification({
+            type: 'success',
+            title: 'Withdrawal Disabled',
+            message: 'Successfully disabled forced withdrawal',
+            txHash,
+            chainId: targetChainId,
+          });
+        }
       } catch (error) {
         console.error('Error disabling forced withdrawal:', error);
         if (
@@ -145,6 +166,7 @@ export function useBalanceDisplay() {
               error instanceof Error
                 ? error.message
                 : 'Failed to disable forced withdrawal',
+            chainId: targetChainId,
           });
         }
       }

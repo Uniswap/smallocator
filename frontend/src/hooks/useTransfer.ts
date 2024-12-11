@@ -292,6 +292,7 @@ export function useTransfer(
           title: 'Switching Network',
           message: `Please confirm the network switch in your wallet...`,
           txHash: tempTxId,
+          chainId: targetChainIdNumber,
           autoHide: false,
         });
 
@@ -315,6 +316,7 @@ export function useTransfer(
           title: 'Network Switched',
           message: `Successfully switched to ${getChainName(targetChainId)}`,
           txHash: tempTxId,
+          chainId: targetChainIdNumber,
           autoHide: true,
         });
       } catch (switchError) {
@@ -325,6 +327,7 @@ export function useTransfer(
             title: 'Network Not Found',
             message: 'Please add this network to your wallet first.',
             txHash: tempTxId,
+            chainId: targetChainIdNumber,
             autoHide: true,
           });
         } else {
@@ -337,6 +340,7 @@ export function useTransfer(
                 ? switchError.message
                 : 'Failed to switch network. Please switch manually.',
             txHash: tempTxId,
+            chainId: targetChainIdNumber,
             autoHide: true,
           });
         }
@@ -464,10 +468,30 @@ export function useTransfer(
         // Submit transfer or withdrawal
         if (isWithdrawal) {
           const hash = await allocatedWithdrawal(transfer, tokenInfo);
-          if (hash) resetForm(); // Reset form immediately after getting transaction hash
+          if (hash) {
+            showNotification({
+              type: 'success',
+              title: 'Withdrawal Submitted',
+              message: 'Your withdrawal has been submitted successfully.',
+              txHash: hash,
+              chainId: currentChainId,
+              autoHide: true,
+            });
+            resetForm(); // Reset form immediately after getting transaction hash
+          }
         } else {
           const hash = await allocatedTransfer(transfer, tokenInfo);
-          if (hash) resetForm(); // Reset form immediately after getting transaction hash
+          if (hash) {
+            showNotification({
+              type: 'success',
+              title: 'Transfer Submitted',
+              message: 'Your transfer has been submitted successfully.',
+              txHash: hash,
+              chainId: currentChainId,
+              autoHide: true,
+            });
+            resetForm(); // Reset form immediately after getting transaction hash
+          }
         }
       } catch (conversionError) {
         console.error('Error converting values:', conversionError);

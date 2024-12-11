@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useReadContract, useWriteContract, useAccount } from 'wagmi';
-import { formatUnits, parseUnits, isAddress } from 'viem';
+import { formatUnits, parseUnits, isAddress, type Hash } from 'viem';
 import { ERC20_ABI } from '../constants/contracts';
 
 export function useERC20(tokenAddress?: `0x${string}`) {
@@ -116,19 +116,17 @@ export function useERC20(tokenAddress?: `0x${string}`) {
     }
   }, [allowanceData, decimals]);
 
-  const { writeContract } = useWriteContract();
+  const { writeContractAsync } = useWriteContract();
 
-  const approve = async () => {
+  const approve = async (): Promise<Hash> => {
     if (!tokenAddress || !address) throw new Error('Not ready');
 
-    const hash = await writeContract({
+    return writeContractAsync({
       address: tokenAddress,
       abi: ERC20_ABI,
       functionName: 'approve',
       args: [tokenAddress, parseUnits('1000000', decimals || 18)],
     });
-
-    return hash;
   };
 
   return {
