@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatUnits, parseUnits, isAddress } from 'viem';
 import { useAccount } from 'wagmi';
 import { useCompact } from '../hooks/useCompact';
@@ -33,14 +33,25 @@ export function ForcedWithdrawalDialog({
   chainId: targetChainId,
 }: ForcedWithdrawalDialogProps) {
   const { address } = useAccount();
+  const { showNotification } = useNotification();
+  const { forcedWithdrawal, isConfirming, isConfirmed } = useCompact();
   const [amountType, setAmountType] = useState<'max' | 'custom'>('max');
   const [recipientType, setRecipientType] = useState<'self' | 'custom'>('self');
   const [customAmount, setCustomAmount] = useState('');
   const [customRecipient, setCustomRecipient] = useState('');
-  const { forcedWithdrawal, isConfirming, isConfirmed } = useCompact();
-  const { showNotification } = useNotification();
 
   const formattedMaxAmount = formatUnits(BigInt(maxAmount), decimals);
+
+  // Close dialog and reset form when confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      setAmountType('max');
+      setRecipientType('self');
+      setCustomAmount('');
+      setCustomRecipient('');
+      onClose();
+    }
+  }, [isConfirmed, onClose]);
 
   const validateAmount = () => {
     if (!customAmount) return null;
@@ -106,15 +117,6 @@ export function ForcedWithdrawalDialog({
         displayAmount,
         symbol,
       });
-
-      // Only reset form and close dialog after confirmation
-      if (isConfirmed) {
-        setAmountType('max');
-        setRecipientType('self');
-        setCustomAmount('');
-        setCustomRecipient('');
-        onClose();
-      }
     } catch (error) {
       console.error('Error executing forced withdrawal:', error);
       if (

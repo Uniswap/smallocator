@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useBalances } from './useBalances';
 import { useResourceLocks } from './useResourceLocks';
 import { useCompact } from './useCompact';
 import { useNotification } from './useNotification';
-import { formatTimeRemaining, formatResetPeriod } from '../utils/formatting';
 
 export interface BalanceDisplayProps {
   sessionToken: string | null;
@@ -56,9 +55,6 @@ export function useBalanceDisplay() {
   const [selectedLockId, setSelectedLockId] = useState<string>('');
   const [selectedLock, setSelectedLock] = useState<SelectedLockData | null>(
     null
-  );
-  const [currentTime, setCurrentTime] = useState(() =>
-    Math.floor(Date.now() / 1000)
   );
   const [isSessionIdDialogOpen, setIsSessionIdDialogOpen] = useState(false);
 
@@ -262,35 +258,13 @@ export function useBalanceDisplay() {
     }
   }, [address, showNotification]);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(Math.floor(Date.now() / 1000));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formattedBalances = useMemo(() => {
-    if (!balances) return [];
-
-    return balances.map((balance) => ({
-      ...balance,
-      timeRemaining: balance.withdrawableAt
-        ? formatTimeRemaining(parseInt(balance.withdrawableAt), currentTime)
-        : '',
-      resetPeriodFormatted: balance.resourceLock?.resetPeriod
-        ? formatResetPeriod(balance.resourceLock.resetPeriod)
-        : '',
-    }));
-  }, [balances, currentTime]);
-
   return {
     isConnected,
     isLoading,
     resourceLocksLoading,
     error,
-    formattedBalances,
+    formattedBalances: balances,
     resourceLocksData,
-    currentTime,
     isWithdrawalDialogOpen,
     setIsWithdrawalDialogOpen,
     isExecuteDialogOpen,

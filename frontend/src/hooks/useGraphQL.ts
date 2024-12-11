@@ -9,6 +9,34 @@ const etagCache = new Map<string, string>();
 // Cache to store last response data
 const responseCache = new Map<string, unknown>();
 
+// Simple deep equality check
+function isDeepEqual(obj1: unknown, obj2: unknown): boolean {
+  if (obj1 === obj2) return true;
+  
+  if (
+    typeof obj1 !== 'object' ||
+    typeof obj2 !== 'object' ||
+    obj1 === null ||
+    obj2 === null
+  ) {
+    return obj1 === obj2;
+  }
+
+  if (Array.isArray(obj1) !== Array.isArray(obj2)) return false;
+
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  if (keys1.length !== keys2.length) return false;
+
+  return keys1.every(key => 
+    isDeepEqual(
+      (obj1 as Record<string, unknown>)[key],
+      (obj2 as Record<string, unknown>)[key]
+    )
+  );
+}
+
 interface GraphQLResponse<T> {
   data: T;
   errors?: Array<{ message: string }>;
@@ -84,8 +112,10 @@ export async function fetchGraphQL<T>(
       throw new GraphQLError('GraphQL query failed', result.errors);
     }
 
-    // Update the response cache
-    responseCache.set(cacheKey, result.data);
+    // Only update cache if data has actually changed
+    if (!isDeepEqual(result.data, cachedResponse)) {
+      responseCache.set(cacheKey, result.data);
+    }
 
     return result.data;
   } catch (error) {
@@ -115,8 +145,8 @@ export function useGraphQLQuery<T>(
   const {
     pollInterval = DEFAULT_POLL_INTERVAL,
     enabled = true,
-    // Data considered fresh for 500ms
-    staleTime = 500,
+    // Increase staleTime to 2 seconds to reduce unnecessary refetches
+    staleTime = 2000,
     // Keep unused data in cache for 5 minutes
     gcTime = 5 * 60 * 1000,
   } = options;
@@ -137,8 +167,12 @@ export function useGraphQLQuery<T>(
     refetchInterval: pollInterval,
     staleTime,
     gcTime,
-    // Use cached data as placeholder while fetching
+    // Use cached data and only trigger rerender if data actually changed
     placeholderData: (previousData) => previousData,
+    select: (data) => {
+      const previousData = responseCache.get(JSON.stringify({ query, variables })) as T;
+      return isDeepEqual(data, previousData) ? previousData : data;
+    },
     enabled,
   });
 }

@@ -1,5 +1,6 @@
 import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
+import { useEffect } from 'react';
 
 interface InitiateForcedWithdrawalDialogProps {
   isOpen: boolean;
@@ -17,6 +18,13 @@ export function InitiateForcedWithdrawalDialog({
   const { enableForcedWithdrawal, isConfirming, isConfirmed } = useCompact();
   const { showNotification } = useNotification();
 
+  // Close dialog when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed) {
+      onClose();
+    }
+  }, [isConfirmed, onClose]);
+
   const handleInitiateWithdrawal = async () => {
     if (isConfirming) return;
 
@@ -24,11 +32,6 @@ export function InitiateForcedWithdrawalDialog({
       await enableForcedWithdrawal({
         args: [BigInt(lockId)],
       });
-
-      // Only close the dialog after confirmation
-      if (isConfirmed) {
-        onClose();
-      }
     } catch (error: unknown) {
       console.error('Error initiating forced withdrawal:', error);
       if (

@@ -1,14 +1,199 @@
 import { formatUnits } from 'viem';
+import { memo, useMemo } from 'react';
 import { Transfer } from './Transfer';
 import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog';
 import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 import { FinalizationThreshold } from './FinalizationThreshold';
+import { WithdrawalCountdown } from './WithdrawalCountdown';
 import {
   useBalanceDisplay,
   type BalanceDisplayProps,
   formatLockId,
   getChainName,
 } from '../hooks/useBalanceDisplay';
+import { formatResetPeriod } from '../utils/formatting';
+
+const BalanceItem = memo(function BalanceItem({
+  balance,
+  resourceLock,
+  onInitiateWithdrawal,
+  onDisableWithdrawal,
+  onExecuteWithdrawal,
+  sessionToken,
+}: {
+  balance: any;
+  resourceLock: any;
+  onInitiateWithdrawal: (lockId: string) => void;
+  onDisableWithdrawal: (chainId: string, lockId: string) => void;
+  onExecuteWithdrawal: (
+    chainId: string,
+    lockId: string,
+    balance: string,
+    tokenName: string,
+    decimals: number,
+    symbol: string
+  ) => void;
+  sessionToken: string | null;
+}) {
+  const withdrawableAt = parseInt(balance.withdrawableAt || '0');
+  const canExecuteWithdrawal = useMemo(() => {
+    const currentTime = Math.floor(Date.now() / 1000);
+    return parseInt(balance.withdrawalStatus.toString()) !== 0 && withdrawableAt <= currentTime;
+  }, [balance.withdrawalStatus, withdrawableAt]);
+
+  return (
+    <div className="p-4 bg-gray-800 rounded-lg">
+      {/* Header with Token Info and Chain Name */}
+      <div className="flex justify-between items-baseline mb-4">
+        <div className="text-base font-medium text-gray-300">
+          {balance.token?.name} ({balance.token?.symbol})
+        </div>
+        <div className="flex items-baseline gap-6 text-xs text-gray-400 ml-8">
+          <div>Chain: {getChainName(balance.chainId)}</div>
+          <div>
+            Lock ID:{' '}
+            <span className="font-mono">{formatLockId(balance.lockId)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Resource Lock Properties */}
+      <div className="flex gap-2 mb-4">
+        {balance.resourceLock?.resetPeriod &&
+          balance.resourceLock.resetPeriod > 0 && (
+            <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
+              Reset Period: {formatResetPeriod(balance.resourceLock.resetPeriod)}
+            </span>
+          )}
+        <FinalizationThreshold chainId={parseInt(balance.chainId)} />
+        {balance.resourceLock?.isMultichain && (
+          <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
+            Multichain
+          </span>
+        )}
+        {balance.withdrawalStatus === 0 && (
+          <span className="px-2 py-1 text-xs rounded bg-[#00ff00]/10 text-[#00ff00]">
+            Active
+          </span>
+        )}
+        {balance.withdrawalStatus !== 0 && (
+          <WithdrawalCountdown
+            withdrawableAt={balance.withdrawableAt}
+            canExecute={canExecuteWithdrawal}
+          />
+        )}
+      </div>
+
+      {/* Balances Grid */}
+      <div className="grid grid-cols-12 gap-4">
+        {/* Left side - Current, Allocatable, and Allocated */}
+        <div className="col-span-8 grid grid-cols-3 gap-4 pr-4 border-r border-gray-700">
+          <div>
+            <div className="text-xs text-gray-400">Current Balance</div>
+            <div className="mt-1 text-sm text-[#00ff00] font-mono">
+              {resourceLock &&
+                formatUnits(
+                  BigInt(resourceLock.balance),
+                  resourceLock.resourceLock.token.decimals
+                )}
+              {balance.token?.symbol && (
+                <span className="ml-1 text-gray-400">
+                  {balance.token.symbol}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-gray-400">Finalized Balance</div>
+            <div className="mt-1 text-sm text-[#00ff00] font-mono">
+              {balance.formattedAllocatableBalance ||
+                balance.allocatableBalance}
+              {balance.token?.symbol && (
+                <span className="ml-1 text-gray-400">
+                  {balance.token.symbol}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-gray-400">Currently Allocated</div>
+            <div className="mt-1 text-sm text-[#00ff00] font-mono">
+              {balance.formattedAllocatedBalance || balance.allocatedBalance}
+              {balance.token?.symbol && (
+                <span className="ml-1 text-gray-400">
+                  {balance.token.symbol}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Emphasized available to allocate */}
+        <div className="col-span-4 flex flex-col justify-center">
+          <div className="text-xs text-gray-400">Available to Allocate</div>
+          <div className="mt-1 text-lg font-bold text-[#00ff00] font-mono">
+            {balance.formattedAvailableBalance ||
+              balance.balanceAvailableToAllocate}
+            {balance.token?.symbol && (
+              <span className="ml-1 text-gray-400 text-sm">
+                {balance.token.symbol}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Transfer and Withdrawal Actions */}
+      {resourceLock && (
+        <div className="mt-4 border-t border-gray-700 pt-4">
+          <div className="flex gap-2">
+            <Transfer
+              chainId={balance.chainId}
+              resourceLockBalance={resourceLock.balance}
+              lockId={BigInt(balance.lockId)}
+              decimals={resourceLock.resourceLock.token.decimals}
+              tokenName={{
+                resourceLockName: resourceLock.resourceLock.token.name,
+                resourceLockSymbol: resourceLock.resourceLock.token.symbol,
+                tokenName: balance.token?.name || '',
+              }}
+              tokenSymbol={balance.token?.symbol || ''}
+              withdrawalStatus={balance.withdrawalStatus}
+              sessionToken={sessionToken}
+              resetPeriod={resourceLock.resourceLock.resetPeriod}
+              onForceWithdraw={() => {
+                onInitiateWithdrawal(balance.lockId);
+              }}
+              onDisableForceWithdraw={() => {
+                onDisableWithdrawal(balance.chainId, balance.lockId);
+              }}
+              balanceAvailableToAllocate={balance.balanceAvailableToAllocate}
+            />
+            {canExecuteWithdrawal && (
+              <button
+                onClick={() =>
+                  onExecuteWithdrawal(
+                    balance.chainId,
+                    balance.lockId,
+                    resourceLock?.balance || '0',
+                    balance.token?.name || 'Token',
+                    balance.token?.decimals || 18,
+                    balance.token?.symbol || ''
+                  )
+                }
+                className="mt-2 py-2 px-4 bg-[#F97316] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
+              >
+                Execute Forced Withdrawal
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
 
 export function BalanceDisplay({
   sessionToken,
@@ -20,7 +205,6 @@ export function BalanceDisplay({
     error,
     formattedBalances,
     resourceLocksData,
-    currentTime,
     isWithdrawalDialogOpen,
     setIsWithdrawalDialogOpen,
     isExecuteDialogOpen,
@@ -74,190 +258,16 @@ export function BalanceDisplay({
                 item.chainId === balance.chainId
             );
 
-            const withdrawableAt = parseInt(balance.withdrawableAt || '0');
-            const canExecuteWithdrawal =
-              parseInt(balance.withdrawalStatus.toString()) !== 0 &&
-              withdrawableAt <= currentTime;
-
             return (
-              <div
+              <BalanceItem
                 key={`${balance.chainId}-${balance.lockId}`}
-                className="p-4 bg-gray-800 rounded-lg"
-              >
-                {/* Header with Token Info and Chain Name */}
-                <div className="flex justify-between items-baseline mb-4">
-                  <div className="text-base font-medium text-gray-300">
-                    {balance.token?.name} ({balance.token?.symbol})
-                  </div>
-                  <div className="flex items-baseline gap-6 text-xs text-gray-400 ml-8">
-                    <div>Chain: {getChainName(balance.chainId)}</div>
-                    <div>
-                      Lock ID:{' '}
-                      <span className="font-mono">
-                        {formatLockId(balance.lockId)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resource Lock Properties */}
-                <div className="flex gap-2 mb-4">
-                  {balance.resourceLock?.resetPeriod &&
-                    balance.resourceLock.resetPeriod > 0 && (
-                      <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                        Reset Period: {balance.resetPeriodFormatted}
-                      </span>
-                    )}
-                  <FinalizationThreshold chainId={parseInt(balance.chainId)} />
-                  {balance.resourceLock?.isMultichain && (
-                    <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-                      Multichain
-                    </span>
-                  )}
-                  {balance.withdrawalStatus === 0 && (
-                    <span className="px-2 py-1 text-xs rounded bg-[#00ff00]/10 text-[#00ff00]">
-                      Active
-                    </span>
-                  )}
-                  {balance.withdrawalStatus !== 0 && (
-                    <span
-                      className={`px-2 py-1 text-xs rounded ${
-                        canExecuteWithdrawal
-                          ? 'bg-[#F97316]/10 text-[#F97316]'
-                          : 'bg-yellow-500/10 text-yellow-500'
-                      }`}
-                    >
-                      {canExecuteWithdrawal
-                        ? 'Forced Withdrawal Ready'
-                        : `Forced Withdrawal Ready in ${balance.timeRemaining}`}
-                    </span>
-                  )}
-                </div>
-
-                {/* Balances Grid */}
-                <div className="grid grid-cols-12 gap-4">
-                  {/* Left side - Current, Allocatable, and Allocated */}
-                  <div className="col-span-8 grid grid-cols-3 gap-4 pr-4 border-r border-gray-700">
-                    <div>
-                      <div className="text-xs text-gray-400">
-                        Current Balance
-                      </div>
-                      <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                        {resourceLock &&
-                          formatUnits(
-                            BigInt(resourceLock.balance),
-                            resourceLock.resourceLock.token.decimals
-                          )}
-                        {balance.token?.symbol && (
-                          <span className="ml-1 text-gray-400">
-                            {balance.token.symbol}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-gray-400">
-                        Finalized Balance
-                      </div>
-                      <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                        {balance.formattedAllocatableBalance ||
-                          balance.allocatableBalance}
-                        {balance.token?.symbol && (
-                          <span className="ml-1 text-gray-400">
-                            {balance.token.symbol}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-gray-400">
-                        Currently Allocated
-                      </div>
-                      <div className="mt-1 text-sm text-[#00ff00] font-mono">
-                        {balance.formattedAllocatedBalance ||
-                          balance.allocatedBalance}
-                        {balance.token?.symbol && (
-                          <span className="ml-1 text-gray-400">
-                            {balance.token.symbol}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right side - Emphasized available to allocate */}
-                  <div className="col-span-4 flex flex-col justify-center">
-                    <div className="text-xs text-gray-400">
-                      Available to Allocate
-                    </div>
-                    <div className="mt-1 text-lg font-bold text-[#00ff00] font-mono">
-                      {balance.formattedAvailableBalance ||
-                        balance.balanceAvailableToAllocate}
-                      {balance.token?.symbol && (
-                        <span className="ml-1 text-gray-400 text-sm">
-                          {balance.token.symbol}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Transfer and Withdrawal Actions */}
-                {resourceLock && (
-                  <div className="mt-4 border-t border-gray-700 pt-4">
-                    <div className="flex gap-2">
-                      <Transfer
-                        chainId={balance.chainId}
-                        resourceLockBalance={resourceLock.balance}
-                        lockId={BigInt(balance.lockId)}
-                        decimals={resourceLock.resourceLock.token.decimals}
-                        tokenName={{
-                          resourceLockName:
-                            resourceLock.resourceLock.token.name,
-                          resourceLockSymbol:
-                            resourceLock.resourceLock.token.symbol,
-                          tokenName: balance.token?.name || '',
-                        }}
-                        tokenSymbol={balance.token?.symbol || ''}
-                        withdrawalStatus={balance.withdrawalStatus}
-                        sessionToken={sessionToken}
-                        resetPeriod={resourceLock.resourceLock.resetPeriod}
-                        onForceWithdraw={() => {
-                          handleInitiateWithdrawal(balance.lockId);
-                        }}
-                        onDisableForceWithdraw={() => {
-                          handleDisableWithdrawal(
-                            balance.chainId,
-                            balance.lockId
-                          );
-                        }}
-                        balanceAvailableToAllocate={
-                          balance.balanceAvailableToAllocate
-                        }
-                      />
-                      {canExecuteWithdrawal && (
-                        <button
-                          onClick={() =>
-                            handleExecuteWithdrawal(
-                              balance.chainId,
-                              balance.lockId,
-                              resourceLock?.balance || '0',
-                              balance.token?.name || 'Token',
-                              balance.token?.decimals || 18,
-                              balance.token?.symbol || ''
-                            )
-                          }
-                          className="mt-2 py-2 px-4 bg-[#F97316] text-white rounded-lg font-medium hover:opacity-90 transition-colors"
-                        >
-                          Execute Forced Withdrawal
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+                balance={balance}
+                resourceLock={resourceLock}
+                onInitiateWithdrawal={handleInitiateWithdrawal}
+                onDisableWithdrawal={handleDisableWithdrawal}
+                onExecuteWithdrawal={handleExecuteWithdrawal}
+                sessionToken={sessionToken}
+              />
             );
           })}
         </div>
@@ -285,8 +295,7 @@ export function BalanceDisplay({
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-black/50 p-3 rounded font-mono text-sm break-all">
-                {localStorage.getItem(`session-${address}`) ||
-                  'No session found'}
+                {localStorage.getItem(`session-${address}`) || 'No session found'}
               </div>
               <button
                 onClick={handleCopySessionId}

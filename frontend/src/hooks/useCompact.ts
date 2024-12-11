@@ -62,7 +62,9 @@ export function useCompact() {
   const chainId = useChainId();
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const { showNotification } = useNotification();
   const [hash, setHash] = React.useState<Hash | undefined>();
+  
   const { writeContractAsync } = useWriteContract({
     mutation: {
       onError: (error) => {
@@ -88,7 +90,6 @@ export function useCompact() {
       },
     },
   });
-  const { showNotification } = useNotification();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
