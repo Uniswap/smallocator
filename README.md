@@ -52,23 +52,23 @@ Example response:
   "allocatorAddress": "0x1234567890123456789012345678901234567890",
   "signingAddress": "0x9876543210987654321098765432109876543210",
   "timestamp": "2024-03-07T12:00:00.000Z",
-  "chainConfig": {
-    "defaultFinalizationThresholdSeconds": 3,
-    "supportedChains": [
-      {
-        "chainId": "1",
-        "finalizationThresholdSeconds": 25
-      },
-      {
-        "chainId": "10",
-        "finalizationThresholdSeconds": 10
-      },
-      {
-        "chainId": "8453",
-        "finalizationThresholdSeconds": 2
-      }
-    ]
-  }
+  "supportedChains": [
+    {
+      "chainId": "1",
+      "allocatorId": "0x12345678901234567890abcd",
+      "finalizationThresholdSeconds": 25
+    },
+    {
+      "chainId": "10",
+      "allocatorId": "0x12345678901234567890abcd",
+      "finalizationThresholdSeconds": 10
+    },
+    {
+      "chainId": "8453",
+      "allocatorId": "0x2345678901234567890abcde",
+      "finalizationThresholdSeconds": 2
+    }
+  ]
 }
 ```
 
