@@ -49,14 +49,22 @@ const areResourceLocksEqual = (prev: any, next: any) => {
   if (!prev || !next) return prev === next;
   
   // Compare critical fields that affect rendering
-  return (
+  const tokenEqual = 
+    prev.resourceLock.token.name === next.resourceLock.token.name &&
+    prev.resourceLock.token.symbol === next.resourceLock.token.symbol &&
+    prev.resourceLock.token.decimals === next.resourceLock.token.decimals &&
+    prev.resourceLock.token.tokenAddress === next.resourceLock.token.tokenAddress;
+
+  const resourceLockEqual =
     prev.balance === next.balance &&
     prev.withdrawalStatus === next.withdrawalStatus &&
     prev.withdrawableAt === next.withdrawableAt &&
     prev.resourceLock.resetPeriod === next.resourceLock.resetPeriod &&
     prev.resourceLock.isMultichain === next.resourceLock.isMultichain &&
-    prev.resourceLock.token.decimals === next.resourceLock.token.decimals
-  );
+    prev.resourceLock.lockId === next.resourceLock.lockId &&
+    prev.chainId === next.chainId;
+
+  return tokenEqual && resourceLockEqual;
 };
 
 const BalanceItem = memo(function BalanceItem({
