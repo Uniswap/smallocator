@@ -75,7 +75,10 @@ export function useAllocatedTransfer() {
       },
     });
 
-  const allocatedTransfer = async (transferPayload: BasicTransfer, tokenInfo?: TokenInfo) => {
+  const allocatedTransfer = async (
+    transferPayload: BasicTransfer,
+    tokenInfo?: TokenInfo
+  ) => {
     if (!publicClient) throw new Error('Public client not available');
 
     if (!isSupportedChain(chainId)) {
@@ -124,20 +127,22 @@ export function useAllocatedTransfer() {
       setHash(newHash);
 
       // Start watching for confirmation but don't wait for it
-      void publicClient.waitForTransactionReceipt({
-        hash: newHash,
-      }).then((receipt) => {
-        if (receipt.status === 'success') {
-          showNotification({
-            type: 'success',
-            title: 'Transfer Confirmed',
-            message: `Successfully transferred ${displayAmount}`,
-            stage: 'confirmed',
-            txHash: newHash,
-            autoHide: false,
-          });
-        }
-      });
+      void publicClient
+        .waitForTransactionReceipt({
+          hash: newHash,
+        })
+        .then((receipt) => {
+          if (receipt.status === 'success') {
+            showNotification({
+              type: 'success',
+              title: 'Transfer Confirmed',
+              message: `Successfully transferred ${displayAmount}`,
+              stage: 'confirmed',
+              txHash: newHash,
+              autoHide: false,
+            });
+          }
+        });
 
       // Return the hash immediately after submission
       return newHash;

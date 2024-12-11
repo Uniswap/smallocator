@@ -470,7 +470,7 @@ export function useTransfer(
         // Pass token information along with the transfer
         const tokenInfo = {
           decimals,
-          symbol: tokenSymbol
+          symbol: tokenSymbol,
         };
 
         // Submit transfer or withdrawal

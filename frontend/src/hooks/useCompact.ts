@@ -105,13 +105,6 @@ export function useCompact() {
       },
     });
 
-  // Show confirmation notification when transaction is confirmed
-  React.useEffect(() => {
-    if (isConfirmed && hash) {
-      setHash(undefined); // Reset hash after confirmation
-    }
-  }, [isConfirmed, hash]);
-
   const getContractAddress = () => {
     if (!isSupportedChain(chainId)) {
       throw new Error('Unsupported chain');
@@ -161,27 +154,30 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
-        autoHide: false,
+        autoHide: true,
       });
 
       setHash(newHash);
 
-      // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: newHash,
-      });
-      if (receipt.status === 'success') {
-        showNotification({
-          type: 'success',
-          title: 'Deposit Confirmed',
-          message: params.isNative
-            ? `Successfully deposited ${params.displayValue} ETH`
-            : `Successfully deposited ${params.displayAmount} ${params.symbol}`,
-          stage: 'confirmed',
-          txHash: newHash,
-          autoHide: true,
+      // Start watching for confirmation but don't wait for it
+      void publicClient
+        .waitForTransactionReceipt({
+          hash: newHash,
+        })
+        .then((receipt) => {
+          if (receipt.status === 'success') {
+            showNotification({
+              type: 'success',
+              title: 'Deposit Confirmed',
+              message: params.isNative
+                ? `Successfully deposited ${params.displayValue} ETH`
+                : `Successfully deposited ${params.displayAmount} ${params.symbol}`,
+              stage: 'confirmed',
+              txHash: newHash,
+              autoHide: false,
+            });
+          }
         });
-      }
 
       return newHash;
     } catch (error) {
@@ -229,25 +225,28 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
-        autoHide: false,
+        autoHide: true,
       });
 
       setHash(newHash);
 
-      // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: newHash,
-      });
-      if (receipt.status === 'success') {
-        showNotification({
-          type: 'success',
-          title: 'Forced Withdrawal Initiated',
-          message: 'The timelock period has started',
-          stage: 'confirmed',
-          txHash: newHash,
-          autoHide: true,
+      // Start watching for confirmation but don't wait for it
+      void publicClient
+        .waitForTransactionReceipt({
+          hash: newHash,
+        })
+        .then((receipt) => {
+          if (receipt.status === 'success') {
+            showNotification({
+              type: 'success',
+              title: 'Forced Withdrawal Initiated',
+              message: 'The timelock period has started',
+              stage: 'confirmed',
+              txHash: newHash,
+              autoHide: false,
+            });
+          }
         });
-      }
 
       return newHash;
     } catch (error) {
@@ -295,25 +294,28 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
-        autoHide: false,
+        autoHide: true,
       });
 
       setHash(newHash);
 
-      // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: newHash,
-      });
-      if (receipt.status === 'success') {
-        showNotification({
-          type: 'success',
-          title: 'Resource Lock Reactivated',
-          message: 'Your resource lock has been reactivated',
-          stage: 'confirmed',
-          txHash: newHash,
-          autoHide: true,
+      // Start watching for confirmation but don't wait for it
+      void publicClient
+        .waitForTransactionReceipt({
+          hash: newHash,
+        })
+        .then((receipt) => {
+          if (receipt.status === 'success') {
+            showNotification({
+              type: 'success',
+              title: 'Resource Lock Reactivated',
+              message: 'Your resource lock has been reactivated',
+              stage: 'confirmed',
+              txHash: newHash,
+              autoHide: false,
+            });
+          }
         });
-      }
 
       return newHash;
     } catch (error) {
@@ -376,25 +378,28 @@ export function useCompact() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
-        autoHide: false,
+        autoHide: true,
       });
 
       setHash(newHash);
 
-      // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: newHash,
-      });
-      if (receipt.status === 'success') {
-        showNotification({
-          type: 'success',
-          title: 'Withdrawal Confirmed',
-          message: `Successfully withdrew ${displayAmount} ${symbol}`,
-          stage: 'confirmed',
-          txHash: newHash,
-          autoHide: true,
+      // Start watching for confirmation but don't wait for it
+      void publicClient
+        .waitForTransactionReceipt({
+          hash: newHash,
+        })
+        .then((receipt) => {
+          if (receipt.status === 'success') {
+            showNotification({
+              type: 'success',
+              title: 'Withdrawal Confirmed',
+              message: `Successfully withdrew ${displayAmount} ${symbol}`,
+              stage: 'confirmed',
+              txHash: newHash,
+              autoHide: false,
+            });
+          }
         });
-      }
 
       return newHash;
     } catch (error) {
