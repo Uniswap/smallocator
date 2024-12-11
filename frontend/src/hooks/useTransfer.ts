@@ -48,7 +48,7 @@ export function useTransfer(
     resourceLockSymbol: string;
     tokenName: string;
   },
-  _tokenSymbol: string,
+  tokenSymbol: string,
   _withdrawalStatus: number,
   sessionToken: string | null,
   onForceWithdraw: () => void,
@@ -56,7 +56,6 @@ export function useTransfer(
   balanceAvailableToAllocate: string,
   resetPeriod: number
 ) {
-  // Rest of the hook implementation remains exactly the same
   const { address } = useAccount();
   const currentChainId = useChainId();
   const [isOpen, setIsOpen] = useState(false);
@@ -472,11 +471,17 @@ export function useTransfer(
           recipient: formData.recipient as `0x${string}`,
         };
 
+        // Pass token information along with the transfer
+        const tokenInfo = {
+          decimals,
+          symbol: tokenSymbol
+        };
+
         // Submit transfer or withdrawal
         if (isWithdrawal) {
-          await allocatedWithdrawal(transfer);
+          await allocatedWithdrawal(transfer, tokenInfo);
         } else {
-          await allocatedTransfer(transfer);
+          await allocatedTransfer(transfer, tokenInfo);
         }
       } catch (conversionError) {
         console.error('Error converting values:', conversionError);

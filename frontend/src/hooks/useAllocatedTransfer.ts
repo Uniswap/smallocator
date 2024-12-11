@@ -4,7 +4,7 @@ import {
   usePublicClient,
   useWaitForTransactionReceipt,
 } from 'wagmi';
-import { type Chain } from 'viem';
+import { type Chain, formatUnits } from 'viem';
 import {
   COMPACT_ABI,
   COMPACT_ADDRESS,
@@ -32,6 +32,11 @@ const chains: Record<number, Chain> = {
   [base.id]: base,
   [baseSepolia.id]: baseSepolia,
 };
+
+interface TokenInfo {
+  decimals: number;
+  symbol: string;
+}
 
 export function useAllocatedTransfer() {
   const chainId = useChainId();
@@ -70,7 +75,7 @@ export function useAllocatedTransfer() {
       },
     });
 
-  const allocatedTransfer = async (transferPayload: BasicTransfer) => {
+  const allocatedTransfer = async (transferPayload: BasicTransfer, tokenInfo?: TokenInfo) => {
     if (!publicClient) throw new Error('Public client not available');
 
     if (!isSupportedChain(chainId)) {
@@ -85,10 +90,10 @@ export function useAllocatedTransfer() {
     // Generate a temporary transaction ID for linking notifications
     const tempTxId = `pending-${Date.now()}`;
 
-    // Format the amount for display
-    const displayAmount = transferPayload.amount
-      ? `${Number(transferPayload.amount) / 10 ** 18} ETH`
-      : 'tokens';
+    // Format the amount using the token's decimals and symbol if provided, otherwise use a generic format
+    const displayAmount = tokenInfo
+      ? `${formatUnits(transferPayload.amount, tokenInfo.decimals)} ${tokenInfo.symbol}`
+      : `${formatUnits(transferPayload.amount, 18)} ETH`; // Default to ETH format
 
     showNotification({
       type: 'info',
@@ -113,7 +118,7 @@ export function useAllocatedTransfer() {
         message: 'Waiting for confirmation...',
         stage: 'submitted',
         txHash: newHash,
-        autoHide: false,
+        autoHide: true,
       });
 
       setHash(newHash);
@@ -129,7 +134,7 @@ export function useAllocatedTransfer() {
           message: `Successfully transferred ${displayAmount}`,
           stage: 'confirmed',
           txHash: newHash,
-          autoHide: true,
+          autoHide: false,
         });
       }
 
