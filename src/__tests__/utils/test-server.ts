@@ -7,6 +7,8 @@ import { dbManager } from '../setup';
 import { signMessage } from 'viem/accounts';
 import { getAddress } from 'viem/utils';
 import { CompactMessage } from '../../validation/types';
+import { setupGraphQLMocks } from './graphql-mock';
+import { fetchAndCacheSupportedChains } from '../../graphql';
 
 // Helper to generate test data
 const defaultBaseUrl = 'https://smallocator.example';
@@ -74,6 +76,9 @@ export async function createTestServer(): Promise<FastifyInstance> {
   });
 
   try {
+    // Setup GraphQL mocks before any server initialization
+    setupGraphQLMocks();
+
     // Register plugins
     await server.register(env, {
       schema: {
@@ -106,6 +111,10 @@ export async function createTestServer(): Promise<FastifyInstance> {
             type: 'string',
             default: 'https://smallocator.example',
           },
+          SUPPORTED_CHAINS_REFRESH_INTERVAL: {
+            type: 'string',
+            default: '600',
+          },
         },
       },
       dotenv: false,
@@ -122,6 +131,9 @@ export async function createTestServer(): Promise<FastifyInstance> {
 
     // Decorate fastify instance with db
     server.decorate('db', db);
+
+    // Initialize supported chains cache
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS as string);
 
     // Register routes
     await setupRoutes(server);

@@ -1,97 +1,114 @@
 import {
   graphqlClient,
-  getCompactDetails,
-  calculateQueryTimestamps,
-} from '../graphql.js';
-import { getFinalizationThreshold } from '../chain-config.js';
+  fetchAndCacheSupportedChains,
+  getCachedSupportedChains,
+  startSupportedChainsRefresh,
+  stopSupportedChainsRefresh,
+} from '../graphql';
+import {
+  setupGraphQLMocks,
+  mockSupportedChainsResponse,
+} from './utils/graphql-mock';
+import { getFinalizationThreshold } from '../chain-config';
 
-const mockTimestampMs = 1700000000000; // Some fixed timestamp in milliseconds
-const mockTimestampSec = Math.ceil(mockTimestampMs / 1000);
-
-describe('GraphQL Functions', () => {
-  let originalNow: () => number;
-  let originalRequest: typeof graphqlClient.request;
-
-  beforeEach((): void => {
-    // Store original functions
-    originalNow = Date.now;
-    originalRequest = graphqlClient.request;
-
-    // Mock Date.now
-    Date.now = (): number => mockTimestampMs;
-
-    // Mock request
-    graphqlClient.request = async (): Promise<Record<string, unknown>> => ({
-      allocator: {
-        supportedChains: {
-          items: [{ allocatorId: '55765469257802026776384764' }],
-        },
-      },
-    });
+describe('GraphQL Client', () => {
+  beforeEach(() => {
+    // Reset mocks and cache before each test
+    setupGraphQLMocks();
+    // Clear any existing intervals
+    stopSupportedChainsRefresh();
   });
 
-  afterEach((): void => {
-    // Restore original functions
-    Date.now = originalNow;
-    graphqlClient.request = originalRequest;
-  });
+  describe('Supported Chains Cache', () => {
+    const testAllocatorAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 
-  it('should fetch and process compact details correctly', async (): Promise<void> => {
-    const variables = {
-      allocator: '0x123',
-      sponsor: '0x456',
-      lockId: '789',
-      chainId: '10',
-    };
+    it('should fetch and cache supported chains data', async () => {
+      await fetchAndCacheSupportedChains(testAllocatorAddress);
+      const cachedData = getCachedSupportedChains();
 
-    const result = await getCompactDetails(variables);
-    expect(result).toBeDefined();
-    expect(result.allocator).toBeDefined();
-  });
+      expect(cachedData).toBeDefined();
+      expect(Array.isArray(cachedData)).toBe(true);
 
-  it('should handle missing data gracefully', async (): Promise<void> => {
-    // Override mock for this test to throw an error
-    graphqlClient.request = async (): Promise<never> => {
-      throw new Error('GraphQL query failed');
-    };
+      const mockChains =
+        mockSupportedChainsResponse.allocator.supportedChains.items;
+      expect(cachedData).toHaveLength(mockChains.length);
 
-    const variables = {
-      allocator: '0x123',
-      sponsor: '0x456',
-      lockId: '789',
-      chainId: '10',
-    };
-
-    await expect(getCompactDetails(variables)).rejects.toThrow(
-      'GraphQL query failed'
-    );
-  });
-
-  describe('calculateQueryTimestamps', () => {
-    it('should calculate correct timestamps for Optimism', (): void => {
-      const chainId = '10'; // Optimism
-      const { finalizationTimestamp, thresholdTimestamp } =
-        calculateQueryTimestamps(chainId);
-
-      const expectedFinalization =
-        mockTimestampSec - getFinalizationThreshold(chainId);
-      const expectedThreshold = mockTimestampSec - 3 * 60 * 60; // 3 hours in seconds
-
-      expect(finalizationTimestamp).toBe(expectedFinalization);
-      expect(thresholdTimestamp).toBe(expectedThreshold);
+      mockChains.forEach((mockChain, index) => {
+        expect(cachedData![index]).toEqual({
+          chainId: mockChain.chainId,
+          allocatorId: mockChain.allocatorId,
+          finalizationThresholdSeconds: getFinalizationThreshold(
+            mockChain.chainId
+          ),
+        });
+      });
     });
 
-    it('should calculate correct timestamps for Ethereum mainnet', (): void => {
-      const chainId = '1'; // Ethereum mainnet
-      const { finalizationTimestamp, thresholdTimestamp } =
-        calculateQueryTimestamps(chainId);
+    it('should refresh supported chains data on interval', async () => {
+      // Setup spy on graphqlClient.request
+      const requestSpy = jest.spyOn(graphqlClient, 'request');
 
-      const expectedFinalization =
-        mockTimestampSec - getFinalizationThreshold(chainId);
-      const expectedThreshold = mockTimestampSec - 3 * 60 * 60; // 3 hours in seconds
+      // Initial fetch
+      await fetchAndCacheSupportedChains(testAllocatorAddress);
+      expect(requestSpy).toHaveBeenCalledTimes(1);
 
-      expect(finalizationTimestamp).toBe(expectedFinalization);
-      expect(thresholdTimestamp).toBe(expectedThreshold);
+      // Start refresh with 100ms interval
+      startSupportedChainsRefresh(testAllocatorAddress, 0.1); // 100ms
+
+      // Wait for two refresh cycles
+      await new Promise((resolve) => setTimeout(resolve, 250));
+
+      // Should have been called at least 2 more times
+      expect(requestSpy.mock.calls.length).toBeGreaterThanOrEqual(3);
+
+      // Cleanup
+      stopSupportedChainsRefresh();
+      requestSpy.mockRestore();
+    });
+
+    it('should preserve cache on failed refresh', async () => {
+      // Initial fetch
+      await fetchAndCacheSupportedChains(testAllocatorAddress);
+      const initialCache = getCachedSupportedChains();
+
+      // Mock a failed request
+      (graphqlClient as any).request = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Network error'));
+
+      // Attempt refresh
+      await fetchAndCacheSupportedChains(testAllocatorAddress);
+
+      // Cache should remain unchanged
+      expect(getCachedSupportedChains()).toEqual(initialCache);
+    });
+
+    it('should handle stopping refresh when no interval is running', () => {
+      // Should not throw error
+      expect(() => stopSupportedChainsRefresh()).not.toThrow();
+    });
+
+    it('should handle multiple start/stop cycles', async () => {
+      const requestSpy = jest.spyOn(graphqlClient, 'request');
+
+      // First cycle
+      startSupportedChainsRefresh(testAllocatorAddress, 0.1);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      stopSupportedChainsRefresh();
+
+      const firstCount = requestSpy.mock.calls.length;
+
+      // Second cycle
+      startSupportedChainsRefresh(testAllocatorAddress, 0.1);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      stopSupportedChainsRefresh();
+
+      const secondCount = requestSpy.mock.calls.length;
+
+      // Should have more calls in second count
+      expect(secondCount).toBeGreaterThan(firstCount);
+
+      requestSpy.mockRestore();
     });
   });
 });
