@@ -132,7 +132,7 @@ describe('Compact GraphQL Validation', () => {
     // Mock a different allocator ID in the chain config cache
     (graphqlClient as any).request = async (
       document: string | { source: string },
-      variables?: Record<string, unknown>
+      _variables?: Record<string, unknown>
     ): Promise<any> => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {
@@ -186,7 +186,7 @@ describe('Compact GraphQL Validation', () => {
     // Mock empty supported chains in the chain config cache
     (graphqlClient as any).request = async (
       document: string | { source: string },
-      variables?: Record<string, unknown>
+      _variables?: Record<string, unknown>
     ): Promise<any> => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {

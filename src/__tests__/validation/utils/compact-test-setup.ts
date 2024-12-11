@@ -70,8 +70,8 @@ export function setupGraphQLMocks(): void {
 
   // Override the request method of the GraphQL client
   (graphqlClient as any).request = async (
-    query: string,
-    variables: Record<string, any>
+    _query: string,
+    _variables: Record<string, any>
   ): Promise<
     SupportedChainsResponse & AccountDeltasResponse & AccountResponse
   > => {

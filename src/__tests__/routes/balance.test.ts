@@ -10,7 +10,6 @@ import {
   AccountDeltasResponse,
   AccountResponse,
   AllResourceLocksResponse,
-  getCachedSupportedChains,
   fetchAndCacheSupportedChains,
   SupportedChainsResponse,
 } from '../../graphql';

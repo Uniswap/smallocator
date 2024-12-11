@@ -8,10 +8,7 @@ import {
   AccountResponse,
   fetchAndCacheSupportedChains,
 } from '../../graphql';
-import {
-  setupGraphQLMocks,
-  mockSupportedChainsResponse,
-} from '../utils/graphql-mock';
+import { setupGraphQLMocks } from '../utils/graphql-mock';
 
 describe('Allocation Validation', () => {
   let db: PGlite;
@@ -290,7 +287,7 @@ describe('Allocation Validation', () => {
     const differentAllocatorId = '999';
     (graphqlClient as any).request = async (
       document: string | { source: string },
-      variables?: Record<string, unknown>
+      _variables?: Record<string, unknown>
     ): Promise<any> => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {
@@ -342,7 +339,7 @@ describe('Allocation Validation', () => {
     // Override the mock response with empty supported chains
     (graphqlClient as any).request = async (
       document: string | { source: string },
-      variables?: Record<string, unknown>
+      _variables?: Record<string, unknown>
     ): Promise<any> => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {
