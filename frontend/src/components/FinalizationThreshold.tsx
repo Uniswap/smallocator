@@ -1,28 +1,26 @@
 import { useChainConfig } from '../hooks/use-chain-config';
 import { formatResetPeriod } from '../utils/formatting';
-import { ChainConfig } from '../types/chain';
+import { SupportedChain } from '../types/chain';
 
 interface FinalizationThresholdProps {
   chainId: number;
 }
 
 export function FinalizationThreshold({ chainId }: FinalizationThresholdProps) {
-  const { chainConfig } = useChainConfig();
+  const { supportedChains } = useChainConfig();
 
-  if (!chainConfig) return null;
+  if (!supportedChains) return null;
 
-  const chainSpecific = chainConfig.supportedChains.find(
-    (chain: ChainConfig['supportedChains'][0]) =>
-      chain.chainId === chainId.toString()
+  const chainSpecific = supportedChains.find(
+    (chain: SupportedChain) => chain.chainId === chainId.toString()
   );
 
-  const threshold =
-    chainSpecific?.finalizationThresholdSeconds ??
-    chainConfig.defaultFinalizationThresholdSeconds;
+  if (!chainSpecific) return null;
 
   return (
     <span className="px-2 py-1 text-xs bg-[#00ff00]/10 text-[#00ff00] rounded">
-      Finalization: {formatResetPeriod(threshold)}
+      Finalization:{' '}
+      {formatResetPeriod(chainSpecific.finalizationThresholdSeconds)}
     </span>
   );
 }

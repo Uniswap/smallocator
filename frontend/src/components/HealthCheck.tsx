@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { ChainConfigProvider } from '../contexts/ChainConfigContext';
-import { ChainConfig } from '../types/chain';
+import { SupportedChains } from '../types/chain';
 
 interface HealthStatus {
   status: string;
   allocatorAddress: string;
   signingAddress: string;
   timestamp: string;
-  chainConfig: ChainConfig;
+  supportedChains: SupportedChains;
 }
 
 interface HealthCheckProps {
   onHealthStatusChange?: (isHealthy: boolean) => void;
-  onChainConfigUpdate?: (chainConfig: ChainConfig) => void;
+  onChainConfigUpdate?: (supportedChains: SupportedChains) => void;
 }
 
 const HealthCheck: React.FC<HealthCheckProps> = ({
@@ -31,7 +31,7 @@ const HealthCheck: React.FC<HealthCheckProps> = ({
         setHealthData(data);
         setError(null);
         onHealthStatusChange?.(data.status === 'healthy');
-        onChainConfigUpdate?.(data.chainConfig);
+        onChainConfigUpdate?.(data.supportedChains);
       } catch (error) {
         console.error('Error fetching health status:', error);
         setError('Allocator server unavailable');
@@ -81,7 +81,7 @@ const HealthCheck: React.FC<HealthCheckProps> = ({
 
   return (
     <ChainConfigProvider
-      value={{ chainConfig: healthData?.chainConfig || null }}
+      value={{ supportedChains: healthData?.supportedChains || null }}
     >
       <div className="space-y-2">
         {/* Allocator Address and Status */}

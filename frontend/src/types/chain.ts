@@ -1,7 +1,7 @@
-export interface ChainConfig {
-  defaultFinalizationThresholdSeconds: number;
-  supportedChains: Array<{
-    chainId: string;
-    finalizationThresholdSeconds: number;
-  }>;
-}
+export type SupportedChain = {
+  chainId: string;
+  allocatorId: string;
+  finalizationThresholdSeconds: number;
+};
+
+export type SupportedChains = Array<SupportedChain>;

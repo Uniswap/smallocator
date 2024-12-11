@@ -12,7 +12,7 @@ import HealthCheck from './components/HealthCheck';
 import { DepositForm } from './components/DepositForm';
 import { NotificationProvider } from './context/NotificationProvider';
 import { ChainConfigProvider } from './contexts/ChainConfigContext';
-import { ChainConfig } from './types/chain';
+import { SupportedChains } from './types/chain';
 import APISection from './components/APISection';
 
 // Create a client
@@ -36,7 +36,7 @@ const customTheme = darkTheme({
 function AppContent() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isHealthy, setIsHealthy] = useState(true);
-  const [, setChainConfig] = useState<ChainConfig | null>(null);
+  const [, setChainConfig] = useState<SupportedChains | null>(null);
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
@@ -133,7 +133,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider theme={customTheme}>
           <NotificationProvider>
-            <ChainConfigProvider value={{ chainConfig: null }}>
+            <ChainConfigProvider value={{ supportedChains: null }}>
               <AppContent />
             </ChainConfigProvider>
           </NotificationProvider>

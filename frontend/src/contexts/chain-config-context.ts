@@ -1,10 +1,10 @@
 import { createContext } from 'react';
-import { ChainConfig } from '../types/chain';
+import { SupportedChains } from '../types/chain';
 
 export interface ChainConfigContextType {
-  chainConfig: ChainConfig | null;
+  supportedChains: SupportedChains | null;
 }
 
 export const ChainConfigContext = createContext<ChainConfigContextType>({
-  chainConfig: null,
+  supportedChains: null,
 });
