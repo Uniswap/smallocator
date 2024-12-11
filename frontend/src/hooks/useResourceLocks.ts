@@ -75,7 +75,7 @@ interface ResourceLocksResponse {
 }
 
 interface UseResourceLocksResult {
-  data: Account | null;
+  data: Account;
   isLoading: boolean;
   error: Error | null;
 }
@@ -96,7 +96,7 @@ export function useResourceLocks(): UseResourceLocksResult {
   );
 
   return {
-    data: data?.account ?? null,
+    data: data?.account ?? { resourceLocks: { items: [] } },
     isLoading,
     error,
   };

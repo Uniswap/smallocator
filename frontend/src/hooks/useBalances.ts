@@ -40,9 +40,8 @@ export function useBalances(): UseBalancesResult {
   const { address, isConnected } = useAccount();
   const [balances, setBalances] = useState<Balance[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const isFetchingRef = useRef(false);
-  const hasInitialFetchRef = useRef(false);
 
   // Get resource lock details from indexer
   const {
@@ -55,11 +54,8 @@ export function useBalances(): UseBalancesResult {
     if (!isConnected || !address || isFetchingRef.current) return;
 
     isFetchingRef.current = true;
-    const shouldSetLoading = !hasInitialFetchRef.current; // Only show loading on first fetch ever
 
     try {
-      if (shouldSetLoading) setIsLoading(true);
-
       const sessionId = localStorage.getItem(`session-${address}`);
       if (!sessionId) {
         throw new Error('No session ID found');
@@ -74,13 +70,12 @@ export function useBalances(): UseBalancesResult {
       if (!response.ok) throw new Error('Failed to fetch balances.');
 
       const data = await response.json();
-      hasInitialFetchRef.current = true;
 
       // Only update state if data has actually changed
       setBalances((prevBalances) => {
         const newBalances = data.balances.map((balance: Balance) => {
           // Find matching resource lock from indexer data
-          const resourceLock = resourceLocksData?.resourceLocks?.items.find(
+          const resourceLock = resourceLocksData.resourceLocks.items.find(
             (item) =>
               item.resourceLock.lockId === balance.lockId &&
               item.chainId === balance.chainId
@@ -156,18 +151,20 @@ export function useBalances(): UseBalancesResult {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch balances');
     } finally {
-      if (shouldSetLoading) setIsLoading(false);
+      setIsLoading(false);
       isFetchingRef.current = false;
     }
   }, [isConnected, address, resourceLocksData]);
 
   useEffect(() => {
-    // Reset hasInitialFetch when address changes
-    hasInitialFetchRef.current = false;
-
     // Initial fetch
     if (isConnected && address) {
       void fetchBalances();
+    } else {
+      // Reset state when disconnected
+      setBalances([]);
+      setError(null);
+      setIsLoading(false);
     }
 
     // Set up polling interval
@@ -191,12 +188,18 @@ export function useBalances(): UseBalancesResult {
     }
   }, [resourceLocksError]);
 
+  // Only show loading state during initial load
+  const showLoading = useMemo(
+    () => isLoading && resourceLocksLoading,
+    [isLoading, resourceLocksLoading]
+  );
+
   return useMemo(
     () => ({
       balances,
       error,
-      isLoading: isLoading || resourceLocksLoading,
+      isLoading: showLoading,
     }),
-    [balances, error, isLoading, resourceLocksLoading]
+    [balances, error, showLoading]
   );
 }

@@ -327,7 +327,7 @@ export function BalanceDisplay({
       ) : (
         <div className="space-y-4">
           {formattedBalances.map((balance) => {
-            const resourceLock = resourceLocksData?.resourceLocks.items.find(
+            const resourceLock = resourceLocksData.resourceLocks.items.find(
               (item) =>
                 item.resourceLock.lockId === balance.lockId &&
                 item.chainId === balance.chainId
