@@ -139,7 +139,7 @@ const APISection: React.FC = () => {
                       ${endpoint.method === 'GET' ? 'text-blue-400' : ''}
                       ${endpoint.method === 'POST' ? 'text-green-400' : ''}
                       ${endpoint.method === 'DELETE' ? 'text-red-400' : ''}
-                      font-semibold w-16
+                      font-semibold min-w-[4rem] w-[4rem]
                     `}
                     >
                       {endpoint.method}
