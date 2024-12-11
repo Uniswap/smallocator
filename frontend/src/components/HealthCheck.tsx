@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { ChainConfigProvider } from '../contexts/ChainConfigContext';
 import { SupportedChains } from '../types/chain';
 
 interface HealthStatus {
@@ -80,55 +79,51 @@ const HealthCheck: React.FC<HealthCheckProps> = ({
   }
 
   return (
-    <ChainConfigProvider
-      value={{ supportedChains: healthData?.supportedChains || null }}
-    >
-      <div className="space-y-2">
-        {/* Allocator Address and Status */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-400">Allocator:</span>
-            <span className="text-lg font-mono text-[#00ff00]">
-              {healthData.allocatorAddress}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 w-[180px] justify-end">
-            <span className="text-gray-400 text-sm pr-2">Status:</span>
-            <span
-              className={`px-2 py-0.5 text-xs rounded ${
-                healthData.status === 'healthy'
-                  ? 'bg-[#00ff00]/10 text-[#00ff00]'
-                  : 'bg-red-500/10 text-red-500'
-              }`}
-            >
-              {healthData.status.charAt(0).toUpperCase() +
-                healthData.status.slice(1)}
-            </span>
-          </div>
+    <div className="space-y-2">
+      {/* Allocator Address and Status */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-400">Allocator:</span>
+          <span className="text-lg font-mono text-[#00ff00]">
+            {healthData.allocatorAddress}
+          </span>
         </div>
-
-        {/* Signer and Last Checked */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400">Signer:</span>
-            <span className="font-mono text-[#00ff00]">
-              {healthData.signingAddress}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 w-[180px] justify-end whitespace-nowrap">
-            <span className="text-gray-400">Last Checked:</span>
-            <span className="font-mono text-[#00ff00]">
-              {new Date(healthData.timestamp).toLocaleTimeString(undefined, {
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              })}
-            </span>
-          </div>
+        <div className="flex items-center gap-2 w-[180px] justify-end">
+          <span className="text-gray-400 text-sm pr-2">Status:</span>
+          <span
+            className={`px-2 py-0.5 text-xs rounded ${
+              healthData.status === 'healthy'
+                ? 'bg-[#00ff00]/10 text-[#00ff00]'
+                : 'bg-red-500/10 text-red-500'
+            }`}
+          >
+            {healthData.status.charAt(0).toUpperCase() +
+              healthData.status.slice(1)}
+          </span>
         </div>
       </div>
-    </ChainConfigProvider>
+
+      {/* Signer and Last Checked */}
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-400">Signer:</span>
+          <span className="font-mono text-[#00ff00]">
+            {healthData.signingAddress}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 w-[180px] justify-end whitespace-nowrap">
+          <span className="text-gray-400">Last Checked:</span>
+          <span className="font-mono text-[#00ff00]">
+            {new Date(healthData.timestamp).toLocaleTimeString(undefined, {
+              hour12: false,
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 };
 
