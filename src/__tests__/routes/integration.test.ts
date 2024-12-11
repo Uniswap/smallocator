@@ -34,7 +34,9 @@ describe('Integration Tests', () => {
   describe('Allocation Flow', () => {
     it('should handle complete allocation flow: session -> compact -> balance -> nonce', async () => {
       // Mock GraphQL response with zero allocated balance
-      graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+      graphqlClient.request = async (): Promise<
+        AccountDeltasResponse & AccountResponse
+      > => ({
         accountDeltas: {
           items: [],
         },

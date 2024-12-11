@@ -1,8 +1,13 @@
 import { graphqlClient } from '../../graphql';
 
 // Extract allocator ID from lockId (matches the calculation in balance.ts)
-const TEST_LOCK_ID = BigInt('0x7000000000000000000000010000000000000000000000000000000000000000');
-const ALLOCATOR_ID = ((TEST_LOCK_ID >> BigInt(160)) & ((BigInt(1) << BigInt(92)) - BigInt(1))).toString();
+const TEST_LOCK_ID = BigInt(
+  '0x7000000000000000000000010000000000000000000000000000000000000000'
+);
+const ALLOCATOR_ID = (
+  (TEST_LOCK_ID >> BigInt(160)) &
+  ((BigInt(1) << BigInt(92)) - BigInt(1))
+).toString();
 
 // Mock response for supported chains query
 const mockSupportedChainsResponse = {
@@ -63,14 +68,14 @@ let shouldFail = false;
 export function setupGraphQLMocks(): void {
   requestCallCount = 0;
   shouldFail = false;
-  
+
   // Override the request method of the GraphQL client
   (graphqlClient as any).request = async (
     query: string,
     variables: Record<string, any>
   ) => {
     requestCallCount++;
-    
+
     if (shouldFail) {
       throw new Error('Network error');
     }

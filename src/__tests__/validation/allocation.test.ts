@@ -8,6 +8,10 @@ import {
   AccountResponse,
   fetchAndCacheSupportedChains,
 } from '../../graphql';
+import {
+  setupGraphQLMocks,
+  mockSupportedChainsResponse,
+} from '../utils/graphql-mock';
 
 describe('Allocation Validation', () => {
   let db: PGlite;
@@ -46,14 +50,17 @@ describe('Allocation Validation', () => {
   });
 
   beforeEach(async (): Promise<void> => {
-    // Store original function
+    // Store original function and setup mocks
     originalRequest = graphqlClient.request;
+    setupGraphQLMocks();
 
     // Initialize chain config cache
     await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
 
     // Mock GraphQL response with sufficient balance
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    (graphqlClient as any).request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -92,7 +99,9 @@ describe('Allocation Validation', () => {
     const compact = getFreshCompact();
 
     // Mock GraphQL response with insufficient balance
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    (graphqlClient as any).request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -153,7 +162,9 @@ describe('Allocation Validation', () => {
     );
 
     // Mock GraphQL response with balance just enough for one compact
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    (graphqlClient as any).request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -213,7 +224,9 @@ describe('Allocation Validation', () => {
     );
 
     // Mock GraphQL response with processed claim
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    (graphqlClient as any).request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -244,7 +257,9 @@ describe('Allocation Validation', () => {
     const compact = getFreshCompact();
 
     // Mock GraphQL response with withdrawal enabled
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    (graphqlClient as any).request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -271,8 +286,97 @@ describe('Allocation Validation', () => {
   it('should reject when allocatorId from chain config does not match compact ID', async (): Promise<void> => {
     const compact = getFreshCompact();
 
-    // Mock different allocator address to get different allocator ID in chain config
-    await fetchAndCacheSupportedChains('0x1234567890123456789012345678901234567890');
+    // Override the mock response with a different allocator ID
+    const differentAllocatorId = '999';
+    (graphqlClient as any).request = async (
+      document: string | { source: string },
+      variables?: Record<string, unknown>
+    ): Promise<any> => {
+      const query = typeof document === 'string' ? document : document.source;
+      if (query.includes('GetSupportedChains')) {
+        return {
+          allocator: {
+            supportedChains: {
+              items: [
+                {
+                  chainId: '10',
+                  allocatorId: differentAllocatorId,
+                },
+              ],
+            },
+          },
+        };
+      }
+      // Return mock account data for other queries
+      return {
+        accountDeltas: {
+          items: [],
+        },
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      };
+    };
+
+    // Refresh chain config with new mock
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
+
+    const result = await validateAllocation(compact, chainId, db);
+    expect(result.isValid).toBe(false);
+    expect(result.error).toBe('Invalid allocator ID');
+  });
+
+  it('should reject when allocatorId is missing from chain config', async (): Promise<void> => {
+    const compact = getFreshCompact();
+
+    // Override the mock response with empty supported chains
+    (graphqlClient as any).request = async (
+      document: string | { source: string },
+      variables?: Record<string, unknown>
+    ): Promise<any> => {
+      const query = typeof document === 'string' ? document : document.source;
+      if (query.includes('GetSupportedChains')) {
+        return {
+          allocator: {
+            supportedChains: {
+              items: [], // No supported chains
+            },
+          },
+        };
+      }
+      // Return mock account data for other queries
+      return {
+        accountDeltas: {
+          items: [],
+        },
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      };
+    };
+
+    // Refresh chain config with new mock
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
 
     const result = await validateAllocation(compact, chainId, db);
     expect(result.isValid).toBe(false);

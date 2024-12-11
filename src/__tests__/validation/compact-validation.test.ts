@@ -1,7 +1,7 @@
 import { validateCompact } from '../../validation/compact';
 import { getFreshCompact, compactToAPI } from '../utils/test-server';
 import { PGlite } from '@electric-sql/pglite';
-import { graphqlClient } from '../../graphql';
+import { graphqlClient, fetchAndCacheSupportedChains } from '../../graphql';
 import {
   setupCompactTestDb,
   cleanupCompactTestDb,
@@ -20,9 +20,11 @@ describe('Compact Basic Validation', () => {
     await cleanupCompactTestDb(db);
   });
 
-  beforeEach((): void => {
+  beforeEach(async (): Promise<void> => {
     originalRequest = graphqlClient.request;
     setupGraphQLMocks();
+    // Initialize chain config cache
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
   });
 
   afterEach((): void => {

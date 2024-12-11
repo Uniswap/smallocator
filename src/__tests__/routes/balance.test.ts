@@ -53,7 +53,9 @@ describe('Protected Routes', () => {
     });
 
     // Cache the supported chains data
-    await fetchAndCacheSupportedChains('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+    await fetchAndCacheSupportedChains(
+      '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+    );
 
     // First get a session request
     const address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
@@ -240,11 +242,15 @@ describe('Protected Routes', () => {
       let requestCount = 0;
       graphqlClient.request = async <
         V extends Variables = Variables,
-        T = AllResourceLocksResponse | (AccountDeltasResponse & AccountResponse),
+        T =
+          | AllResourceLocksResponse
+          | (AccountDeltasResponse & AccountResponse),
       >(
         _documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<AllResourceLocksResponse | (AccountDeltasResponse & AccountResponse)> => {
+      ): Promise<
+        AllResourceLocksResponse | (AccountDeltasResponse & AccountResponse)
+      > => {
         requestCount++;
         if (requestCount === 1) {
           // First request - getAllResourceLocks

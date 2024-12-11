@@ -1,7 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAddress } from 'viem/utils';
 import { getAllocatedBalance } from '../balance';
-import { getCompactDetails, getAllResourceLocks, getCachedSupportedChains } from '../graphql';
+import {
+  getCompactDetails,
+  getAllResourceLocks,
+  getCachedSupportedChains,
+} from '../graphql';
 import { createAuthMiddleware } from './session';
 import { toBigInt } from '../utils/encoding';
 

@@ -54,7 +54,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
+      T = (AccountDeltasResponse & AccountResponse) | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
@@ -144,7 +144,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
+      T = (AccountDeltasResponse & AccountResponse) | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
@@ -235,7 +235,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
+      T = (AccountDeltasResponse & AccountResponse) | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
@@ -440,7 +440,7 @@ describe('Deposit Balance Routes', () => {
     // Mock GraphQL responses
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AccountDeltasResponse & AccountResponse | AllResourceLocksResponse,
+      T = (AccountDeltasResponse & AccountResponse) | AllResourceLocksResponse,
     >(
       documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]

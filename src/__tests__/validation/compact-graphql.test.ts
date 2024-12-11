@@ -37,7 +37,9 @@ describe('Compact GraphQL Validation', () => {
   });
 
   it('should validate with sufficient balance', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    graphqlClient.request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -65,7 +67,9 @@ describe('Compact GraphQL Validation', () => {
   });
 
   it('should reject with insufficient balance', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    graphqlClient.request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -94,7 +98,9 @@ describe('Compact GraphQL Validation', () => {
   });
 
   it('should reject when withdrawal is enabled', async (): Promise<void> => {
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+    graphqlClient.request = async (): Promise<
+      AccountDeltasResponse & AccountResponse
+    > => ({
       accountDeltas: {
         items: [],
       },
@@ -124,27 +130,97 @@ describe('Compact GraphQL Validation', () => {
 
   it('should reject when allocator ID does not match', async (): Promise<void> => {
     // Mock a different allocator ID in the chain config cache
-    setupGraphQLMocks();
-    await fetchAndCacheSupportedChains('0x1234567890123456789012345678901234567890');
-
-    graphqlClient.request = async (): Promise<AccountDeltasResponse & AccountResponse> => ({
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: '1000000000000000000000',
+    (graphqlClient as any).request = async (
+      document: string | { source: string },
+      variables?: Record<string, unknown>
+    ): Promise<any> => {
+      const query = typeof document === 'string' ? document : document.source;
+      if (query.includes('GetSupportedChains')) {
+        return {
+          allocator: {
+            supportedChains: {
+              items: [
+                {
+                  chainId: '1',
+                  allocatorId: '999', // Different allocator ID
+                },
+              ],
             },
-          ],
-        },
-        claims: {
+          },
+        };
+      }
+      // Return mock account data for other queries
+      return {
+        accountDeltas: {
           items: [],
         },
-      },
-    });
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      };
+    };
+
+    // Refresh chain config with new mock
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
+
+    const result = await validateCompact(
+      compactToAPI(getFreshCompact()),
+      '1',
+      db
+    );
+    expect(result.isValid).toBe(false);
+    expect(result.error).toContain('Invalid allocator ID');
+  });
+
+  it('should reject when allocatorId is missing from chain config', async (): Promise<void> => {
+    // Mock empty supported chains in the chain config cache
+    (graphqlClient as any).request = async (
+      document: string | { source: string },
+      variables?: Record<string, unknown>
+    ): Promise<any> => {
+      const query = typeof document === 'string' ? document : document.source;
+      if (query.includes('GetSupportedChains')) {
+        return {
+          allocator: {
+            supportedChains: {
+              items: [], // No supported chains
+            },
+          },
+        };
+      }
+      // Return mock account data for other queries
+      return {
+        accountDeltas: {
+          items: [],
+        },
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      };
+    };
+
+    // Refresh chain config with new mock
+    await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
 
     const result = await validateCompact(
       compactToAPI(getFreshCompact()),

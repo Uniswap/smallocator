@@ -7,8 +7,13 @@ import {
 } from '../../../graphql';
 
 // Extract allocator ID from lockId (matches the calculation in balance.ts)
-const TEST_LOCK_ID = BigInt('0x7000000000000000000000010000000000000000000000000000000000000000');
-const ALLOCATOR_ID = ((TEST_LOCK_ID >> BigInt(160)) & ((BigInt(1) << BigInt(92)) - BigInt(1))).toString();
+const TEST_LOCK_ID = BigInt(
+  '0x7000000000000000000000010000000000000000000000000000000000000000'
+);
+const ALLOCATOR_ID = (
+  (TEST_LOCK_ID >> BigInt(160)) &
+  ((BigInt(1) << BigInt(92)) - BigInt(1))
+).toString();
 
 export async function setupCompactTestDb(): Promise<PGlite> {
   const db = new PGlite();
@@ -67,9 +72,11 @@ export function setupGraphQLMocks(): void {
   (graphqlClient as any).request = async (
     query: string,
     variables: Record<string, any>
-  ): Promise<SupportedChainsResponse & AccountDeltasResponse & AccountResponse> => {
+  ): Promise<
+    SupportedChainsResponse & AccountDeltasResponse & AccountResponse
+  > => {
     requestCallCount++;
-    
+
     if (shouldFail) {
       throw new Error('Network error');
     }
@@ -109,3 +116,16 @@ export function getRequestCallCount(): number {
 export function setMockToFail(fail: boolean = true): void {
   shouldFail = fail;
 }
+
+// Add test for ALLOCATOR_ID calculation
+describe('Compact Test Setup Constants', () => {
+  it('should calculate ALLOCATOR_ID correctly from TEST_LOCK_ID', () => {
+    // The allocatorId should be derived from TEST_LOCK_ID according to the formula:
+    // ((TEST_LOCK_ID >> 160) & ((1 << 92) - 1))
+    const expectedAllocatorId = (
+      (TEST_LOCK_ID >> BigInt(160)) &
+      ((BigInt(1) << BigInt(92)) - BigInt(1))
+    ).toString();
+    expect(ALLOCATOR_ID).toBe(expectedAllocatorId);
+  });
+});
