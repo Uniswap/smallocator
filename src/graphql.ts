@@ -16,6 +16,9 @@ let supportedChainsCache: Array<{
   finalizationThresholdSeconds: number;
 }> | null = null;
 
+// Store the refresh interval timer
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
 // Define the types for our GraphQL responses
 export interface AccountDeltasResponse {
   accountDeltas: {
@@ -84,18 +87,48 @@ export const GET_SUPPORTED_CHAINS = `
 export async function fetchAndCacheSupportedChains(
   allocatorAddress: string
 ): Promise<void> {
-  const response = await graphqlClient.request<SupportedChainsResponse>(
-    GET_SUPPORTED_CHAINS,
-    { allocator: allocatorAddress.toLowerCase() }
-  );
+  try {
+    const response = await graphqlClient.request<SupportedChainsResponse>(
+      GET_SUPPORTED_CHAINS,
+      { allocator: allocatorAddress.toLowerCase() }
+    );
 
-  supportedChainsCache = response.allocator.supportedChains.items.map(
-    (item) => ({
-      chainId: item.chainId,
-      allocatorId: item.allocatorId,
-      finalizationThresholdSeconds: getFinalizationThreshold(item.chainId),
-    })
+    supportedChainsCache = response.allocator.supportedChains.items.map(
+      (item) => ({
+        chainId: item.chainId,
+        allocatorId: item.allocatorId,
+        finalizationThresholdSeconds: getFinalizationThreshold(item.chainId),
+      })
+    );
+  } catch (error) {
+    console.error('Error fetching supported chains:', error);
+    // Don't update cache if there's an error
+  }
+}
+
+// Start periodic refresh of supported chains
+export function startSupportedChainsRefresh(
+  allocatorAddress: string,
+  intervalSeconds: number
+): void {
+  // Clear any existing interval
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+  }
+
+  // Set up new interval
+  refreshInterval = setInterval(
+    () => void fetchAndCacheSupportedChains(allocatorAddress),
+    intervalSeconds * 1000
   );
+}
+
+// Stop periodic refresh
+export function stopSupportedChainsRefresh(): void {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
 }
 
 // Function to get cached supported chains

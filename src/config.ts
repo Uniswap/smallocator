@@ -38,6 +38,11 @@ export const config = {
         description: 'Base URL for EIP-4361 session domain',
         default: 'http://localhost:3000',
       },
+      SUPPORTED_CHAINS_REFRESH_INTERVAL: {
+        type: 'string',
+        description: 'Interval in seconds to refresh supported chains data',
+        default: '600', // 10 minutes
+      },
     },
   },
 };
