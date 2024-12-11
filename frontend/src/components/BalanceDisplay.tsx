@@ -5,15 +5,14 @@ import { InitiateForcedWithdrawalDialog } from './InitiateForcedWithdrawalDialog
 import { ForcedWithdrawalDialog } from './ForcedWithdrawalDialog';
 import { FinalizationThreshold } from './FinalizationThreshold';
 import { WithdrawalCountdown } from './WithdrawalCountdown';
+import { formatResetPeriod } from '../utils/formatting';
 import {
   useBalanceDisplay,
   type BalanceDisplayProps,
   formatLockId,
   getChainName,
 } from '../hooks/useBalanceDisplay';
-import { formatResetPeriod } from '../utils/formatting';
 
-// Extract BalanceItemProps interface
 interface BalanceItemProps {
   balance: any;
   resourceLock: any;
@@ -29,6 +28,36 @@ interface BalanceItemProps {
   ) => void;
   sessionToken: string | null;
 }
+
+// Memoized balance value component
+const BalanceValue = memo(function BalanceValue({ 
+  balance, 
+  decimals 
+}: { 
+  balance: string, 
+  decimals: number 
+}) {
+  const formattedValue = useMemo(() => {
+    return formatUnits(BigInt(balance), decimals);
+  }, [balance, decimals]);
+
+  return formattedValue;
+}, (prev, next) => prev.balance === next.balance && prev.decimals === next.decimals);
+
+// Helper function to compare resourceLock objects
+const areResourceLocksEqual = (prev: any, next: any) => {
+  if (!prev || !next) return prev === next;
+  
+  // Compare critical fields that affect rendering
+  return (
+    prev.balance === next.balance &&
+    prev.withdrawalStatus === next.withdrawalStatus &&
+    prev.withdrawableAt === next.withdrawableAt &&
+    prev.resourceLock.resetPeriod === next.resourceLock.resetPeriod &&
+    prev.resourceLock.isMultichain === next.resourceLock.isMultichain &&
+    prev.resourceLock.token.decimals === next.resourceLock.token.decimals
+  );
+};
 
 const BalanceItem = memo(function BalanceItem({
   balance,
@@ -71,15 +100,6 @@ const BalanceItem = memo(function BalanceItem({
     onExecuteWithdrawal,
     resourceLock?.balance,
   ]);
-
-  // Memoize formatted values
-  const formattedBalance = useMemo(() => {
-    if (!resourceLock) return null;
-    return formatUnits(
-      BigInt(resourceLock.balance),
-      resourceLock.resourceLock.token.decimals
-    );
-  }, [resourceLock]);
 
   return (
     <div className="p-4 bg-gray-800 rounded-lg">
@@ -131,7 +151,12 @@ const BalanceItem = memo(function BalanceItem({
           <div>
             <div className="text-xs text-gray-400">Current Balance</div>
             <div className="mt-1 text-sm text-[#00ff00] font-mono">
-              {formattedBalance}
+              {resourceLock && (
+                <BalanceValue 
+                  balance={resourceLock.balance} 
+                  decimals={resourceLock.resourceLock.token.decimals} 
+                />
+              )}
               {balance.token?.symbol && (
                 <span className="ml-1 text-gray-400">
                   {balance.token.symbol}
@@ -217,13 +242,22 @@ const BalanceItem = memo(function BalanceItem({
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison function for memo
-  return (
+  // Enhanced comparison function for memo
+  const balanceEqual =
     prevProps.balance.lockId === nextProps.balance.lockId &&
     prevProps.balance.chainId === nextProps.balance.chainId &&
     prevProps.balance.withdrawalStatus === nextProps.balance.withdrawalStatus &&
     prevProps.balance.withdrawableAt === nextProps.balance.withdrawableAt &&
-    prevProps.resourceLock?.balance === nextProps.resourceLock?.balance &&
+    prevProps.balance.formattedAllocatableBalance === nextProps.balance.formattedAllocatableBalance &&
+    prevProps.balance.formattedAllocatedBalance === nextProps.balance.formattedAllocatedBalance &&
+    prevProps.balance.formattedAvailableBalance === nextProps.balance.formattedAvailableBalance;
+
+  // Use the helper function to deeply compare resourceLocks
+  const resourceLockEqual = areResourceLocksEqual(prevProps.resourceLock, nextProps.resourceLock);
+
+  return (
+    balanceEqual &&
+    resourceLockEqual &&
     prevProps.sessionToken === nextProps.sessionToken
   );
 });
