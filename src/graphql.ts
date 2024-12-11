@@ -9,11 +9,29 @@ const INDEXER_ENDPOINT = process.env.INDEXER_URL
 // Create a singleton GraphQL client
 export const graphqlClient = new GraphQLClient(INDEXER_ENDPOINT);
 
+// Store supported chains data in memory
+let supportedChainsCache: Array<{
+  chainId: string;
+  allocatorId: string;
+  finalizationThresholdSeconds: number;
+}> | null = null;
+
 // Define the types for our GraphQL responses
 export interface AllocatorResponse {
   allocator: {
     supportedChains: {
       items: Array<{
+        allocatorId: string;
+      }>;
+    };
+  };
+}
+
+export interface SupportedChainsResponse {
+  allocator: {
+    supportedChains: {
+      items: Array<{
+        chainId: string;
         allocatorId: string;
       }>;
     };
@@ -56,6 +74,47 @@ export interface AllResourceLocksResponse {
       }>;
     };
   };
+}
+
+// Query to get all supported chains
+export const GET_SUPPORTED_CHAINS = `
+  query GetSupportedChains($allocator: String!) {
+    allocator(address: $allocator) {
+      supportedChains {
+        items {
+          chainId
+          allocatorId
+        }
+      }
+    }
+  }
+`;
+
+// Function to fetch and cache supported chains
+export async function fetchAndCacheSupportedChains(
+  allocatorAddress: string
+): Promise<void> {
+  const response = await graphqlClient.request<SupportedChainsResponse>(
+    GET_SUPPORTED_CHAINS,
+    { allocator: allocatorAddress.toLowerCase() }
+  );
+
+  supportedChainsCache = response.allocator.supportedChains.items.map(
+    (item) => ({
+      chainId: item.chainId,
+      allocatorId: item.allocatorId,
+      finalizationThresholdSeconds: getFinalizationThreshold(item.chainId),
+    })
+  );
+}
+
+// Function to get cached supported chains
+export function getCachedSupportedChains(): Array<{
+  chainId: string;
+  allocatorId: string;
+  finalizationThresholdSeconds: number;
+}> | null {
+  return supportedChainsCache;
 }
 
 // Calculate timestamps for GraphQL query

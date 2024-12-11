@@ -8,6 +8,7 @@ import { config } from './config';
 import { setupRoutes } from './routes';
 import { setupDatabase } from './database';
 import { verifySigningAddress } from './crypto';
+import { fetchAndCacheSupportedChains } from './graphql';
 import cors from '@fastify/cors'; // Import cors plugin
 
 const server = fastify({
@@ -81,6 +82,12 @@ async function build(): Promise<FastifyInstance> {
 
   // Verify signing address matches configuration
   verifySigningAddress(process.env.SIGNING_ADDRESS as string);
+
+  // Fetch and cache supported chains data
+  if (!process.env.ALLOCATOR_ADDRESS) {
+    throw new Error('ALLOCATOR_ADDRESS environment variable is not set');
+  }
+  await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS);
 
   // Enable CORS for both development and external API access
   await server.register(cors, {
