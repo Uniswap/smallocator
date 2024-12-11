@@ -55,6 +55,12 @@ export function DepositForm() {
     }
   }, [isConfirmed, tokenType]);
 
+  // Reset form when chain changes
+  useEffect(() => {
+    setAmount('');
+    setTokenAddress('');
+  }, [chainId]);
+
   const validateAmount = () => {
     if (!amount) return null;
 
@@ -70,7 +76,7 @@ export function DepositForm() {
 
     // For ERC20 tokens
     if (tokenType === 'erc20') {
-      if (!tokenAddress || decimals === undefined) return null;
+      if (!tokenAddress || decimals === undefined || isLoadingToken) return null;
 
       // Check decimal places
       const decimalParts = amount.split('.');
@@ -83,22 +89,22 @@ export function DepositForm() {
 
       try {
         const parsedAmount = parseUnits(amount, decimals);
-        const allowanceBigInt = rawAllowance
-          ? BigInt(rawAllowance.toString())
-          : BigInt(0);
-        const balanceBigInt = rawBalance
-          ? BigInt(rawBalance.toString())
-          : BigInt(0);
+        const allowanceBigInt = rawAllowance ?? BigInt(0);
+        const balanceBigInt = rawBalance ?? BigInt(0);
 
-        if (rawBalance && parsedAmount > balanceBigInt) {
+        // Only check balance if we have loaded it
+        if (rawBalance !== undefined && parsedAmount > balanceBigInt) {
           return {
             type: 'error',
             message: `Insufficient ${symbol || 'token'} balance on ${getChainName(chainId)}`,
           };
         }
-        if (parsedAmount > allowanceBigInt) {
+
+        // Only check allowance if we have loaded it
+        if (rawAllowance !== undefined && parsedAmount > allowanceBigInt) {
           return { type: 'warning', message: 'Insufficient Allowance' };
         }
+
         return null;
       } catch {
         return { type: 'error', message: 'Invalid amount format' };
@@ -419,7 +425,7 @@ export function DepositForm() {
             !allocatorAddress ||
             amountValidation?.type === 'error' ||
             amountValidation?.type === 'warning' ||
-            (tokenType === 'erc20' && (!tokenAddress || !isValid))
+            (tokenType === 'erc20' && (!tokenAddress || !isValid || isLoadingToken))
           }
           className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
