@@ -1,4 +1,5 @@
-import { useChainConfig } from '../hooks/use-chain-config';
+import { memo } from 'react';
+import { useChainConfig } from '../hooks/useChainConfig';
 import { formatResetPeriod } from '../utils/formatting';
 import { SupportedChain } from '../types/chain';
 
@@ -6,7 +7,7 @@ interface FinalizationThresholdProps {
   chainId: number;
 }
 
-export function FinalizationThreshold({ chainId }: FinalizationThresholdProps) {
+function FinalizationThresholdComponent({ chainId }: FinalizationThresholdProps) {
   const { supportedChains } = useChainConfig();
 
   if (!supportedChains) return null;
@@ -24,3 +25,6 @@ export function FinalizationThreshold({ chainId }: FinalizationThresholdProps) {
     </span>
   );
 }
+
+// Memoize the component to prevent unnecessary rerenders
+export const FinalizationThreshold = memo(FinalizationThresholdComponent);

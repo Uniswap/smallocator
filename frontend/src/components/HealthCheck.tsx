@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { SupportedChains } from '../types/chain';
 
 interface HealthStatus {
   status: string;
   allocatorAddress: string;
   signingAddress: string;
   timestamp: string;
-  supportedChains: SupportedChains;
 }
 
 interface HealthCheckProps {
   onHealthStatusChange?: (isHealthy: boolean) => void;
-  onChainConfigUpdate?: (supportedChains: SupportedChains) => void;
 }
 
 const HealthCheck: React.FC<HealthCheckProps> = ({
   onHealthStatusChange,
-  onChainConfigUpdate,
 }) => {
   const [healthData, setHealthData] = useState<HealthStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +26,6 @@ const HealthCheck: React.FC<HealthCheckProps> = ({
         setHealthData(data);
         setError(null);
         onHealthStatusChange?.(data.status === 'healthy');
-        onChainConfigUpdate?.(data.supportedChains);
       } catch (error) {
         console.error('Error fetching health status:', error);
         setError('Allocator server unavailable');
@@ -43,7 +38,7 @@ const HealthCheck: React.FC<HealthCheckProps> = ({
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);
-  }, [onHealthStatusChange, onChainConfigUpdate]);
+  }, [onHealthStatusChange]);
 
   if (error) {
     return (
