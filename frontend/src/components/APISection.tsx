@@ -57,13 +57,18 @@ const APISection: React.FC = () => {
       },
       {
         method: 'GET',
+        path: '/compact/:chainId/:claimHash',
+        response: '{chainId, hash, compact: Compact, signature, createdAt}',
+      },
+      {
+        method: 'GET',
         path: '/compacts',
         response: '[{chainId, hash, compact: Compact, signature, createdAt}]',
       },
       {
         method: 'GET',
-        path: '/compact/:chainId/:claimHash',
-        response: '{chainId, hash, compact: Compact, signature, createdAt}',
+        path: '/suggested-nonce/:chainId',
+        response: '{nonce}',
       },
       {
         method: 'GET',
@@ -77,32 +82,25 @@ const APISection: React.FC = () => {
         response:
           '{balances: [{chainId, lockId, allocatableBalance, allocatedBalance, balanceAvailableToAllocate, withdrawalStatus: number}]}',
       },
-      {
-        method: 'GET',
-        path: '/suggested-nonce/:chainId',
-        response: '{nonce}',
-      },
     ],
   };
 
   return (
-    <div className="mx-auto p-6 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
-      <h2 className="text-xl font-bold text-white text-xl mb-1">
-        API Reference
-      </h2>
-      <div className="text-gray-400 mb-4 text-sm">
+    <div className="mx-auto p-4 bg-[#0a0a0a] rounded-lg shadow-xl border border-gray-800">
+      <h2 className="text-lg font-bold text-white mb-0.5">API Reference</h2>
+      <div className="text-gray-400 mb-3 text-xs">
         All fields are of type `string` unless indicated otherwise. Arguments
         ending in ? are optional.
       </div>
 
       {/* Type Definitions */}
-      <div className="mb-6 space-y-2">
-        <h3 className="text-lg font-semibold text-[#00ff00] mb-2">
+      <div className="mb-4 space-y-1">
+        <h3 className="text-[0.95rem] font-semibold text-[#00ff00] mb-1">
           Type Definitions
         </h3>
         {Object.entries(typeDefinitions).map(([name, definition]) => (
-          <div key={name} className="font-mono text-sm space-y-1">
-            <div className="flex items-start gap-1">
+          <div key={name} className="font-mono text-xs">
+            <div className="flex items-baseline gap-1">
               <span className="text-purple-400 font-semibold">{name}</span>
               <span className="text-gray-500">=</span>
               <span className="text-gray-400">{definition}</span>
@@ -112,13 +110,13 @@ const APISection: React.FC = () => {
       </div>
 
       {/* Endpoints */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {Object.entries(endpoints).map(([category, endpoints]) => (
           <div key={category}>
-            <h3 className="text-lg font-semibold text-[#00ff00] mb-0">
+            <h3 className="text-[0.95rem] font-semibold text-[#00ff00] mb-0.5">
               {category} Endpoints
               {category === 'Authenticated' && (
-                <span className="text-sm font-normal text-gray-400 ml-2">
+                <span className="text-xs font-normal text-gray-400 ml-2">
                   (requires{' '}
                   <code className="bg-gray-800 px-1 rounded">
                     x-session-id: session
@@ -127,19 +125,19 @@ const APISection: React.FC = () => {
                 </span>
               )}
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               {endpoints.map((endpoint, index) => (
                 <div
                   key={index}
-                  className="font-mono text-sm space-y-1 hover:bg-gray-900 p-0 rounded"
+                  className="font-mono text-xs hover:bg-gray-900 rounded"
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-baseline gap-1.5">
                     <span
                       className={`
                       ${endpoint.method === 'GET' ? 'text-blue-400' : ''}
                       ${endpoint.method === 'POST' ? 'text-green-400' : ''}
                       ${endpoint.method === 'DELETE' ? 'text-red-400' : ''}
-                      font-semibold min-w-[4rem] w-[4rem]
+                      font-semibold min-w-[3.5rem] w-[3.5rem]
                     `}
                     >
                       {endpoint.method}
@@ -157,7 +155,7 @@ const APISection: React.FC = () => {
                     <span className="text-gray-400">{endpoint.response}</span>
                   </div>
                   {endpoint.args && (
-                    <div className="pl-20 text-xs space-y-1">
+                    <div className="pl-16 text-[0.7rem] space-y-0.5">
                       {endpoint.args.map((arg, i) => (
                         <div key={i} className="text-gray-500">
                           {arg}
