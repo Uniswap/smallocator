@@ -3,6 +3,12 @@ import { createTestServer, cleanupTestServer } from '../utils/test-server';
 import { mockSupportedChainsResponse } from '../utils/graphql-mock';
 import { getFinalizationThreshold } from '../../chain-config';
 
+interface SupportedChain {
+  chainId: string;
+  allocatorId: string;
+  finalizationThresholdSeconds: number;
+}
+
 describe('Health Check Endpoint', () => {
   let server: FastifyInstance;
 
@@ -41,7 +47,7 @@ describe('Health Check Endpoint', () => {
 
     mockChains.forEach((mockChain) => {
       const resultChain = result.supportedChains.find(
-        (chain: any) => chain.chainId === mockChain.chainId
+        (chain: SupportedChain) => chain.chainId === mockChain.chainId
       );
       expect(resultChain).toBeDefined();
       expect(resultChain?.allocatorId).toBe(mockChain.allocatorId);

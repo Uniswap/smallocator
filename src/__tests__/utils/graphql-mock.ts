@@ -69,10 +69,15 @@ export function setupGraphQLMocks(): void {
   requestCallCount = 0;
   shouldFail = false;
 
-  // Override the request method of the GraphQL client
-  (graphqlClient as any).request = async (
+  type GraphQLRequestFn = (
     query: string,
-    _variables: Record<string, any>
+    variables?: Record<string, unknown>
+  ) => Promise<unknown>;
+
+  // Override the request method of the GraphQL client
+  (graphqlClient as { request: GraphQLRequestFn }).request = async (
+    query: string,
+    _variables?: Record<string, unknown>
   ) => {
     requestCallCount++;
 

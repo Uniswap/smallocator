@@ -6,12 +6,24 @@ import {
   AccountDeltasResponse,
   AccountResponse,
   fetchAndCacheSupportedChains,
+  SupportedChainsResponse,
 } from '../../graphql';
 import {
   setupCompactTestDb,
   cleanupCompactTestDb,
   setupGraphQLMocks,
 } from './utils/compact-test-setup';
+
+interface GraphQLDocument {
+  source: string;
+}
+
+type GraphQLRequestFn = (
+  query: string | GraphQLDocument,
+  variables?: Record<string, unknown>
+) => Promise<
+  SupportedChainsResponse | (AccountDeltasResponse & AccountResponse)
+>;
 
 describe('Compact GraphQL Validation', () => {
   let db: PGlite;
@@ -130,10 +142,12 @@ describe('Compact GraphQL Validation', () => {
 
   it('should reject when allocator ID does not match', async (): Promise<void> => {
     // Mock a different allocator ID in the chain config cache
-    (graphqlClient as any).request = async (
-      document: string | { source: string },
+    (graphqlClient as { request: GraphQLRequestFn }).request = async (
+      document: string | GraphQLDocument,
       _variables?: Record<string, unknown>
-    ): Promise<any> => {
+    ): Promise<
+      SupportedChainsResponse | (AccountDeltasResponse & AccountResponse)
+    > => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {
         return {
@@ -184,10 +198,12 @@ describe('Compact GraphQL Validation', () => {
 
   it('should reject when allocatorId is missing from chain config', async (): Promise<void> => {
     // Mock empty supported chains in the chain config cache
-    (graphqlClient as any).request = async (
-      document: string | { source: string },
+    (graphqlClient as { request: GraphQLRequestFn }).request = async (
+      document: string | GraphQLDocument,
       _variables?: Record<string, unknown>
-    ): Promise<any> => {
+    ): Promise<
+      SupportedChainsResponse | (AccountDeltasResponse & AccountResponse)
+    > => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {
         return {

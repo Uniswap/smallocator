@@ -7,8 +7,20 @@ import {
   AccountDeltasResponse,
   AccountResponse,
   fetchAndCacheSupportedChains,
+  SupportedChainsResponse,
 } from '../../graphql';
 import { setupGraphQLMocks } from '../utils/graphql-mock';
+
+interface GraphQLDocument {
+  source: string;
+}
+
+type GraphQLRequestFn = (
+  query: string | GraphQLDocument,
+  variables?: Record<string, unknown>
+) => Promise<
+  SupportedChainsResponse | (AccountDeltasResponse & AccountResponse)
+>;
 
 describe('Allocation Validation', () => {
   let db: PGlite;
@@ -55,26 +67,25 @@ describe('Allocation Validation', () => {
     await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS!);
 
     // Mock GraphQL response with sufficient balance
-    (graphqlClient as any).request = async (): Promise<
-      AccountDeltasResponse & AccountResponse
-    > => ({
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: '1000000000000000000000', // 1000 ETH
-            },
-          ],
-        },
-        claims: {
+    (graphqlClient as { request: GraphQLRequestFn }).request =
+      async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+        accountDeltas: {
           items: [],
         },
-      },
-    });
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000', // 1000 ETH
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
 
     // Clear test data
     await db.query('DELETE FROM compacts');
@@ -96,26 +107,25 @@ describe('Allocation Validation', () => {
     const compact = getFreshCompact();
 
     // Mock GraphQL response with insufficient balance
-    (graphqlClient as any).request = async (): Promise<
-      AccountDeltasResponse & AccountResponse
-    > => ({
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: (BigInt(compact.amount) / BigInt(2)).toString(), // Half the compact amount
-            },
-          ],
-        },
-        claims: {
+    (graphqlClient as { request: GraphQLRequestFn }).request =
+      async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+        accountDeltas: {
           items: [],
         },
-      },
-    });
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: (BigInt(compact.amount) / BigInt(2)).toString(), // Half the compact amount
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
 
     const result = await validateAllocation(compact, chainId, db);
     expect(result.isValid).toBe(false);
@@ -159,26 +169,25 @@ describe('Allocation Validation', () => {
     );
 
     // Mock GraphQL response with balance just enough for one compact
-    (graphqlClient as any).request = async (): Promise<
-      AccountDeltasResponse & AccountResponse
-    > => ({
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: (BigInt(compact.amount) * BigInt(2)).toString(), // Enough for two compacts
-            },
-          ],
-        },
-        claims: {
+    (graphqlClient as { request: GraphQLRequestFn }).request =
+      async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+        accountDeltas: {
           items: [],
         },
-      },
-    });
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: (BigInt(compact.amount) * BigInt(2)).toString(), // Enough for two compacts
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
 
     const result = await validateAllocation(compact, chainId, db);
     expect(result.isValid).toBe(true);
@@ -221,30 +230,29 @@ describe('Allocation Validation', () => {
     );
 
     // Mock GraphQL response with processed claim
-    (graphqlClient as any).request = async (): Promise<
-      AccountDeltasResponse & AccountResponse
-    > => ({
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: compact.amount, // Only enough for one compact
-            },
-          ],
+    (graphqlClient as { request: GraphQLRequestFn }).request =
+      async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+        accountDeltas: {
+          items: [],
         },
-        claims: {
-          items: [
-            {
-              claimHash: '0x' + '1'.repeat(64), // Mark the existing compact as processed
-            },
-          ],
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: compact.amount, // Only enough for one compact
+              },
+            ],
+          },
+          claims: {
+            items: [
+              {
+                claimHash: '0x' + '1'.repeat(64), // Mark the existing compact as processed
+              },
+            ],
+          },
         },
-      },
-    });
+      });
 
     const result = await validateAllocation(compact, chainId, db);
     expect(result.isValid).toBe(true);
@@ -254,26 +262,25 @@ describe('Allocation Validation', () => {
     const compact = getFreshCompact();
 
     // Mock GraphQL response with withdrawal enabled
-    (graphqlClient as any).request = async (): Promise<
-      AccountDeltasResponse & AccountResponse
-    > => ({
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 1, // Withdrawal enabled
-              balance: '1000000000000000000000',
-            },
-          ],
-        },
-        claims: {
+    (graphqlClient as { request: GraphQLRequestFn }).request =
+      async (): Promise<AccountDeltasResponse & AccountResponse> => ({
+        accountDeltas: {
           items: [],
         },
-      },
-    });
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 1, // Withdrawal enabled
+                balance: '1000000000000000000000',
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      });
 
     const result = await validateAllocation(compact, chainId, db);
     expect(result.isValid).toBe(false);
@@ -285,10 +292,12 @@ describe('Allocation Validation', () => {
 
     // Override the mock response with a different allocator ID
     const differentAllocatorId = '999';
-    (graphqlClient as any).request = async (
-      document: string | { source: string },
+    (graphqlClient as { request: GraphQLRequestFn }).request = async (
+      document: string | GraphQLDocument,
       _variables?: Record<string, unknown>
-    ): Promise<any> => {
+    ): Promise<
+      SupportedChainsResponse | (AccountDeltasResponse & AccountResponse)
+    > => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {
         return {
@@ -337,10 +346,12 @@ describe('Allocation Validation', () => {
     const compact = getFreshCompact();
 
     // Override the mock response with empty supported chains
-    (graphqlClient as any).request = async (
-      document: string | { source: string },
+    (graphqlClient as { request: GraphQLRequestFn }).request = async (
+      document: string | GraphQLDocument,
       _variables?: Record<string, unknown>
-    ): Promise<any> => {
+    ): Promise<
+      SupportedChainsResponse | (AccountDeltasResponse & AccountResponse)
+    > => {
       const query = typeof document === 'string' ? document : document.source;
       if (query.includes('GetSupportedChains')) {
         return {

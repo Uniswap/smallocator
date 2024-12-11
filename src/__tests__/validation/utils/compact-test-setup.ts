@@ -64,14 +64,23 @@ export function cleanupCompactTestDb(db: PGlite): Promise<void> {
 let requestCallCount = 0;
 let shouldFail = false;
 
+interface GraphQLDocument {
+  source: string;
+}
+
+type GraphQLRequestFn = (
+  query: string | GraphQLDocument,
+  variables?: Record<string, unknown>
+) => Promise<SupportedChainsResponse & AccountDeltasResponse & AccountResponse>;
+
 export function setupGraphQLMocks(): void {
   requestCallCount = 0;
   shouldFail = false;
 
   // Override the request method of the GraphQL client
-  (graphqlClient as any).request = async (
-    _query: string,
-    _variables: Record<string, any>
+  (graphqlClient as { request: GraphQLRequestFn }).request = async (
+    _query: string | GraphQLDocument,
+    _variables?: Record<string, unknown>
   ): Promise<
     SupportedChainsResponse & AccountDeltasResponse & AccountResponse
   > => {
