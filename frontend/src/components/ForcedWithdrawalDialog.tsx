@@ -106,11 +106,12 @@ export function ForcedWithdrawalDialog({
       });
 
       // Handle both object with hash and direct hash string
-      const txHash = typeof result === 'object' && result !== null
-        ? (result as TransactionResponse).hash
-        : typeof result === 'string'
-          ? result as `0x${string}`
-          : undefined;
+      const txHash =
+        typeof result === 'object' && result !== null
+          ? (result as TransactionResponse).hash
+          : typeof result === 'string'
+            ? (result as `0x${string}`)
+            : undefined;
 
       if (txHash) {
         showNotification({

@@ -139,9 +139,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
 
     const shortHash = `${notification.txHash.slice(0, 6)}...${notification.txHash.slice(-4)}`;
-    
+
     if (notification.chainId) {
-      const explorerUrl = getBlockExplorerTxUrl(notification.chainId, notification.txHash);
+      const explorerUrl = getBlockExplorerTxUrl(
+        notification.chainId,
+        notification.txHash
+      );
       if (explorerUrl) {
         return (
           <p className="mt-1 text-sm text-gray-500">
@@ -161,9 +164,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     // Fallback to non-linked hash if no explorer URL is available
     return (
-      <p className="mt-1 text-sm text-gray-500">
-        Transaction: {shortHash}
-      </p>
+      <p className="mt-1 text-sm text-gray-500">Transaction: {shortHash}</p>
     );
   };
 

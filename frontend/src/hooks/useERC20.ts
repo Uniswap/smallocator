@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useReadContract, useWriteContract, useAccount, useChainId, usePublicClient } from 'wagmi';
+import {
+  useReadContract,
+  useWriteContract,
+  useAccount,
+  useChainId,
+  usePublicClient,
+} from 'wagmi';
 import { formatUnits, isAddress, type Hash } from 'viem';
 import { ERC20_ABI, COMPACT_ADDRESS } from '../constants/contracts';
 import { useNotification } from './useNotification';
 
 // Max uint256 value for infinite approval
-const MAX_UINT256 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+const MAX_UINT256 =
+  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 export function useERC20(tokenAddress?: `0x${string}`) {
   const { address } = useAccount();

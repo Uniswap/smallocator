@@ -100,9 +100,8 @@ const APISection: React.FC = () => {
         </h3>
         {Object.entries(typeDefinitions).map(([name, definition]) => (
           <div key={name} className="font-mono text-xs">
-            <div className="flex items-baseline gap-1">
+            <div className="grid grid-cols-[120px_1fr] items-baseline">
               <span className="text-purple-400 font-semibold">{name}</span>
-              <span className="text-gray-500">=</span>
               <span className="text-gray-400">{definition}</span>
             </div>
           </div>

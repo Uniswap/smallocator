@@ -325,7 +325,7 @@ export function BalanceDisplay({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-white">Allocations</h2>
+        <h2 className="text-xl font-semibold text-white">Resource Locks</h2>
         <button
           onClick={() => setIsSessionIdDialogOpen(true)}
           className="px-3 py-1 text-sm bg-[#00ff00]/10 text-[#00ff00] rounded hover:bg-[#00ff00]/20 transition-colors"

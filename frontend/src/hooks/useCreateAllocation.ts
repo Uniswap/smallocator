@@ -184,7 +184,9 @@ export function useCreateAllocation(sessionToken: string) {
       newErrors.nonce = 'Nonce is required';
     }
 
-    const expirationTime = customExpiry ? formData.expiration : getExpirationTime();
+    const expirationTime = customExpiry
+      ? formData.expiration
+      : getExpirationTime();
     if (!expirationTime) {
       newErrors.expiration = 'Expiration is required';
     } else {

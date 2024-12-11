@@ -27,9 +27,11 @@ interface EthereumProvider {
   request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
 }
 
-type TransactionResponse = {
-  hash: `0x${string}`;
-} | `0x${string}`;
+type TransactionResponse =
+  | {
+      hash: `0x${string}`;
+    }
+  | `0x${string}`;
 
 export { getChainName };
 
@@ -135,13 +137,13 @@ export function useBalanceDisplay() {
       }
 
       try {
-        const result = await disableForcedWithdrawal({
+        const result = (await disableForcedWithdrawal({
           args: [BigInt(lockId)],
-        }) as TransactionResponse;
-        
+        })) as TransactionResponse;
+
         // Get the transaction hash whether it's returned directly or as part of an object
         const txHash = typeof result === 'object' ? result.hash : result;
-        
+
         if (txHash) {
           showNotification({
             type: 'success',

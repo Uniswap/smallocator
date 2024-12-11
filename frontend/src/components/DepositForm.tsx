@@ -76,7 +76,8 @@ export function DepositForm() {
 
     // For ERC20 tokens
     if (tokenType === 'erc20') {
-      if (!tokenAddress || decimals === undefined || isLoadingToken) return null;
+      if (!tokenAddress || decimals === undefined || isLoadingToken)
+        return null;
 
       // Check decimal places
       const decimalParts = amount.split('.');
@@ -199,11 +200,12 @@ export function DepositForm() {
       }
 
       // Handle both object with hash and direct hash string
-      const txHash = typeof depositResult === 'object' && depositResult !== null
-        ? (depositResult as TransactionResponse).hash
-        : typeof depositResult === 'string'
-          ? depositResult as `0x${string}`
-          : undefined;
+      const txHash =
+        typeof depositResult === 'object' && depositResult !== null
+          ? (depositResult as TransactionResponse).hash
+          : typeof depositResult === 'string'
+            ? (depositResult as `0x${string}`)
+            : undefined;
 
       if (txHash) {
         showNotification({
@@ -240,12 +242,13 @@ export function DepositForm() {
     try {
       setIsApproving(true);
       const hash = await approve();
-      
+
       if (hash) {
         showNotification({
           type: 'success',
           title: 'Approval Submitted',
-          message: 'Please wait while the approval transaction is being confirmed...',
+          message:
+            'Please wait while the approval transaction is being confirmed...',
           txHash: hash,
           chainId,
           autoHide: true,
@@ -284,8 +287,8 @@ export function DepositForm() {
         </p>
         {chainSpecific && (
           <p className="mt-1 text-sm text-gray-400">
-            Deposits on {getChainName(chainId)}{' '}
-            will be considered finalized and available to allocate{' '}
+            Deposits on {getChainName(chainId)} will be considered finalized and
+            available to allocate{' '}
             {formatResetPeriod(chainSpecific.finalizationThresholdSeconds)}{' '}
             after a successful deposit transaction.
           </p>
@@ -352,10 +355,12 @@ export function DepositForm() {
                   </span>
                   <span>
                     Allowance on The Compact:{' '}
-                    {Number(allowance || '0') > 1e59 ? "Unlimited" : Number(allowance || '0').toLocaleString(undefined, {
-                      maximumFractionDigits: 6,
-                      minimumFractionDigits: 0,
-                    })}{' '}
+                    {Number(allowance || '0') > 1e59
+                      ? 'Unlimited'
+                      : Number(allowance || '0').toLocaleString(undefined, {
+                          maximumFractionDigits: 6,
+                          minimumFractionDigits: 0,
+                        })}{' '}
                     {symbol}
                   </span>
                 </div>
@@ -425,7 +430,8 @@ export function DepositForm() {
             !allocatorAddress ||
             amountValidation?.type === 'error' ||
             amountValidation?.type === 'warning' ||
-            (tokenType === 'erc20' && (!tokenAddress || !isValid || isLoadingToken))
+            (tokenType === 'erc20' &&
+              (!tokenAddress || !isValid || isLoadingToken))
           }
           className="w-full py-2 px-4 bg-[#00ff00] text-gray-900 rounded-lg font-medium hover:bg-[#00dd00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
