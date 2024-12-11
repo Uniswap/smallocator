@@ -90,14 +90,18 @@ async function build(): Promise<FastifyInstance> {
   if (!process.env.ALLOCATOR_ADDRESS) {
     throw new Error('ALLOCATOR_ADDRESS environment variable is not set');
   }
-  await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS);
+  await fetchAndCacheSupportedChains(process.env.ALLOCATOR_ADDRESS, server);
 
   // Start periodic refresh of supported chains
   const refreshInterval = parseInt(
     process.env.SUPPORTED_CHAINS_REFRESH_INTERVAL || '600',
     10
   );
-  startSupportedChainsRefresh(process.env.ALLOCATOR_ADDRESS, refreshInterval);
+  startSupportedChainsRefresh(
+    process.env.ALLOCATOR_ADDRESS,
+    refreshInterval,
+    server
+  );
 
   // Enable CORS for both development and external API access
   await server.register(cors, {

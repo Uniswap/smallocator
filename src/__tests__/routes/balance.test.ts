@@ -12,6 +12,7 @@ import {
   AllResourceLocksResponse,
   getCachedSupportedChains,
   fetchAndCacheSupportedChains,
+  SupportedChainsResponse,
 } from '../../graphql';
 import { RequestDocument, Variables, RequestOptions } from 'graphql-request';
 
@@ -29,28 +30,50 @@ describe('Protected Routes', () => {
     // Mock GraphQL response
     graphqlClient.request = async <
       V extends Variables = Variables,
-      T = AccountDeltasResponse & AccountResponse,
+      T = AccountDeltasResponse & AccountResponse & SupportedChainsResponse,
     >(
-      _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+      documentOrOptions: RequestDocument | RequestOptions<V, T>,
       ..._variablesAndRequestHeaders: unknown[]
-    ): Promise<AccountDeltasResponse & AccountResponse> => ({
-      accountDeltas: {
-        items: [],
-      },
-      account: {
-        resourceLocks: {
-          items: [
-            {
-              withdrawalStatus: 0,
-              balance: '1000000000000000000000', // 1000 ETH
+    ): Promise<T> => {
+      const query =
+        typeof documentOrOptions === 'string'
+          ? documentOrOptions
+          : (documentOrOptions as RequestOptions).document.toString();
+
+      if (query.includes('GetSupportedChains')) {
+        return {
+          allocator: {
+            supportedChains: {
+              items: [
+                {
+                  chainId: '1',
+                  allocatorId: '1',
+                },
+              ],
             },
-          ],
-        },
-        claims: {
+          },
+        } as T;
+      }
+
+      return {
+        accountDeltas: {
           items: [],
         },
-      },
-    });
+        account: {
+          resourceLocks: {
+            items: [
+              {
+                withdrawalStatus: 0,
+                balance: '1000000000000000000000', // 1000 ETH
+              },
+            ],
+          },
+          claims: {
+            items: [],
+          },
+        },
+      } as T;
+    };
 
     // Cache the supported chains data
     await fetchAndCacheSupportedChains(
@@ -146,23 +169,45 @@ describe('Protected Routes', () => {
       // Mock GraphQL response with no resource lock
       graphqlClient.request = async <
         V extends Variables = Variables,
-        T = AccountDeltasResponse & AccountResponse,
+        T = AccountDeltasResponse & AccountResponse & SupportedChainsResponse,
       >(
-        _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+        documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<AccountDeltasResponse & AccountResponse> => ({
-        accountDeltas: {
-          items: [],
-        },
-        account: {
-          resourceLocks: {
-            items: [], // Empty array indicates no resource lock found
-          },
-          claims: {
+      ): Promise<T> => {
+        const query =
+          typeof documentOrOptions === 'string'
+            ? documentOrOptions
+            : (documentOrOptions as RequestOptions).document.toString();
+
+        if (query.includes('GetSupportedChains')) {
+          return {
+            allocator: {
+              supportedChains: {
+                items: [
+                  {
+                    chainId: '1',
+                    allocatorId: '1',
+                  },
+                ],
+              },
+            },
+          } as T;
+        }
+
+        return {
+          accountDeltas: {
             items: [],
           },
-        },
-      });
+          account: {
+            resourceLocks: {
+              items: [], // Empty array indicates no resource lock found
+            },
+            claims: {
+              items: [],
+            },
+          },
+        } as T;
+      };
 
       try {
         const response = await server.inject({
@@ -187,28 +232,50 @@ describe('Protected Routes', () => {
       // Mock GraphQL response with withdrawal status = 1
       graphqlClient.request = async <
         V extends Variables = Variables,
-        T = AccountDeltasResponse & AccountResponse,
+        T = AccountDeltasResponse & AccountResponse & SupportedChainsResponse,
       >(
-        _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+        documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<AccountDeltasResponse & AccountResponse> => ({
-        accountDeltas: {
-          items: [],
-        },
-        account: {
-          resourceLocks: {
-            items: [
-              {
-                withdrawalStatus: 1,
-                balance: '1000000000000000000000',
+      ): Promise<T> => {
+        const query =
+          typeof documentOrOptions === 'string'
+            ? documentOrOptions
+            : (documentOrOptions as RequestOptions).document.toString();
+
+        if (query.includes('GetSupportedChains')) {
+          return {
+            allocator: {
+              supportedChains: {
+                items: [
+                  {
+                    chainId: '1',
+                    allocatorId: '1',
+                  },
+                ],
               },
-            ],
-          },
-          claims: {
+            },
+          } as T;
+        }
+
+        return {
+          accountDeltas: {
             items: [],
           },
-        },
-      });
+          account: {
+            resourceLocks: {
+              items: [
+                {
+                  withdrawalStatus: 1,
+                  balance: '1000000000000000000000',
+                },
+              ],
+            },
+            claims: {
+              items: [],
+            },
+          },
+        } as T;
+      };
 
       try {
         const freshCompact = getFreshCompact();
@@ -244,13 +311,32 @@ describe('Protected Routes', () => {
         V extends Variables = Variables,
         T =
           | AllResourceLocksResponse
-          | (AccountDeltasResponse & AccountResponse),
+          | (AccountDeltasResponse & AccountResponse)
+          | SupportedChainsResponse,
       >(
-        _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+        documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<
-        AllResourceLocksResponse | (AccountDeltasResponse & AccountResponse)
-      > => {
+      ): Promise<T> => {
+        const query =
+          typeof documentOrOptions === 'string'
+            ? documentOrOptions
+            : (documentOrOptions as RequestOptions).document.toString();
+
+        if (query.includes('GetSupportedChains')) {
+          return {
+            allocator: {
+              supportedChains: {
+                items: [
+                  {
+                    chainId: '1',
+                    allocatorId: '1',
+                  },
+                ],
+              },
+            },
+          } as T;
+        }
+
         requestCount++;
         if (requestCount === 1) {
           // First request - getAllResourceLocks
@@ -275,7 +361,7 @@ describe('Protected Routes', () => {
                 ],
               },
             },
-          };
+          } as T;
         } else {
           // Subsequent requests - getCompactDetails
           return {
@@ -295,7 +381,7 @@ describe('Protected Routes', () => {
                 items: [],
               },
             },
-          };
+          } as T;
         }
       };
 
@@ -344,17 +430,39 @@ describe('Protected Routes', () => {
       // Mock GraphQL response with no locks
       graphqlClient.request = async <
         V extends Variables = Variables,
-        T = AllResourceLocksResponse,
+        T = AllResourceLocksResponse | SupportedChainsResponse,
       >(
-        _documentOrOptions: RequestDocument | RequestOptions<V, T>,
+        documentOrOptions: RequestDocument | RequestOptions<V, T>,
         ..._variablesAndRequestHeaders: unknown[]
-      ): Promise<AllResourceLocksResponse> => ({
-        account: {
-          resourceLocks: {
-            items: [],
+      ): Promise<T> => {
+        const query =
+          typeof documentOrOptions === 'string'
+            ? documentOrOptions
+            : (documentOrOptions as RequestOptions).document.toString();
+
+        if (query.includes('GetSupportedChains')) {
+          return {
+            allocator: {
+              supportedChains: {
+                items: [
+                  {
+                    chainId: '1',
+                    allocatorId: '1',
+                  },
+                ],
+              },
+            },
+          } as T;
+        }
+
+        return {
+          account: {
+            resourceLocks: {
+              items: [],
+            },
           },
-        },
-      });
+        } as T;
+      };
 
       try {
         const response = await server.inject({

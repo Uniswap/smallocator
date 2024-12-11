@@ -1,4 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
+import { FastifyInstance } from 'fastify';
 import { getFinalizationThreshold } from './chain-config';
 
 // GraphQL endpoint from environment
@@ -85,7 +86,8 @@ export const GET_SUPPORTED_CHAINS = `
 
 // Function to fetch and cache supported chains
 export async function fetchAndCacheSupportedChains(
-  allocatorAddress: string
+  allocatorAddress: string,
+  server?: FastifyInstance
 ): Promise<void> {
   try {
     const response = await graphqlClient.request<SupportedChainsResponse>(
@@ -101,7 +103,14 @@ export async function fetchAndCacheSupportedChains(
       })
     );
   } catch (error) {
-    console.error('Error fetching supported chains:', error);
+    // Log error if server instance is provided
+    if (server) {
+      server.log.error({
+        msg: 'GraphQL Network Error',
+        err: error instanceof Error ? error.message : String(error),
+        path: '/graphql',
+      });
+    }
     // Don't update cache if there's an error
   }
 }
@@ -109,7 +118,8 @@ export async function fetchAndCacheSupportedChains(
 // Start periodic refresh of supported chains
 export function startSupportedChainsRefresh(
   allocatorAddress: string,
-  intervalSeconds: number
+  intervalSeconds: number,
+  server?: FastifyInstance
 ): void {
   // Clear any existing interval
   if (refreshInterval) {
@@ -118,7 +128,7 @@ export function startSupportedChainsRefresh(
 
   // Set up new interval
   refreshInterval = setInterval(
-    () => void fetchAndCacheSupportedChains(allocatorAddress),
+    () => void fetchAndCacheSupportedChains(allocatorAddress, server),
     intervalSeconds * 1000
   );
 }
