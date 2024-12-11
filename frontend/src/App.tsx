@@ -13,6 +13,7 @@ import { DepositForm } from './components/DepositForm';
 import { NotificationProvider } from './context/NotificationProvider';
 import { ChainConfigProvider } from './contexts/ChainConfigContext';
 import { ChainConfig } from './types/chain';
+import APISection from './components/APISection';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -116,6 +117,9 @@ function AppContent() {
                 )}
               </>
             )}
+
+            {/* API Section - always visible */}
+            <APISection />
           </div>
         </div>
       </main>
