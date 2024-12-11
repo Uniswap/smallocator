@@ -17,27 +17,6 @@ let supportedChainsCache: Array<{
 }> | null = null;
 
 // Define the types for our GraphQL responses
-export interface AllocatorResponse {
-  allocator: {
-    supportedChains: {
-      items: Array<{
-        allocatorId: string;
-      }>;
-    };
-  };
-}
-
-export interface SupportedChainsResponse {
-  allocator: {
-    supportedChains: {
-      items: Array<{
-        chainId: string;
-        allocatorId: string;
-      }>;
-    };
-  };
-}
-
 export interface AccountDeltasResponse {
   accountDeltas: {
     items: Array<{
@@ -57,6 +36,17 @@ export interface AccountResponse {
     claims: {
       items: Array<{
         claimHash: string;
+      }>;
+    };
+  };
+}
+
+export interface SupportedChainsResponse {
+  allocator: {
+    supportedChains: {
+      items: Array<{
+        chainId: string;
+        allocatorId: string;
       }>;
     };
   };
@@ -143,13 +133,6 @@ export const GET_COMPACT_DETAILS = `
     $finalizationTimestamp: BigInt!,
     $thresholdTimestamp: BigInt!
   ) {
-    allocator(address: $allocator) {
-      supportedChains(where: {chainId: $chainId}) {
-        items {
-          allocatorId
-        }
-      }
-    }
     accountDeltas(
       where: {
         address: $sponsor,
@@ -216,7 +199,7 @@ export async function getCompactDetails({
   sponsor: string;
   lockId: string;
   chainId: string;
-}): Promise<AllocatorResponse & AccountDeltasResponse & AccountResponse> {
+}): Promise<AccountDeltasResponse & AccountResponse> {
   const { finalizationTimestamp, thresholdTimestamp } =
     calculateQueryTimestamps(chainId);
 
@@ -262,11 +245,14 @@ export interface ProcessedCompactDetails {
 }
 
 export function processCompactDetails(
-  response: AllocatorResponse & AccountDeltasResponse & AccountResponse
+  response: AccountDeltasResponse & AccountResponse,
+  chainId: string
 ): ProcessedCompactDetails {
-  // Extract allocatorId (may not be present if no supported chains found)
-  const allocatorId =
-    response.allocator.supportedChains.items[0]?.allocatorId ?? null;
+  // Get allocatorId from cache
+  const chainConfig = supportedChainsCache?.find(
+    (chain) => chain.chainId === chainId
+  );
+  const allocatorId = chainConfig?.allocatorId ?? null;
 
   // Sum up all deltas
   const totalDelta = response.accountDeltas.items.reduce(
