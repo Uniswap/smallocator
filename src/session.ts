@@ -113,6 +113,18 @@ export async function validateAndCreateSession(
         throw new Error('Invalid signature');
       }
     } catch (error) {
+      // Log detailed error information
+      server.log.error({
+        msg: 'Signature verification failed',
+        signature,
+        address: payload.address,
+        error: error instanceof Error ? error.message : String(error),
+        // Include additional context that might help debug
+        signatureLength: signature.length,
+        messageLength: message.length,
+        errorType: error?.constructor?.name,
+      });
+
       throw new Error(
         `Invalid signature: ${error instanceof Error ? error.message : String(error)}`
       );
