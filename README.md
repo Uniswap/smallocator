@@ -22,6 +22,8 @@ A minimalistic server-based allocator for [The Compact](https://github.com/Unisw
 - 📡 No direct on-chain awareness: Relies entirely on indexer and internal attestation state
 - ⏳ Straightforward finalization: Uses a simple, time-based approach per chain for determining transaction finality
 
+A lightweight hosted version is currently deployed to [https://smallocator.xyz](https://smallocator.xyz/). Note that it's not ready for any kind of production use (do reach out if it goes down).
+
 ## UI Usage
 
 A basic frontend is available at the root path (`GET /`), or at `localhost:3001/` when running locally in dev mode. While the primary intended mechanism of interaction with Smallocator is via the API, the UI serves as a convenient and direct secondary access point.
