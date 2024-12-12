@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { getCachedSupportedChains } from '../graphql';
 
 interface HealthResponse {
@@ -17,7 +17,7 @@ export async function setupHealthRoutes(
   server: FastifyInstance
 ): Promise<void> {
   // Health check endpoint
-  server.get('/health', async (): Promise<HealthResponse> => {
+  server.get('/health', async (_request): Promise<HealthResponse> => {
     if (!process.env.ALLOCATOR_ADDRESS || !process.env.SIGNING_ADDRESS) {
       throw new Error('Required environment variables are not set');
     }
@@ -27,12 +27,14 @@ export async function setupHealthRoutes(
       throw new Error('Supported chains data not initialized');
     }
 
-    return {
+    const response = {
       status: 'healthy',
       allocatorAddress: process.env.ALLOCATOR_ADDRESS,
       signingAddress: process.env.SIGNING_ADDRESS,
       timestamp: new Date().toISOString(),
       supportedChains,
     };
+
+    return response;
   });
 }

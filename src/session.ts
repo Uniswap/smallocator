@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { getAddress, verifyMessage } from 'viem/utils';
 import { hexToBytes } from 'viem/utils';
 import { randomUUID } from 'crypto';

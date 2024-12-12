@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAddress } from 'viem/utils';
 import { getAllocatedBalance } from '../balance';
 import {
@@ -40,11 +40,11 @@ export async function setupBalanceRoutes(
     > => {
       try {
         const sponsor = request.session!.address;
-        server.log.info(`Processing balances request for sponsor: ${sponsor}`);
+        server.log.debug(`Processing balances request for sponsor: ${sponsor}`);
 
         // Get all resource locks for the sponsor
         const response = await getAllResourceLocks(sponsor);
-        server.log.info(
+        server.log.debug(
           `Found ${response?.account?.resourceLocks?.items?.length || 0} resource locks`
         );
 
@@ -92,7 +92,7 @@ export async function setupBalanceRoutes(
                 (sum, delta) => sum + BigInt(delta.delta),
                 BigInt(0)
               );
-              server.log.info(
+              server.log.debug(
                 {
                   chainId: lock.chainId,
                   lockId: lock.resourceLock.lockId,
@@ -113,7 +113,7 @@ export async function setupBalanceRoutes(
               // This is our allocatable balance (only includes finalized amounts)
               const allocatableBalance = finalizedBalance;
 
-              server.log.info(
+              server.log.debug(
                 {
                   chainId: lock.chainId,
                   lockId: lock.resourceLock.lockId,
@@ -140,7 +140,7 @@ export async function setupBalanceRoutes(
                 lockIdBigInt,
                 lockDetails.account.claims.items.map((claim) => claim.claimHash)
               );
-              server.log.info(
+              server.log.debug(
                 {
                   chainId: lock.chainId,
                   lockId: lock.resourceLock.lockId,

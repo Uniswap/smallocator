@@ -1,6 +1,6 @@
 import './env';
-import './types';
-import fastify, { FastifyInstance } from 'fastify';
+import fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import env from '@fastify/env';
 import fastifyStatic from '@fastify/static';
 import * as path from 'path';
@@ -16,61 +16,51 @@ import cors from '@fastify/cors'; // Import cors plugin
 
 const server = fastify({
   logger: {
-    level: 'error', // Only log errors by default
+    level: 'info',
     transport: {
       target: 'pino-pretty',
       options: {
         translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname',
+        ignore: 'pid,hostname,reqId,responseTime,req,res',
+        colorize: true,
+        messageFormat: '{msg}',
       },
     },
   },
+  disableRequestLogging: true,
 });
+
+// Only log server start
+server.log.info('Server starting up');
 
 // List of API endpoints we want to log
 const API_ENDPOINTS = [
-  '/health',
   '/session',
   '/compact',
   '/compacts',
   '/balance',
-  '/balances',
-  '/session/',
-  '/compact/',
-  '/balance/',
+  '/suggested-nonce',
 ];
 
 // Helper to check if a URL is an API endpoint
 function isApiEndpoint(url: string): boolean {
-  return API_ENDPOINTS.some(
-    (endpoint) => url === endpoint || url.startsWith(`${endpoint}/`)
-  );
-}
+  // Remove query parameters for matching
+  const path = url.split('?')[0];
+  // Remove trailing slash for consistency
+  const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
 
-server.addHook('onRequest', async (request) => {
-  if (isApiEndpoint(request.url)) {
-    request.log.info(
-      {
-        method: request.method,
-        url: request.url,
-        id: request.id,
-      },
-      'API Request'
+  return API_ENDPOINTS.some((endpoint) => {
+    // Either exact match or starts with endpoint + '/'
+    return (
+      normalizedPath === endpoint || normalizedPath.startsWith(endpoint + '/')
     );
-  }
-});
+  });
+}
 
 server.addHook('onResponse', async (request, reply) => {
   if (isApiEndpoint(request.url)) {
     request.log.info(
-      {
-        method: request.method,
-        url: request.url,
-        statusCode: reply.statusCode,
-        id: request.id,
-        duration: reply.elapsedTime,
-      },
-      'API Response'
+      `${request.method} ${request.url} - ${reply.statusCode} (${reply.elapsedTime.toFixed(1)}ms)`
     );
   }
 });
@@ -168,12 +158,10 @@ if (isMainModule) {
   void (async (): Promise<void> => {
     try {
       const server = await build();
-      server.log.level = 'info'; // Temporarily increase log level for startup
       await server.listen({
         port: parseInt(process.env.PORT || '3000'),
         host: '0.0.0.0',
       });
-      server.log.level = 'error'; // Reset back to error-only after startup
     } catch (err) {
       console.error('Error starting server:', err);
       process.exit(1);
