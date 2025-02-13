@@ -16,9 +16,11 @@ export const chainConfig: ChainConfig = {
     // Ethereum Mainnet
     '1': 25,
     // Optimism
-    '10': 10,
+    '10': 4,
     // Base
     '8453': 2,
+    // Unichain
+    '130': 2,
   },
 };
 
