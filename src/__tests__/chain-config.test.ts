@@ -3,8 +3,9 @@ import { getFinalizationThreshold, chainConfig } from '../chain-config';
 describe('Chain Configuration', () => {
   it('should return correct finalization threshold for known chains', () => {
     expect(getFinalizationThreshold('1')).toBe(25); // Ethereum Mainnet
-    expect(getFinalizationThreshold('10')).toBe(10); // Optimism
+    expect(getFinalizationThreshold('10')).toBe(4); // Optimism
     expect(getFinalizationThreshold('8453')).toBe(2); // Base
+    expect(getFinalizationThreshold('130')).toBe(2); // Unichain
   });
 
   it('should return default finalization threshold for unknown chains', () => {
