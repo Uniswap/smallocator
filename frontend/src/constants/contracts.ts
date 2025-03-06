@@ -7,6 +7,7 @@ import {
   base,
   baseSepolia,
 } from 'viem/chains';
+import { unichain } from '../config/wagmi';
 
 // The Compact is deployed at the same address on all networks
 export const COMPACT_ADDRESS =
@@ -55,6 +56,12 @@ export const SUPPORTED_CHAINS = {
     rpcUrl: 'https://base-sepolia.g.alchemy.com/v2/',
     compactAddress: COMPACT_ADDRESS as `0x${string}`,
     blockExplorer: 'https://sepolia.basescan.org',
+  },
+  [unichain.id]: {
+    name: 'Unichain',
+    rpcUrl: 'https://mainnet.unichain.org',
+    compactAddress: COMPACT_ADDRESS as `0x${string}`,
+    blockExplorer: 'https://uniscan.xyz',
   },
 } as const;
 

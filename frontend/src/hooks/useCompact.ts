@@ -22,6 +22,7 @@ import {
   base,
   baseSepolia,
 } from 'viem/chains';
+import { unichain } from '../config/wagmi';
 
 const chains: Record<number, Chain> = {
   [mainnet.id]: mainnet,
@@ -31,6 +32,7 @@ const chains: Record<number, Chain> = {
   [goerli.id]: goerli,
   [base.id]: base,
   [baseSepolia.id]: baseSepolia,
+  [unichain.id]: unichain,
 };
 
 interface NativeDeposit {
