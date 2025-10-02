@@ -70,6 +70,12 @@ export interface AllResourceLocksResponse {
   };
 }
 
+export interface ConsumedNonceResponse {
+  consumedNonce: {
+    blockNumber: string | null;
+  } | null;
+}
+
 // Query to get all supported chains
 export const GET_SUPPORTED_CHAINS = `
   query GetSupportedChains($allocator: String!) {
@@ -277,6 +283,44 @@ export async function getAllResourceLocks(
     `,
     { sponsor: sponsor.toLowerCase() }
   );
+}
+
+// Query to check if a nonce has been consumed
+export const CHECK_CONSUMED_NONCE = `
+  query CheckConsumedNonce($allocator: String!, $chainId: BigInt!, $nonce: BigInt!) {
+    consumedNonce(allocator: $allocator, chainId: $chainId, nonce: $nonce) {
+      blockNumber
+    }
+  }
+`;
+
+// Function to check if a nonce has been consumed on-chain
+export async function isNonceConsumedOnChain(
+  allocator: string,
+  chainId: string,
+  nonce: string
+): Promise<boolean> {
+  try {
+    const response = await graphqlClient.request<ConsumedNonceResponse>(
+      CHECK_CONSUMED_NONCE,
+      {
+        allocator: allocator.toLowerCase(),
+        chainId,
+        nonce,
+      }
+    );
+
+    // If blockNumber is not null, the nonce has been consumed
+    return (
+      response.consumedNonce?.blockNumber !== null &&
+      response.consumedNonce?.blockNumber !== undefined
+    );
+  } catch (error) {
+    // If there's an error, we should be conservative and assume it might be consumed
+    console.error('Error checking nonce consumption:', error);
+    // Return false to allow local database to be the source of truth if indexer is down
+    return false;
+  }
 }
 
 export interface ProcessedCompactDetails {
