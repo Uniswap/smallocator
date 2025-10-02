@@ -3,6 +3,7 @@ import { hexToBytes, numberToHex } from 'viem/utils';
 import { PGlite } from '@electric-sql/pglite';
 import { randomUUID } from 'crypto';
 import { ValidationResult } from './types';
+import { isNonceConsumedOnChain } from '../graphql';
 
 // Helper to convert address to bytea
 function addressToBytes(address: string): Uint8Array {
@@ -22,7 +23,8 @@ function bigintToHex(value: bigint): string {
 export async function generateNonce(
   sponsor: string,
   chainId: string,
-  db: PGlite
+  db: PGlite,
+  allocatorAddress?: string
 ): Promise<bigint> {
   const sponsorBytes = Buffer.from(
     getAddress(sponsor).toLowerCase().slice(2),
@@ -123,14 +125,35 @@ export async function generateNonce(
   nonceBuffer.writeUInt32BE(Number(low), 28);
 
   // Convert the complete buffer to BigInt
-  return BigInt('0x' + nonceBuffer.toString('hex'));
+  const generatedNonce = BigInt('0x' + nonceBuffer.toString('hex'));
+
+  // If allocator address is provided, check if the nonce is consumed on-chain
+  if (allocatorAddress) {
+    const isConsumedOnChain = await isNonceConsumedOnChain(
+      allocatorAddress,
+      chainId,
+      generatedNonce.toString()
+    );
+
+    // If consumed on-chain but not in local DB, recursively try the next nonce
+    // This handles the edge case where the indexer knows about a nonce our DB doesn't
+    if (isConsumedOnChain) {
+      // Store the nonce as used in local DB to sync state
+      await storeNonce(generatedNonce, chainId, db);
+      // Try generating the next nonce
+      return generateNonce(sponsor, chainId, db, allocatorAddress);
+    }
+  }
+
+  return generatedNonce;
 }
 
 export async function validateNonce(
   nonce: bigint,
   sponsor: string,
   chainId: string,
-  db: PGlite
+  db: PGlite,
+  allocatorAddress?: string
 ): Promise<ValidationResult> {
   try {
     // Convert nonce to 32-byte hex string (without 0x prefix) and lowercase
@@ -155,7 +178,7 @@ export async function validateNonce(
     const nonceLow = Number(fragmentBigInt & BigInt(0xffffffff));
     const nonceHigh = Number(fragmentBigInt >> BigInt(32));
 
-    // Check if nonce has been used before in this domain
+    // Check if nonce has been used before in local database
     const result = await db.query<{ count: number }>(
       'SELECT COUNT(*) as count FROM nonces WHERE chain_id = $1 AND sponsor = $2 AND nonce_high = $3 AND nonce_low = $4',
       [chainId, addressToBytes(sponsor), nonceHigh, nonceLow]
@@ -164,8 +187,27 @@ export async function validateNonce(
     if (result.rows[0].count > 0) {
       return {
         isValid: false,
-        error: 'Nonce has already been used',
+        error: 'Nonce has already been used (local)',
       };
+    }
+
+    // If allocator address is provided, also check if nonce is consumed on-chain
+    if (allocatorAddress) {
+      const isConsumedOnChain = await isNonceConsumedOnChain(
+        allocatorAddress,
+        chainId,
+        nonce.toString()
+      );
+
+      if (isConsumedOnChain) {
+        // Sync local database with on-chain state
+        await storeNonce(nonce, chainId, db);
+
+        return {
+          isValid: false,
+          error: 'Nonce has already been consumed on-chain',
+        };
+      }
     }
 
     return { isValid: true };

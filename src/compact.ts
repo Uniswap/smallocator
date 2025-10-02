@@ -109,7 +109,12 @@ export async function submitCompact(
     // Generate nonce if not provided (do this before validation)
     const generatedNonce =
       submission.compact.nonce === null
-        ? await generateNonce(sponsorAddress, submission.chainId, server.db)
+        ? await generateNonce(
+            sponsorAddress,
+            submission.chainId,
+            server.db,
+            process.env.ALLOCATOR_ADDRESS
+          )
         : null;
 
     // Update compact with final nonce

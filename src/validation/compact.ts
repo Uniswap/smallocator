@@ -39,7 +39,8 @@ export async function validateCompact(
         validatedCompact.nonce,
         validatedCompact.sponsor,
         chainId,
-        db
+        db,
+        process.env.ALLOCATOR_ADDRESS
       );
       if (!nonceResult.isValid) return nonceResult;
     }
