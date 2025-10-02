@@ -7,6 +7,10 @@ import { useAllocatedWithdrawal } from '../hooks/useAllocatedWithdrawal';
 import { useRequestAllocation } from '../hooks/useRequestAllocation';
 import { COMPACT_ADDRESS, COMPACT_ABI } from '../constants/contracts';
 import { getChainName } from '../utils/chains';
+import {
+  encodeWithdrawalClaimant,
+  encodeTransferClaimant,
+} from '../utils/claimant';
 
 interface FormData {
   expires: string;
@@ -449,14 +453,38 @@ export function useTransfer(
       }
 
       try {
-        // Convert values and prepare transfer struct
+        // Prepare the AllocatedTransfer struct with the new format
+        const amount = parseUnits(formData.amount, decimals);
+        const recipient = formData.recipient as `0x${string}`;
+
+        // For withdrawals, use bytes12(0) as the lockTag
+        // For transfers, extract the lockTag from the resource lock id
+        let claimant: bigint;
+        if (isWithdrawal) {
+          claimant = encodeWithdrawalClaimant(recipient);
+        } else {
+          // Extract lockTag from the resource lock id (first 12 bytes of the id)
+          // The id is constructed as: keccak256(abi.encodePacked(token, lockTag))
+          // For now, we'll use a simple approach - you may need to adjust based on your exact needs
+          const lockTagHex = ('0x' +
+            lockId
+              .toString(16)
+              .padStart(64, '0')
+              .slice(0, 24)) as `0x${string}`;
+          claimant = encodeTransferClaimant(lockTagHex, recipient);
+        }
+
         const transfer = {
-          allocatorSignature: formData.allocatorSignature as `0x${string}`,
+          allocatorData: formData.allocatorSignature as `0x${string}`,
           nonce: BigInt(formData.nonce),
           expires: BigInt(formData.expires),
           id: lockId,
-          amount: parseUnits(formData.amount, decimals),
-          recipient: formData.recipient as `0x${string}`,
+          recipients: [
+            {
+              claimant,
+              amount,
+            },
+          ],
         };
 
         // Pass token information along with the transfer
@@ -465,7 +493,7 @@ export function useTransfer(
           symbol: tokenSymbol,
         };
 
-        // Submit transfer or withdrawal
+        // Submit transfer or withdrawal (both use allocatedTransfer now)
         if (isWithdrawal) {
           const hash = await allocatedWithdrawal(transfer, tokenInfo);
           if (hash) {

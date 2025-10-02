@@ -9,9 +9,9 @@ import {
 } from 'viem/chains';
 import { unichain } from '../config/wagmi';
 
-// The Compact is deployed at the same address on all networks
+// The Compact V1 is deployed at the same address on all networks
 export const COMPACT_ADDRESS =
-  '0x00000000000018DF021Ff2467dF97ff846E09f48' as const;
+  '0x00000000000000171ede64904551eeDF3C6C9788' as const;
 
 // Chain configurations
 export const SUPPORTED_CHAINS = {
@@ -68,9 +68,12 @@ export const SUPPORTED_CHAINS = {
 export const COMPACT_ABI = [
   // Native ETH deposit
   {
-    inputs: [{ name: 'allocator', type: 'address' }],
-    name: 'deposit',
-    outputs: [],
+    inputs: [
+      { name: 'lockTag', type: 'bytes12' },
+      { name: 'recipient', type: 'address' },
+    ],
+    name: 'depositNative',
+    outputs: [{ name: 'id', type: 'uint256' }],
     stateMutability: 'payable',
     type: 'function',
   },
@@ -78,11 +81,12 @@ export const COMPACT_ABI = [
   {
     inputs: [
       { name: 'token', type: 'address' },
-      { name: 'allocator', type: 'address' },
+      { name: 'lockTag', type: 'bytes12' },
       { name: 'amount', type: 'uint256' },
+      { name: 'recipient', type: 'address' },
     ],
-    name: 'deposit',
-    outputs: [],
+    name: 'depositERC20',
+    outputs: [{ name: 'id', type: 'uint256' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
@@ -130,7 +134,7 @@ export const COMPACT_ABI = [
         components: [
           {
             internalType: 'bytes',
-            name: 'allocatorSignature',
+            name: 'allocatorData',
             type: 'bytes',
           },
           {
@@ -149,69 +153,30 @@ export const COMPACT_ABI = [
             type: 'uint256',
           },
           {
-            internalType: 'uint256',
-            name: 'amount',
-            type: 'uint256',
-          },
-          {
-            internalType: 'address',
-            name: 'recipient',
-            type: 'address',
+            components: [
+              {
+                internalType: 'uint256',
+                name: 'claimant',
+                type: 'uint256',
+              },
+              {
+                internalType: 'uint256',
+                name: 'amount',
+                type: 'uint256',
+              },
+            ],
+            internalType: 'struct Component[]',
+            name: 'recipients',
+            type: 'tuple[]',
           },
         ],
-        internalType: 'struct BasicTransfer',
-        name: 'transferPayload',
+        internalType: 'struct AllocatedTransfer',
+        name: 'transfer',
         type: 'tuple',
       },
     ],
     name: 'allocatedTransfer',
     outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  // Allocated Withdrawal
-  {
-    inputs: [
-      {
-        components: [
-          {
-            internalType: 'bytes',
-            name: 'allocatorSignature',
-            type: 'bytes',
-          },
-          {
-            internalType: 'uint256',
-            name: 'nonce',
-            type: 'uint256',
-          },
-          {
-            internalType: 'uint256',
-            name: 'expires',
-            type: 'uint256',
-          },
-          {
-            internalType: 'uint256',
-            name: 'id',
-            type: 'uint256',
-          },
-          {
-            internalType: 'uint256',
-            name: 'amount',
-            type: 'uint256',
-          },
-          {
-            internalType: 'address',
-            name: 'recipient',
-            type: 'address',
-          },
-        ],
-        internalType: 'struct BasicTransfer',
-        name: 'transferPayload',
-        type: 'tuple',
-      },
-    ],
-    name: 'allocatedWithdrawal',
-    outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
@@ -279,15 +244,25 @@ export function isSupportedChain(chainId: number): boolean {
 }
 
 // Type for deposit function arguments
-export type NativeDepositArgs = readonly [`0x${string}`];
-export type TokenDepositArgs = readonly [`0x${string}`, `0x${string}`, bigint];
+export type NativeDepositArgs = readonly [`0x${string}`, `0x${string}`];
+export type TokenDepositArgs = readonly [
+  `0x${string}`,
+  `0x${string}`,
+  bigint,
+  `0x${string}`,
+];
+
+// Component type for transfer recipients
+export interface Component {
+  claimant: bigint; // uint256 encoding lockTag (12 bytes) + address (20 bytes)
+  amount: bigint;
+}
 
 // Type for transfer payload
-export interface BasicTransfer {
-  allocatorSignature: `0x${string}`;
+export interface AllocatedTransfer {
+  allocatorData: `0x${string}`;
   nonce: bigint;
   expires: bigint;
   id: bigint;
-  amount: bigint;
-  recipient: `0x${string}`;
+  recipients: Component[];
 }

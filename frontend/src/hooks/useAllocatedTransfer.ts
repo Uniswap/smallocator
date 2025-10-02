@@ -9,7 +9,7 @@ import {
   COMPACT_ABI,
   COMPACT_ADDRESS,
   isSupportedChain,
-  type BasicTransfer,
+  type AllocatedTransfer,
 } from '../constants/contracts';
 import { useNotification } from './useNotification';
 import {
@@ -77,7 +77,7 @@ export function useAllocatedTransfer() {
     });
 
   const allocatedTransfer = async (
-    transferPayload: BasicTransfer,
+    transferPayload: AllocatedTransfer,
     tokenInfo?: TokenInfo
   ) => {
     if (!publicClient) throw new Error('Public client not available');
@@ -94,10 +94,16 @@ export function useAllocatedTransfer() {
     // Generate a temporary transaction ID for linking notifications
     const tempTxId = `pending-${Date.now()}`;
 
+    // Calculate total amount from recipients
+    const totalAmount = transferPayload.recipients.reduce(
+      (sum, recipient) => sum + recipient.amount,
+      BigInt(0)
+    );
+
     // Format the amount using the token's decimals and symbol if provided, otherwise use a generic format
     const displayAmount = tokenInfo
-      ? `${formatUnits(transferPayload.amount, tokenInfo.decimals)} ${tokenInfo.symbol}`
-      : `${formatUnits(transferPayload.amount, 18)} ETH`; // Default to ETH format
+      ? `${formatUnits(totalAmount, tokenInfo.decimals)} ${tokenInfo.symbol}`
+      : `${formatUnits(totalAmount, 18)} ETH`; // Default to ETH format
 
     showNotification({
       type: 'info',

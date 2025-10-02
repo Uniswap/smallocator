@@ -5,10 +5,12 @@ import { useCompact } from '../hooks/useCompact';
 import { useNotification } from '../hooks/useNotification';
 import { useERC20 } from '../hooks/useERC20';
 import { useAllocatorAPI } from '../hooks/useAllocatorAPI';
+import { useAllocatorId } from '../hooks/useAllocatorId';
 import { useChainConfig } from '../hooks/use-chain-config';
 import { formatResetPeriod } from '../utils/formatting';
 import { getChainName } from '../utils/chains';
 import { SupportedChain } from '../types/chain';
+import { encodeLockTag, ResetPeriod, Scope } from '../utils/lockTag';
 
 type TokenType = 'native' | 'erc20';
 
@@ -28,6 +30,7 @@ export function DepositForm() {
   const { deposit, isConfirming, isConfirmed } = useCompact();
   const { showNotification } = useNotification();
   const { allocatorAddress } = useAllocatorAPI();
+  const { allocatorId } = useAllocatorId(allocatorAddress || undefined);
   const {
     balance,
     allowance,
@@ -154,6 +157,16 @@ export function DepositForm() {
       return;
     }
 
+    if (!allocatorId) {
+      showNotification({
+        type: 'error',
+        title: 'Allocator Not Found',
+        message: 'Unable to get allocator ID for the current chain',
+        chainId,
+      });
+      return;
+    }
+
     if (!address) {
       showNotification({
         type: 'error',
@@ -176,13 +189,20 @@ export function DepositForm() {
     }
 
     try {
-      const hexAllocatorAddress = allocatorAddress as `0x${string}`;
+      // Encode the lockTag with allocator ID, default reset period (10 minutes) and multichain scope
+      const lockTag = encodeLockTag(
+        allocatorId,
+        ResetPeriod.TenMinutes,
+        Scope.Multichain
+      );
+      const recipient = address as `0x${string}`;
 
       let depositResult;
       if (tokenType === 'native') {
         const parsedAmount = parseEther(amount);
         depositResult = await deposit({
-          allocator: hexAllocatorAddress,
+          lockTag,
+          recipient,
           value: parsedAmount,
           displayValue: amount,
           isNative: true,
@@ -191,8 +211,9 @@ export function DepositForm() {
         const parsedAmount = parseUnits(amount, decimals!);
         depositResult = await deposit({
           token: tokenAddress as `0x${string}`,
-          allocator: hexAllocatorAddress,
+          lockTag,
           amount: parsedAmount,
+          recipient,
           displayAmount: amount,
           symbol: symbol || 'tokens',
           isNative: false,
