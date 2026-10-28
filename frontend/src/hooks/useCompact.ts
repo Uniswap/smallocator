@@ -36,7 +36,8 @@ const chains: Record<number, Chain> = {
 };
 
 interface NativeDeposit {
-  allocator: `0x${string}`;
+  lockTag: `0x${string}`;
+  recipient: `0x${string}`;
   value: bigint;
   displayValue: string;
   isNative: true;
@@ -44,8 +45,9 @@ interface NativeDeposit {
 
 interface TokenDeposit {
   token: `0x${string}`;
-  allocator: `0x${string}`;
+  lockTag: `0x${string}`;
   amount: bigint;
+  recipient: `0x${string}`;
   displayAmount: string;
   symbol: string;
   isNative: false;
@@ -145,10 +147,10 @@ export function useCompact() {
       const newHash = await writeContractAsync({
         address: contractAddress,
         abi: [params.isNative ? COMPACT_ABI[0] : COMPACT_ABI[1]],
-        functionName: 'deposit',
+        functionName: params.isNative ? 'depositNative' : 'depositERC20',
         args: params.isNative
-          ? [params.allocator]
-          : [params.token, params.allocator, params.amount],
+          ? [params.lockTag, params.recipient]
+          : [params.token, params.lockTag, params.amount, params.recipient],
         value: params.isNative ? params.value : 0n,
       });
 
